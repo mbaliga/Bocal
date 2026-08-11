@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+
+# Build caches and framework output
+# NOTE: web-standalone/dist/ is intentionally tracked — it is the
+# ready-to-host static build referenced by the 0.2 handoff.
+.next/
+.turbo/
+.vite/
+*.tsbuildinfo
+
+# vinext / Sites runtime scratch (see web-source-v6/README.md)
+.sites-runtime/
+.wrangler/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+yarn-error.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/

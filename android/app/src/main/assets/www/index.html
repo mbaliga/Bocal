@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#08090b" />
+    <meta name="description" content="Bocal: local-first music practice and interactive woodwind learning." />
+    <title>Bocal — Woodwind practice lab</title>
+    <script type="module" crossorigin src="./bocal.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#workspace">Skip to practice workspace</a>
+    <div class="shell">
+      <aside class="rail" aria-label="Primary navigation">
+        <button class="brand" data-route="tune" aria-label="Bocal home"><span class="brand-note">◒</span><b>bocal</b></button>
+        <nav id="main-nav">
+          <button class="nav-item active" data-route="tune"><span>◎</span><b>Tune</b></button>
+          <button class="nav-item" data-route="lab"><span>◫</span><b>Lab</b></button>
+          <button class="nav-item" data-route="pulse"><span>≋</span><b>Pulse</b></button>
+          <button class="nav-item" data-route="sound"><span>◉</span><b>Sound</b></button>
+          <button class="nav-item" data-route="analyze"><span>⌁</span><b>Analyze</b></button>
+          <button class="nav-item" data-route="practice"><span>✓</span><b>Practice</b></button>
+        </nav>
+        <div class="local-badge">▣ Device only</div>
+      </aside>
+
+      <div class="stage">
+        <header class="topbar">
+          <label class="instrument-field">Instrument
+            <select id="instrument-select" aria-label="Instrument"></select>
+          </label>
+          <div class="top-actions">
+            <span id="session-clock" class="session-clock">00:00</span>
+            <button id="session-toggle" class="button subtle">Start practice</button>
+          </div>
+        </header>
+
+        <main id="workspace" tabindex="-1">
+          <section class="view active" data-view="tune" aria-labelledby="tune-title">
+            <div class="view-head"><div><p class="eyebrow">Live pitch</p><h1 id="tune-title">Find the center. Keep the sound alive.</h1></div><span id="mic-state" class="status-pill">Mic off</span></div>
+            <div class="tuner-layout">
+              <article class="card tuner-card">
+                <div class="tuner-tools"><button id="mic-toggle" class="icon-action">◉ Listen</button><button id="reference-tone" class="icon-action">▶ Reference</button></div>
+                <div class="pitch-hero">
+                  <div id="written-note" class="note-name">A</div><sup id="note-octave">4</sup>
+                  <p><span id="frequency">440.0</span> Hz · <span id="concert-note">Concert C4</span></p>
+                </div>
+                <div class="cent-gauge" aria-label="Pitch deviation in cents"><div class="gauge-center"></div><div id="cent-marker" class="cent-marker"></div></div>
+                <div class="cent-label"><span>♭ 50</span><strong id="cents">0.0 cents · centered</strong><span>50 ♯</span></div>
+                <canvas id="pitch-trace" width="900" height="150" aria-label="Recent pitch trace"></canvas>
+              </article>
+              <aside class="side-stack">
+                <article class="card compact-card"><p class="eyebrow">Tuner setup</p>
+                  <label>Concert A <output id="a4-output">440 Hz</output><input id="a4" type="range" min="415" max="466" value="440" /></label>
+                  <label>In-tune window<select id="tolerance"><option value="5">±5 cents · precise</option><option value="10" selected>±10 cents · practice</option><option value="20">±20 cents · beginner</option></select></label>
+                  <label>Pitch display<select id="pitch-display"><option value="written" selected>Written + concert</option><option value="concert">Concert only</option></select></label>
+                </article>
+                <article class="card compact-card"><p class="eyebrow">This session</p><div class="metric-grid"><div><strong id="in-tune-score">—</strong><span>in tune</span></div><div><strong id="stability-score">—</strong><span>stability</span></div><div><strong id="detected-count">0</strong><span>frames</span></div><div><strong id="range-score">—</strong><span>range</span></div></div></article>
+              </aside>
+            </div>
+          </section>
+
+          <section class="view" data-view="lab" aria-labelledby="lab-title">
+            <div class="view-head"><div><p class="eyebrow">Interactive instrument</p><h1 id="lab-title">Touch a key. See the written and sounding note.</h1></div><button id="reset-camera" class="button subtle">Reset view</button></div>
+            <div class="lab-layout">
+              <article class="card model-card"><div id="model-canvas" aria-label="Interactive 3D woodwind model"></div><div class="model-overlay"><b id="model-name">Alto saxophone</b><span id="model-status">Loading model…</span></div><div class="drag-hint">Drag to orbit · wheel to zoom · tap a control</div></article>
+              <aside class="card fingering-card">
+                <p class="eyebrow">Control map</p><h2 id="selected-control">Choose a key or tone hole</h2><p id="control-detail">Named controls in the GLB are clickable and carry educational metadata.</p>
+                <div id="note-browser" class="note-browser" aria-label="Alto sax fingering notes"></div>
+                <div class="key-summary"><span>Pressed controls</span><strong id="pressed-keys">Open</strong></div>
+                <p id="fingering-result" class="callout">Alto sax includes a core written B♭3–F6 map. Other families currently teach parts and hand topology and require specialist validation before note-level claims.</p>
+              </aside>
+            </div>
+          </section>
+
+          <section class="view" data-view="pulse" aria-labelledby="pulse-title">
+            <div class="view-head"><div><p class="eyebrow">Advanced metronome foundation</p><h1 id="pulse-title">Make time physical, visible and audible.</h1></div><span id="beat-status" class="status-pill">Stopped</span></div>
+            <div class="pulse-layout">
+              <article class="card metro-card">
+                <div class="tempo-row"><button id="tempo-down" aria-label="Decrease tempo">−</button><strong id="tempo">96</strong><button id="tempo-up" aria-label="Increase tempo">+</button></div><p class="tempo-unit">beats per minute</p>
+                <input id="tempo-slider" type="range" min="30" max="260" value="96" aria-label="Tempo" />
+                <div id="beat-lights" class="beat-lights"></div>
+                <div class="primary-actions"><button id="tap-tempo" class="button subtle">Tap tempo</button><button id="metro-toggle" class="button accent">Start pulse</button></div>
+              </article>
+              <aside class="control-column">
+                <article class="card compact-card"><label>Meter<select id="meter"><option>2/4</option><option>3/4</option><option selected>4/4</option><option>5/4</option><option>6/8</option><option>7/8</option><option>9/8</option><option>12/8</option></select></label><label>Subdivision<select id="subdivision"><option value="1">Quarter</option><option value="2" selected>Eighths</option><option value="3">Triplets</option><option value="4">Sixteenths</option></select></label></article>
+                <article class="card switch-card"><label><input id="accent" type="checkbox" checked /> Accent downbeat</label><label><input id="random-silence" type="checkbox" /> Random beat silence</label><label><input id="haptics" type="checkbox" /> Haptic pulse</label></article>
+                <article class="card compact-card"><p class="eyebrow">Timer</p><label>Minutes<input id="practice-minutes" type="number" min="1" max="120" value="10" /></label><button id="timed-practice" class="button subtle full">Start timed block</button></article>
+              </aside>
+            </div>
+          </section>
+
+          <section class="view" data-view="sound" aria-labelledby="sound-title">
+            <div class="view-head"><div><p class="eyebrow">Tone generator & ear work</p><h1 id="sound-title">Build a drone, then tune the room around it.</h1></div><button id="stop-tones" class="button subtle">Stop all</button></div>
+            <article class="card sound-card"><div id="keyboard" class="keyboard" aria-label="Two-octave chromatic keyboard"></div><div class="sound-controls"><label>Wave<select id="wave"><option>sine</option><option selected>triangle</option><option>sawtooth</option><option>square</option></select></label><label>Octave<select id="tone-octave"><option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option></select></label><label>Temperament<select id="temperament"><option value="equal" selected>Equal</option><option value="just-major">Just major</option><option value="pythagorean">Pythagorean</option></select></label><label><input id="sustain" type="checkbox" checked /> Sustain chord</label></div><p class="callout">Reference synthesis is deliberately simple in this handoff. Production parity requires licensed or newly recorded multisamples for each instrument family.</p></article>
+          </section>
+
+          <section class="view" data-view="analyze" aria-labelledby="analyze-title">
+            <div class="view-head"><div><p class="eyebrow">Sound analysis</p><h1 id="analyze-title">See pitch shape, harmonic balance and steadiness.</h1></div><span class="status-pill">Uses live tuner input</span></div>
+            <div class="analysis-grid"><article class="card analysis-card"><h2>Waveform & pitch</h2><canvas id="waveform" width="900" height="260"></canvas></article><article class="card analysis-card"><h2>Harmonic energy</h2><canvas id="harmonics" width="900" height="260"></canvas></article><article class="card compact-card"><p class="eyebrow">Tone snapshot</p><div class="metric-grid"><div><strong id="brightness">—</strong><span>brightness</span></div><div><strong id="clarity">—</strong><span>clarity</span></div><div><strong id="note-start">—</strong><span>note start</span></div><div><strong id="vibrato">—</strong><span>vibrato span</span></div></div></article><article class="card compact-card"><p class="eyebrow">Interpretation</p><p class="callout">These metrics describe the signal, not whether a tone is “good.” Bocal should teach a player to compare intentional sounds across contexts, not optimize toward one universal timbre.</p></article></div>
+          </section>
+
+          <section class="view" data-view="practice" aria-labelledby="practice-title">
+            <div class="view-head"><div><p class="eyebrow">Practice journal</p><h1 id="practice-title">A plan you can finish—and evidence you can use.</h1></div><button id="export-data" class="button subtle">Export local data</button></div>
+            <div class="practice-grid"><article class="card plan-card"><h2>Today’s focus</h2><div id="plan-items"></div><button id="add-plan" class="button subtle full">Add focus item</button></article><article class="card compact-card"><p class="eyebrow">Recent sessions</p><div id="session-list" class="session-list"></div></article><article class="card recorder-card"><h2>Local recorder</h2><p>Record a phrase, listen back, and download it. Audio stays in this tab unless you save it.</p><div class="primary-actions"><button id="record-toggle" class="button accent">Start recording</button><button id="clear-recordings" class="button subtle">Clear list</button></div><div id="recordings" class="recordings"></div></article><article class="card compact-card"><p class="eyebrow">Lesson note</p><textarea id="lesson-note" rows="8" placeholder="What did your teacher ask you to notice?"></textarea><button id="save-note" class="button subtle full">Save on device</button></article></div>
+          </section>
+        </main>
+
+        <nav class="mobile-nav" aria-label="Mobile navigation"></nav>
+      </div>
+    </div>
+    <noscript>Bocal needs JavaScript for audio analysis and interactive 3D.</noscript>
+  </body>
+</html>
