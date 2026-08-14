@@ -23,11 +23,11 @@ required=[
 missing=[str(x) for x in required if not x.exists()]
 if missing: raise SystemExit('FAIL: missing required files: '+', '.join(missing))
 ui=(root/'app/src/main/java/com/bocal/music/ui/BocalApp.kt').read_text()
-for screen in ['TUNE("Tune"','LAB("3D lab"','PULSE("Pulse"','ANALYZE("Analyze"','PRACTICE("Practice"']:
-    if screen not in ui: raise SystemExit('FAIL: latest five-tab surface missing '+screen)
-if 'loadUrl("https://appassets.androidplatform.net/assets/www/lab.html")' not in ui:
-    raise SystemExit('FAIL: Android lab is not wired to the 0.4 detailed local viewer')
-print('PASS: XML parses; zero INTERNET permission; latest five-tab Android shell and local detailed Lab are wired')
+for screen in ['TUNE("Tune"','LAB("Lab"','SOUND("Sound"','PULSE("Pulse"','ANALYZE("Analyze"','PRACTICE("Practice"']:
+    if screen not in ui: raise SystemExit('FAIL: latest six-tab surface missing '+screen)
+if 'https://appassets.androidplatform.net/assets/www/lab.html?instrument=' not in ui:
+    raise SystemExit('FAIL: Android lab is not wired to the detailed local viewer with a selected instrument')
+print('PASS: XML parses; zero INTERNET permission; latest six-tab Android shell and local detailed Lab are wired')
 PY
 
 python3 scripts/validate-assets.py
