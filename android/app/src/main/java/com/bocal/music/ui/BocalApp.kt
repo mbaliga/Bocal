@@ -151,18 +151,6 @@ private enum class InstrumentProfile(
         validationLabel = "Anatomy preview",
         labBoundary = "Detailed mechanism preview, not a fingering trainer."
     ),
-    CLARINET(
-        id = "clarinet",
-        title = "Clarinet",
-        shortTitle = "Clarinet",
-        keyLabel = "B♭",
-        heroTitle = "Detailed clarinet anatomy",
-        heroCopy = "Licensed clarinet mesh added for non-commercial Bocal releases. Rich part exploration now; validated fingering map comes later.",
-        visualLabel = "CLARINET · PREVIEW",
-        visualAccent = Color(0xFF8ED7FF),
-        validationLabel = "Anatomy preview",
-        labBoundary = "Detailed clarinet preview. Fingering claims remain disabled until a dedicated control graph is reviewed."
-    ),
 }
 
 @Composable
@@ -1188,7 +1176,6 @@ private fun shareSessions(context: Context, sessions: List<PracticeSession>) {
 private fun instrumentTransposition(instrument: InstrumentProfile): Int = when (instrument) {
     InstrumentProfile.ALTO_SAX -> 9
     InstrumentProfile.OBOE -> 0
-    InstrumentProfile.CLARINET -> 2
 }
 
 private fun vibrate(context: Context, downbeat: Boolean) {

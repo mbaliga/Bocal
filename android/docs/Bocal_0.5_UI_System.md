@@ -7,7 +7,7 @@ This document records the 0.5 design update requested for the next packaged sour
 - Replace the old plain bottom navigation with a floating two-tier dock.
 - Top tier = contextual utility row with:
   - left circular quick action to jump to Lab,
-  - central rounded segmented control for instrument context (`Alto`, `Oboe`, `Clarinet`),
+  - central rounded segmented control for instrument context (`Alto`, `Oboe` — see §3 on the dropped clarinet),
   - right circular quick action to jump to Practice.
 - Bottom tier = primary navigation dock.
   - The active destination expands into a filled capsule with glyph + label.
@@ -27,6 +27,13 @@ This document records the 0.5 design update requested for the next packaged sour
 - Neutral evidence always outranks decorative scoring.
 
 ## 3) Clarinet integration rules
+
+> **Superseded — clarinet is not shipped.** The clarinet model is CC-BY-NC-4.0 and
+> forbids commercial use, so it was removed to keep Bocal commercially licensable.
+> The instrument selector offers Alto and Oboe only. The rules below are retained as
+> the design contract to reuse *if* a commercially-licensed clarinet model is sourced;
+> the licensing rule in the last bullet is exactly why this section is inactive. See
+> `MODEL_MANIFEST.md` and `CHANGELOG_0.5.md`.
 
 - Clarinet is added as a runtime instrument option in the shared instrument selector.
 - Current clarinet scope in 0.5 is **anatomy preview only**.

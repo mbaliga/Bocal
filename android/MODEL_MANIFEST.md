@@ -8,7 +8,6 @@ Only detailed models with usable provenance and acceptable runtime boundaries ar
 |---|---|---|---|---|
 | `alto-sax` | Modern E-flat alto saxophone | Licensed detailed reference | CC-BY-4.0 | Validated fingering graph over detailed mesh |
 | `oboe` | Howarth Conservatoire S20C | Licensed detailed reference | CC-BY-4.0 | Anatomy/part inspector only |
-| `clarinet` | Clarinet model with annotations | Licensed detailed reference | CC-BY-NC-4.0 | Anatomy/part inspector only for free non-commercial Bocal packaging |
 
 ## Alto saxophone
 
@@ -34,17 +33,20 @@ The model is used as a high-detail anatomy reference.
 
 **Disabled:** note-to-fingering, fingering-to-note, educational linkage claims.
 
-## Clarinet
-
-**Credit:** `Clarinet model (with annotations)` by Henry Chi, licensed under CC-BY-NC-4.0. License text: `app/src/main/assets/www/licenses/clarinet-CC-BY-NC-4.0.txt`.
-
-The clarinet model is bundled in 0.5 because this packaged source handoff is treated as a free non-commercial release artifact.
-
-**Enabled:** orbit, four views, part selection, temporary highlighting, source credit, model preview inside the shared Lab shell.
-
-**Disabled:** note-to-fingering, fingering-to-note, educational linkage claims, and any commercial redistribution claim under this license.
-
 ## Excluded detailed candidates
+
+### Clarinet model (with annotations)
+
+`Clarinet model (with annotations)` by Henry Chi is licensed CC-BY-NC-4.0, whose
+NonCommercial term forbids commercial use.
+
+The original 0.5 source bundled it, on the premise that the handoff was a free
+non-commercial release artifact. That premise was not adopted: Bocal is kept
+commercially licensable, so the model, its textures and its licence text were removed
+and the instrument returned to this exclusion list — the position 0.4 held.
+
+Restoring a clarinet to the Lab means sourcing a model whose licence permits
+commercial use, not reinstating this one.
 
 ### Other saxophone archives
 

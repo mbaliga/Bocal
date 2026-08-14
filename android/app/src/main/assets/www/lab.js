@@ -207,19 +207,14 @@ function configureInstrumentUI(id) {
     setViewLabels(['Player','Left controls','Right controls','Thumb / back']);
     renderSaxState();
   } else {
-    const isClarinet = id === 'clarinet';
-    $('instrument-kicker').textContent = `INSTRUMENT LAB · ${isClarinet ? 'CLARINET' : 'OBOE'} ANATOMY PREVIEW`;
-    $('lab-title').textContent = isClarinet ? 'Inspect the clarinet mechanism.' : 'Inspect the real mechanism.';
-    $('lab-copy').textContent = isClarinet
-      ? 'This clarinet reference keeps the mesh explorable for part inspection today. Fingering lessons stay disabled until a clarinet-specific control graph is reviewed.'
-      : 'This optimized reference keeps the model’s separately authored rods, springs and key assemblies selectable. Fingering lessons will follow only after expert validation.';
-    $('parts-title').textContent = isClarinet ? 'Inspect the clarinet mechanism.' : 'Inspect the real mechanism.';
-    $('parts-copy').textContent = isClarinet
-      ? 'The clarinet model is integrated as a mobile-friendly anatomy preview. Use it to inspect part relationships, not to infer validated fingering.'
-      : 'This optimized Howarth S20C reference keeps separately authored rods, springs and key assemblies selectable. Fingering lessons stay locked until expert validation.';
-    $('reference-name').textContent = isClarinet ? 'Clarinet reference model' : 'Howarth S20C';
-    $('reference-meta').textContent = isClarinet ? 'Mobile-ready preview · non-commercial attribution asset' : 'Optimized for mobile · 392 separated meshes';
-    $('preview-status').textContent = isClarinet ? '◉ Clarinet preview, not fingering trainer' : '◉ Preview, not fingering trainer';
+    $('instrument-kicker').textContent = 'INSTRUMENT LAB · OBOE ANATOMY PREVIEW';
+    $('lab-title').textContent = 'Inspect the real mechanism.';
+    $('lab-copy').textContent = 'This optimized reference keeps the model’s separately authored rods, springs and key assemblies selectable. Fingering lessons will follow only after expert validation.';
+    $('parts-title').textContent = 'Inspect the real mechanism.';
+    $('parts-copy').textContent = 'This optimized Howarth S20C reference keeps separately authored rods, springs and key assemblies selectable. Fingering lessons stay locked until expert validation.';
+    $('reference-name').textContent = 'Howarth S20C';
+    $('reference-meta').textContent = 'Optimized for mobile · 392 separated meshes';
+    $('preview-status').textContent = '◉ Preview, not fingering trainer';
     setViewLabels(['Front','Left','Right','Back']);
     $('selected-part').textContent = 'Tap any visible mechanism';
     $('part-detail').textContent = 'Part inspection changes no fingering state.';
@@ -356,7 +351,7 @@ function playSelectedTone(){
 function inspectPreviewPart(event){
   if(!state.model)return; const rect=canvas.getBoundingClientRect(); pointer.x=((event.clientX-rect.left)/rect.width)*2-1; pointer.y=-((event.clientY-rect.top)/rect.height)*2+1; raycaster.setFromCamera(pointer,camera);
   const hits=raycaster.intersectObject(state.model,true).filter(h=>h.object?.isMesh); if(!hits.length)return; clearSelection(); const mesh=hits[0].object; state.selectedMesh=mesh;
-  $('selected-part').textContent=mesh.name || mesh.parent?.name || (state.instrument === 'clarinet' ? 'Authored clarinet mechanism' : 'Authored oboe mechanism');
+  $('selected-part').textContent=mesh.name || mesh.parent?.name || 'Authored oboe mechanism';
   const faces=mesh.geometry?.index ? Math.floor(mesh.geometry.index.count/3) : Math.floor((mesh.geometry?.attributes?.position?.count||0)/3);
   $('part-detail').textContent=`Selectable mesh · approximately ${faces.toLocaleString()} triangles · anatomy preview only.`;
   const mats=Array.isArray(mesh.material)?mesh.material:[mesh.material]; mats.filter(Boolean).forEach(mat=>{ const original={mat,emissive:mat.emissive?.clone?.(),intensity:mat.emissiveIntensity}; state.selectedMaterialStates.push(original); if(mat.emissive){mat.emissive.set(0x19ecd1);mat.emissiveIntensity=.55;} });

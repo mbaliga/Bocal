@@ -16,14 +16,10 @@ Bundled license text:
 
 `app/src/main/assets/www/licenses/howarth-s20c-CC-BY-4.0.txt`
 
-## Clarinet model (with annotations)
-
-Model: `Clarinet model (with annotations)` by Henry Chi. License: Creative Commons Attribution-NonCommercial 4.0 International (CC-BY-NC-4.0).
-
-Bundled license text:
-
-`app/src/main/assets/www/licenses/clarinet-CC-BY-NC-4.0.txt`
-
 ## Three.js runtime
 
 Bocal packages local Three.js ES modules and official example loaders/controls. The packaged Three.js module identifies the code as MIT-licensed. The MIT license text is bundled at `app/src/main/assets/www/licenses/threejs-MIT.txt`.
+
+## Excluded on licence grounds
+
+`Clarinet model (with annotations)` by Henry Chi was bundled in the original 0.5 source under CC-BY-NC-4.0. It has been removed: the NonCommercial term forbids commercial use, and Bocal is kept commercially licensable. Every remaining bundled asset permits commercial use with attribution.
