@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#070809" />
+  <title>Bocal Instrument Lab</title>
+  <link rel="stylesheet" href="./lab.css" />
+</head>
+<body>
+  <main class="lab-shell">
+    <section class="intro">
+      <div class="context-row">
+        <div>
+          <span class="eyebrow" id="instrument-kicker">INSTRUMENT LAB · VALIDATED ALTO</span>
+          <h1 id="lab-title">See the touch. Follow the mechanism.</h1>
+          <p id="lab-copy">Choose a written note or tap a target on the detailed saxophone. Solid cyan marks the player touch; the trace explains the linked mechanism.</p>
+        </div>
+        <select id="instrument-select" aria-label="Instrument"></select>
+      </div>
+      <div id="mode-switch" class="segmented two" role="group" aria-label="Training mode">
+        <button data-mode="learn" class="active">◉ Learn</button>
+        <button data-mode="challenge">⌁ Challenge</button>
+      </div>
+      <div id="note-browser" class="note-browser" role="group" aria-label="Written note selector"></div>
+      <div class="truth-strip">
+        <span>◈</span>
+        <div><strong id="model-truth">Licensed detailed mesh · validated fingering graph</strong><small id="model-boundary">Pedagogical anchor overlay; not service CAD.</small></div>
+        <button id="credit-button">Model credit ↗</button>
+      </div>
+    </section>
+
+    <section class="viewer-card">
+      <canvas id="model-canvas" role="img" aria-label="Interactive instrument model. Use the note, view, and control lists for an accessible equivalent."></canvas>
+      <div class="viewer-actions"><button id="interaction-button" class="round active" aria-label="Toggle model interaction">☝</button><button id="reset-button" class="round" aria-label="Reset model view">↻</button></div>
+      <div id="legend" class="legend"><span><i class="solid"></i>Finger here</span><span><i class="outline"></i>Available touch</span><span><i class="gold"></i>Detailed keywork</span></div>
+      <div id="view-switch" class="segmented four view-switch" role="group" aria-label="Model view">
+        <button data-view="front" class="active">Player</button><button data-view="left">Left controls</button><button data-view="right">Right controls</button><button data-view="back">Thumb / back</button>
+      </div>
+      <div id="anchor-layer" aria-hidden="false"></div>
+      <div class="pitch-badge" id="pitch-badge"><small>WRITTEN PITCH</small><strong id="badge-note">A<sup>4</sup></strong><span id="badge-level">Middle register</span></div>
+      <div class="drag-chip">☝ Drag to orbit</div>
+      <div id="loading" class="loading">Loading detailed instrument…</div>
+    </section>
+
+    <section id="sax-panel" class="info-card">
+      <div class="pitch-grid"><div><small>WRITTEN</small><strong id="written-pitch">A<sup>4</sup></strong></div><div class="arrow">→</div><div><small>CONCERT PITCH</small><strong id="concert-pitch">C4</strong></div></div>
+      <button id="hear-button" class="primary">🔊 Hear 261.6 Hz</button>
+      <div class="hint-card"><span>✦</span><p id="finger-hint">Left index and middle fingers. Keep the ring finger hovering close.</p></div>
+      <div class="contact-head"><span>Finger contacts</span><b id="contact-count">2</b></div>
+      <div id="contact-list" class="contact-list"></div>
+      <div id="challenge-result" class="challenge-result" role="status" aria-live="polite" hidden></div>
+      <button id="check-button" class="secondary" hidden>Check fingering</button>
+    </section>
+
+    <section id="oboe-panel" class="info-card" hidden>
+      <span class="eyebrow purple">PART INSPECTOR</span>
+      <h2 id="parts-title">Inspect the real mechanism.</h2>
+      <p id="parts-copy">This optimized Howarth S20C reference keeps separately authored rods, springs and key assemblies selectable. Fingering lessons stay locked until expert validation.</p>
+      <div class="reference-card"><small>REFERENCE INSTRUMENT</small><strong id="reference-name">Howarth S20C</strong><span id="reference-meta">Optimized for mobile · 392 separated meshes</span></div>
+      <div class="selected-part"><small>SELECTED PART</small><strong id="selected-part">Tap any visible mechanism</strong><span id="part-detail">Part inspection changes no fingering state.</span></div>
+      <div class="boundary-pill" id="preview-status">◉ Preview, not fingering trainer</div>
+    </section>
+
+    <section class="release-note">
+      <span class="eyebrow purple">MODEL TRUTH</span>
+      <p id="release-truth">Bocal keeps validated fingering data separate from licensed display geometry. A detailed mesh is not treated as educational truth until its control graph is reviewed.</p>
+    </section>
+  </main>
+
+  <dialog id="credit-dialog" aria-labelledby="credit-title">
+    <div class="dialog-card"><button id="close-credit" aria-label="Close">×</button><span class="eyebrow">MODEL CREDIT</span><h2 id="credit-title"></h2><p id="credit-copy"></p><pre id="credit-license"></pre></div>
+  </dialog>
+  <script type="module" src="./lab.js"></script>
+</body>
+</html>

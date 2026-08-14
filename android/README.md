@@ -1,42 +1,145 @@
-# Bocal Android reference app
+# Bocal Android 0.4
 
-This is the native Android source used for the Bocal handoff. It is a Kotlin/Jetpack Compose project with a native microphone tuner, metronome, reference-tone generator, tone snapshot, local practice journal, and a local WebView shell for the interactive 3D laboratory. The 3D HTML, JavaScript bundle, catalog, and 35 GLB files are packaged under `app/src/main/assets/www`; the app declares no `INTERNET` permission.
+Bocal 0.4 is the merged native Android foundation for the latest Bocal product direction: local-first audio and practice tools in Kotlin/Jetpack Compose, plus a fully local detailed Instrument Lab for validated alto-sax fingering and honest oboe anatomy exploration.
 
-## Honest release status
+## What changed in 0.4
 
-This environment did not contain the Android SDK, Build Tools, `aapt2`, Gradle, or an existing Gradle wrapper JAR. I therefore could not compile, sign, install, or device-test an APK here. No dummy or renamed archive is supplied as an APK.
+### Latest task shell and visual language
 
-The source is designed for the current documented toolchain as of 10 August 2026:
+- Five bottom tasks: **Tune, 3D lab, Pulse, Analyze, Practice**.
+- Near-black surfaces, cyan measured/active state, violet context, restrained gold instrument accents, rounded cards and explicit text/shape redundancy.
+- Latest tuner hierarchy: written note first, concert note secondary, signed cents, stable-note state, Signal Truth guidance, Fingering Lab entry and Current Evidence.
+- Latest Instrument Lab patterns: Learn/Challenge, note browser, model-truth/credit strip, four named views, direct model interaction, written/concert pitch card, local reference tone, fingering contact list and explicit validation boundary.
+- The Lab is responsive and scrollable inside a local `WebViewAssetLoader` surface; no hosted UI is required.
 
-- Android Studio with JDK 17
-- Android SDK Platform 36 and Build Tools 36.0.0
-- Android Gradle Plugin 9.3.0 and Gradle 9.5.0
-- built-in Kotlin plus Compose compiler plugin 2.3.21
-- min SDK 26; target SDK 36
+### Detailed runtime models — no procedural placeholders
+
+0.4 deliberately removes the 0.2/0.3 procedural woodwind GLBs from the runtime package.
+
+Included:
+
+- **Alto saxophone** — licensed CC-BY-4.0 detailed reference mesh, 8 glTF meshes, 10 glTF nodes, **104,547 triangles**. Bocal overlays the validated 23-touch-piece control graph and 33 chromatic written fingerings from B-flat3 through F-sharp6. Four view filters expose player/front, left controls, right controls and thumb/back relationships.
+- **Howarth Conservatoire S20C oboe** — licensed CC-BY-4.0 detailed reference, **392 meshes, 907 glTF nodes, 126,716 triangles**. Its original 4K textures are mobile-capped to 2K. It is an anatomy/part inspector only until an oboe fingering graph receives equivalent expert validation.
+
+Not included:
+
+- The available detailed clarinet source is CC-BY-NC-4.0. It is intentionally excluded from a potentially commercial Bocal build.
+- The older generated 35-instrument family is intentionally excluded because the user specifically requested no placeholder procedural models.
+- Alternate sax packages with unknown or redundant provenance are not used when the selected detailed CC-BY source is already present.
+
+See `MODEL_MANIFEST.md` and the license files under `app/src/main/assets/www/licenses/`.
+
+## Validated sax interaction contract
+
+Runtime sax metadata lives at:
+
+`app/src/main/assets/www/data/sax-metadata.json`
+
+The validation script enforces:
+
+- exactly **23** player touch-pieces;
+- exactly **23** mechanics entries;
+- exactly **33** chromatic written fingerings, B-flat3 through F-sharp6;
+- no fingering references to unknown controls;
+- primary and documented alternate routes remain representable;
+- display geometry is not mislabeled as service-CAD geometry.
+
+The detailed licensed mesh does not contain Bocal-authored stable `control_*` nodes. 0.4 therefore projects the validated pedagogical control graph onto the actual mesh surface with local Three.js raycasts. That makes the model useful for teaching without pretending the licensed mesh itself is the validation authority.
+
+## Native features retained from 0.3
+
+- **Tune** — foreground `AudioRecord`, clean-room YIN detector, stable-note hysteresis/dropout handling, adjustable A4/tolerance, concert/E-flat/B-flat mapping, signed cents, gauge and bounded trace.
+- **Pulse** — native scheduler, tap tempo, meter/subdivision, visual beat state and optional haptics; live changes restart the active timeline cleanly.
+- **Reference tone engine** — local looping `AudioTrack` oscillator remains available to product surfaces and the Lab has its own local Web Audio reference-note control.
+- **Analyze** — user-initiated microphone snapshot using the same stable-note gate as Tune.
+- **Practice** — local timer, lesson note, recent sessions and explicit FileProvider-backed `.bocalbundle` export.
+
+The Android manifest declares `RECORD_AUDIO` and `VIBRATE`; it deliberately does **not** declare `android.permission.INTERNET`.
+
+## Local Instrument Lab architecture
+
+`LabScreen` loads only:
+
+`https://appassets.androidplatform.net/assets/www/lab.html`
+
+through `WebViewAssetLoader`. The HTML, CSS, Three.js runtime, GLTFLoader, OrbitControls, catalogs, model files, textures and license text all ship inside the APK assets. There is no CDN or hosted model dependency.
+
+The Lab supports:
+
+- detailed alto and oboe selector;
+- four orientation views;
+- orbit/reset controls;
+- sax note -> fingering display;
+- sax manual control selection -> exact fingering reverse match;
+- Challenge mode against primary/validated alternate fingering routes;
+- linked-pad/mechanism text traces from the validated source contract;
+- oboe mesh picking and part highlighting without fingering claims;
+- local license/credit dialog.
+
+## Checks completed in this workspace
+
+```text
+PASS: detailed sax/oboe assets, 2K textures, licenses, and validated sax interaction metadata
+PASS: alto sax = 104,547 triangles; 23 touch-pieces; 33 written fingerings
+PASS: oboe = 392 meshes; 126,716 triangles; anatomy-preview boundary
+PASS: XML parses; zero INTERNET permission; latest five-tab Android shell and local detailed Lab are wired
+PASS: local Lab JavaScript syntax
+PASS: YIN, pitch/transposition math, and stable-note gating
+```
+
+Run them with:
+
+```bash
+./static-check.sh
+./pure-smoke-test.sh
+```
+
+## Supported build toolchain
+
+The project is configured for:
+
+- JDK 17
+- min SDK 26
+- compile/target SDK 36
+- Android Gradle Plugin 9.3.0
+- Gradle 9.5.0
+- Kotlin/Compose compiler plugin 2.3.21
+- Compose BOM 2026.06.00
+- Activity Compose 1.13.0
+- Lifecycle Runtime Compose 2.11.0
+- AndroidX WebKit 1.16.0
 
 ## Build a debug APK
 
-1. Open this `android` folder in Android Studio.
-2. Let Android Studio install Platform 36, Build Tools 36.0.0, and Gradle 9.5.0 when prompted.
-3. Use **Build > Build APK(s)**, or run `./build-apk.sh` after the IDE has generated/downloaded the wrapper.
-4. Find the result at `app/build/outputs/apk/debug/app-debug.apk`.
-5. Run `./verify-apk.sh app/build/outputs/apk/debug/app-debug.apk` to verify that the file is a real ZIP/APK and inspect its manifest if `apkanalyzer` is installed.
+This source tree intentionally does not fake an APK. On a machine with Android SDK Platform 36, Build Tools 36.0.0 and Gradle 9.5.0 available:
 
-For a Play release, create a private signing key outside the repository, configure signing via local environment/Gradle properties, run the unit tests, and produce an AAB with `:app:bundleRelease`. Never commit the keystore or passwords.
+```bash
+./build-apk.sh
+```
 
-## Test checklist before distribution
+Expected output:
 
-- `:app:testDebugUnitTest` passes (including 440 Hz and silence cases).
-- Microphone denial and later grant both recover cleanly.
-- Tune on at least a low-, mid-, and high-latency Android device; record measured callback latency rather than assuming it.
-- Validate saxophone fundamentals, overtones, vibrato, altissimo, noisy rooms, and phone cases that occlude microphones.
-- Check metronome drift over 30 minutes and behavior across audio focus changes.
-- Inspect all models on a small phone, tablet, and TalkBack; verify every status has text/shape as well as color.
-- Confirm the WebView performs no network requests and all 35 models load from app assets.
-- Conduct fingering review with instrument specialists before enabling note-level lessons for any model beyond the alto sax core chart.
+`app/build/outputs/apk/debug/app-debug.apk`
 
-## Architecture boundary
+`verify-apk.sh` checks the APK container and, when `apkanalyzer` is installed, prints application ID and permissions.
 
-The native UI is deliberately small and task-first. Microphone and time-critical interactions are native. The local WebView is used only as a portable renderer for the Three.js/glTF learning lab. A production build can replace that layer with Filament without changing the `catalog.json` or named-control conventions.
+## Release gates still required
 
-This source is a verifiable engineering reference, not a claim of finished TonalEnergy parity. See the product handoff and parity matrix for the remaining program.
+0.4 is a materially better source release, but source validation is not physical-device certification. Before a public release:
+
+- compile all Android sources with the real SDK and run JVM/instrumented tests;
+- test on API 26 plus representative mid-range and current high-end devices;
+- measure microphone routing, interruption, Bluetooth behavior, latency and thermal impact;
+- run labeled woodwind pitch/error benchmarks and long metronome drift tests;
+- visually QA both detailed models in Android System WebView, including renderer death/recovery and low-memory devices;
+- complete TalkBack, large-text, switch access, reduced-motion and contrast checks;
+- obtain the remaining hands-on sax teacher/repair-tech sign-off before calling the detailed overlay human-certified;
+- build and review an oboe-specific control/fingering graph before enabling oboe fingering lessons.
+
+Bocal 0.4 is intentionally strict about the distinction between **detailed display geometry**, **source-validated musical metadata**, and **human-certified educational truth**.
+
+## 0.4.1 release-hardening addendum (2026-08-13)
+
+This source snapshot includes lifecycle/audio, WebView-origin, backup-privacy, accessibility and instrumentation hardening. See `RELEASE_HARDENING_REPORT_0.4.1.md` and `DEVICE_TEST_PLAN.md`.
+
+A verified debug APK is **not** included because this execution environment exposes no Android SDK/Gradle/adb target and cannot bootstrap them over shell networking. Do not treat a source-only check as device certification. The included release scripts deliberately fail closed until a real Android build/target is available.

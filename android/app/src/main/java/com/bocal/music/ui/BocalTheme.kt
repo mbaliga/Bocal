@@ -1,48 +1,33 @@
 package com.bocal.music.ui
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-val BocalViolet = Color(0xFF9B8CFF)
-val BocalCyan = Color(0xFF39E8CF)
-val BocalInk = Color(0xFF171820)
-val BocalSurface = Color(0xFF20212A)
-val BocalPaper = Color(0xFFF6F5FA)
+val BocalViolet = Color(0xFF9F86FF)
+val BocalCyan = Color(0xFF19ECD1)
+val BocalGold = Color(0xFFC89134)
+val BocalInk = Color(0xFF070809)
+val BocalSurface = Color(0xFF101114)
 
-private val DarkColors = darkColorScheme(
-    primary = BocalViolet,
-    onPrimary = Color(0xFF121219),
-    secondary = BocalCyan,
-    onSecondary = Color(0xFF071B18),
-    background = Color(0xFF111218),
-    onBackground = Color(0xFFF4F2FA),
+private val BocalDarkColors = darkColorScheme(
+    primary = BocalCyan,
+    onPrimary = Color(0xFF04231E),
+    secondary = BocalViolet,
+    onSecondary = Color(0xFF17102D),
+    tertiary = BocalGold,
+    onTertiary = Color(0xFF241803),
+    background = BocalInk,
+    onBackground = Color(0xFFF5F6F7),
     surface = BocalSurface,
-    onSurface = Color(0xFFF4F2FA),
-    surfaceVariant = Color(0xFF2A2B35),
-    onSurfaceVariant = Color(0xFFCBC8D4),
-)
-
-private val LightColors = lightColorScheme(
-    primary = Color(0xFF5948C7),
-    onPrimary = Color.White,
-    secondary = Color(0xFF006B5D),
-    onSecondary = Color.White,
-    background = BocalPaper,
-    onBackground = BocalInk,
-    surface = Color.White,
-    onSurface = BocalInk,
-    surfaceVariant = Color(0xFFE9E7F0),
-    onSurfaceVariant = Color(0xFF45434C),
+    onSurface = Color(0xFFF5F6F7),
+    surfaceVariant = Color(0xFF17181C),
+    onSurfaceVariant = Color(0xFFA6A8AF),
+    outline = Color(0xFF303239),
 )
 
 @Composable
 fun BocalTheme(content: @Composable () -> Unit) {
-    MaterialTheme(
-        colorScheme = if (isSystemInDarkTheme()) DarkColors else LightColors,
-        content = content,
-    )
+    MaterialTheme(colorScheme = BocalDarkColors, content = content)
 }

@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "release": "0.5.0",
+  "instruments": [
+    {
+      "id": "alto-sax",
+      "name": "Alto saxophone",
+      "key": "E-flat",
+      "modelPath": "models/sax/scene.gltf",
+      "modelKind": "licensed-detailed-reference",
+      "validation": "validated-fingering-graph",
+      "interaction": "fingering",
+      "meshCount": 8,
+      "nodeCount": 10,
+      "triangleCount": 104547,
+      "credit": "saxophone alto by ANDRIANIAINAToky",
+      "license": "CC-BY-4.0",
+      "licenseFile": "licenses/saxophone-alto-CC-BY-4.0.txt",
+      "source": "Sketchfab asset 08448f4bfbca474b80ba35a571648a27",
+      "note": "The 23-touch-piece and B-flat3–F-sharp6 fingering graph is source-validated. The licensed mesh is a visual reference rather than service CAD; Bocal overlays pedagogical control anchors instead of claiming authored control nodes in the mesh."
+    },
+    {
+      "id": "oboe",
+      "name": "Oboe",
+      "key": "C",
+      "modelPath": "models/oboe/scene.gltf",
+      "modelKind": "licensed-detailed-reference",
+      "validation": "anatomy-preview",
+      "interaction": "parts",
+      "meshCount": 392,
+      "nodeCount": 907,
+      "triangleCount": 126716,
+      "credit": "Oboe - Howarth Conservatoire S20C (Instrument) by WarderiiK",
+      "license": "CC-BY-4.0",
+      "licenseFile": "licenses/howarth-s20c-CC-BY-4.0.txt",
+      "source": "Sketchfab asset bfa1bb7fd7ef4f7c9d3c843f481a38c8",
+      "note": "Detailed anatomy reference only. Fingering lessons remain disabled until an oboe-specific control graph receives the same validation treatment as alto sax."
+    },
+    {
+      "id": "clarinet",
+      "name": "Clarinet",
+      "key": "B-flat",
+      "modelPath": "models/clarinet/scene.gltf",
+      "modelKind": "licensed-detailed-reference",
+      "validation": "anatomy-preview",
+      "interaction": "parts",
+      "meshCount": 1,
+      "nodeCount": 1,
+      "triangleCount": 0,
+      "credit": "Clarinet model (with annotations) by Henry Chi",
+      "license": "CC-BY-NC-4.0",
+      "licenseFile": "licenses/clarinet-CC-BY-NC-4.0.txt",
+      "source": "Sketchfab asset c47ddcb26eeb4fbd804a45c82f77ba31",
+      "note": "Detailed clarinet anatomy reference only. Bundled for free non-commercial Bocal releases with attribution. Fingering lessons remain disabled until a clarinet-specific control graph is reviewed."
+    }
+  ],
+  "excludedModels": [
+    {
+      "name": "Legacy generated woodwind family",
+      "reason": "Procedural placeholders from 0.2/0.3 are intentionally removed from 0.4."
+    }
+  ]
+}

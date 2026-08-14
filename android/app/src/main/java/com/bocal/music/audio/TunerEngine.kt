@@ -16,7 +16,9 @@ class TunerEngine(
 ) : AutoCloseable {
     private val mainHandler = Handler(Looper.getMainLooper())
     private val detector = YinPitchDetector(sampleRate)
-    @Volatile private var running = false
+
+    @Volatile
+    private var running = false
     private var recorder: AudioRecord? = null
     private var worker: Thread? = null
 
@@ -26,6 +28,7 @@ class TunerEngine(
     @RequiresPermission(Manifest.permission.RECORD_AUDIO)
     fun start(): Boolean {
         if (running) return true
+
         val minimum = AudioRecord.getMinBufferSize(
             sampleRate,
             AudioFormat.CHANNEL_IN_MONO,
@@ -33,46 +36,91 @@ class TunerEngine(
         )
         if (minimum <= 0) return false
 
-        val created = AudioRecord(
-            MediaRecorder.AudioSource.UNPROCESSED,
-            sampleRate,
-            AudioFormat.CHANNEL_IN_MONO,
-            AudioFormat.ENCODING_PCM_16BIT,
-            max(minimum * 2, 8_192),
-        )
-        if (created.state != AudioRecord.STATE_INITIALIZED) {
+        val created = createRecorder(minimum) ?: return false
+        val started = runCatching {
+            created.startRecording()
+            created.recordingState == AudioRecord.RECORDSTATE_RECORDING
+        }.getOrDefault(false)
+
+        if (!started) {
             created.release()
             return false
         }
 
         recorder = created
         running = true
-        created.startRecording()
         worker = Thread({ readLoop(created) }, "BocalTuner").also { it.start() }
         return true
     }
 
     fun stop() {
         running = false
-        runCatching { recorder?.stop() }
-        worker?.join(250)
+        val activeRecorder = recorder
+        runCatching { activeRecorder?.stop() }
+        worker?.let { activeWorker ->
+            if (activeWorker !== Thread.currentThread()) {
+                runCatching { activeWorker.join(350) }
+            }
+        }
         worker = null
-        recorder?.release()
+        runCatching { activeRecorder?.release() }
         recorder = null
         mainHandler.post { callback(null) }
     }
 
+    @SuppressLint("MissingPermission")
+    private fun createRecorder(minimumBufferBytes: Int): AudioRecord? {
+        val bufferBytes = max(minimumBufferBytes * 2, 8_192)
+        val sources = intArrayOf(
+            MediaRecorder.AudioSource.UNPROCESSED,
+            MediaRecorder.AudioSource.VOICE_RECOGNITION,
+            MediaRecorder.AudioSource.DEFAULT,
+        )
+
+        for (source in sources) {
+            val candidate = runCatching {
+                AudioRecord(
+                    source,
+                    sampleRate,
+                    AudioFormat.CHANNEL_IN_MONO,
+                    AudioFormat.ENCODING_PCM_16BIT,
+                    bufferBytes,
+                )
+            }.getOrNull() ?: continue
+
+            if (candidate.state == AudioRecord.STATE_INITIALIZED) return candidate
+            candidate.release()
+        }
+        return null
+    }
+
     private fun readLoop(audioRecord: AudioRecord) {
-        val shorts = ShortArray(4_096)
-        val floats = FloatArray(4_096)
+        val frameSize = 4_096
+        val shorts = ShortArray(frameSize)
+        val floats = FloatArray(frameSize)
+
+        var routeFailed = false
         while (running) {
             val count = audioRecord.read(shorts, 0, shorts.size, AudioRecord.READ_BLOCKING)
-            if (count <= 0) continue
-            for (i in floats.indices) {
-                floats[i] = if (i < count) shorts[i] / 32768f else 0f
+            if (!running) break
+            if (count == AudioRecord.ERROR_DEAD_OBJECT || count == AudioRecord.ERROR_INVALID_OPERATION) {
+                routeFailed = true
+                break
             }
+            if (count <= 0) continue
+
+            for (index in floats.indices) {
+                floats[index] = if (index < count) shorts[index] / 32768f else 0f
+            }
+
             val result = detector.detect(floats)
-            mainHandler.post { if (running) callback(result) }
+            mainHandler.post {
+                if (running) callback(result)
+            }
+        }
+        if (routeFailed && running) {
+            running = false
+            mainHandler.post { callback(null) }
         }
     }
 
