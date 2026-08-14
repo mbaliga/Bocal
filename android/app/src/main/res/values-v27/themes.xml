@@ -1,0 +1,10 @@
+<resources>
+    <!--
+        android:windowLightNavigationBar was added in API 27. minSdk is 26, so it
+        lives here rather than in values/themes.xml, where lint flags it as a
+        NewApi error. API 26 devices simply inherit the base theme.
+    -->
+    <style name="Theme.Bocal" parent="Theme.Bocal.Base">
+        <item name="android:windowLightNavigationBar">false</item>
+    </style>
+</resources>

@@ -1,11 +1,13 @@
 <resources>
-    <style name="Theme.Bocal" parent="android:style/Theme.Material.NoActionBar">
+    <style name="Theme.Bocal.Base" parent="android:style/Theme.Material.NoActionBar">
         <item name="android:fontFamily">sans</item>
         <item name="android:windowBackground">#070809</item>
         <item name="android:windowLightStatusBar">false</item>
-        <item name="android:windowLightNavigationBar">false</item>
         <item name="android:statusBarColor">#070809</item>
         <item name="android:navigationBarColor">#070809</item>
         <item name="android:windowActionModeOverlay">true</item>
     </style>
+
+    <!-- values-v27 overrides this to add android:windowLightNavigationBar. -->
+    <style name="Theme.Bocal" parent="Theme.Bocal.Base" />
 </resources>

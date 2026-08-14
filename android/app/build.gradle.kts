@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "com.bocal.music"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.bocal.music"
