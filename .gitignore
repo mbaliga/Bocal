@@ -12,6 +12,8 @@ node_modules/
 # vinext / Sites runtime scratch (see web-source-v6/README.md)
 .sites-runtime/
 .wrangler/
+.vinext/
+.openai/
 
 # Environment
 .env

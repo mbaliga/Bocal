@@ -273,16 +273,20 @@ export default function Home() {
         {mode === "practice" && <PracticeView />}
       </main>
 
-      <nav className="mobile-nav" aria-label="Primary navigation">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          return (
-            <button key={item.id} className={mode === item.id ? "is-active" : ""} onClick={() => setMode(item.id)}>
-              <Icon size={19} /><span>{item.label}</span>
-            </button>
-          );
-        })}
-      </nav>
+      <div className="mobile-dock">
+        <div className="dock-side-button" aria-hidden="true"><LockKeyhole size={16} /></div>
+        <nav className="mobile-nav" aria-label="Primary navigation">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button key={item.id} className={mode === item.id ? "is-active" : ""} onClick={() => setMode(item.id)}>
+                <Icon size={19} /><span>{item.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+        <button className="dock-side-button" aria-label="Open profile">TU</button>
+      </div>
     </div>
   );
 }
