@@ -106,14 +106,25 @@ const navItems: { id: Mode; label: string; icon: typeof Crosshair }[] = [
   { id: "practice", label: "Practice", icon: Music2 },
 ];
 
-// Seats along the arc "M34 62 Q200 30 366 62" (viewBox 400×100): button centers
-// at 12.5% / 37.5% / 62.5% / 87.5% of the bar, y from the Bézier at those t
-// values — outer tabs ride lower than inner ones, so the row follows the curve.
+// Everything below derives from the one bar curve "M34 62 Q200 30 366 62"
+// (viewBox 400×100), y(t) = 62 − 64t + 64t², tabs centered at t = .125/.375/.625/.875.
+//
+// ARC_SEATS: button centers, y taken from the Bézier at each t — the row rides the curve.
+// ARC_TILTS: the curve's tangent angle at each seat, so icons/labels lie along the arc.
+// ARC_PILLS: the active highlight as a sub-segment of the same curve (de Casteljau
+// split at t ± .095), stroked with round caps — an arc-shaped pill, not a straight one.
 const ARC_SEATS = [
-  { left: "18.9%", top: "54%" },
-  { left: "39.6%", top: "46%" },
-  { left: "60.4%", top: "46%" },
-  { left: "81.1%", top: "54%" },
+  { left: "18.9%", top: "55%" },
+  { left: "39.6%", top: "47%" },
+  { left: "60.4%", top: "47%" },
+  { left: "81.1%", top: "55%" },
+];
+const ARC_TILTS = ["-8.2deg", "-2.8deg", "2.8deg", "8.2deg"];
+const ARC_PILLS = [
+  "M43.96 60.14 Q75.5 54.42 107.04 51.02",
+  "M126.96 49.1 Q158.5 46.42 190.04 46.06",
+  "M209.96 46.06 Q241.5 46.42 273.04 49.1",
+  "M292.96 51.02 Q324.5 54.42 356.04 60.14",
 ];
 
 export default function Home() {
@@ -293,6 +304,7 @@ export default function Home() {
           <svg className="arc-shape" viewBox="0 0 400 100" aria-hidden="true" focusable="false">
             <path d="M34 62 Q200 30 366 62" fill="none" stroke="#303035" strokeWidth="60" strokeLinecap="round" />
             <path d="M34 62 Q200 30 366 62" fill="none" stroke="rgba(16,16,18,0.97)" strokeWidth="58" strokeLinecap="round" />
+            <path className="arc-active" d={ARC_PILLS[navItems.findIndex((item) => item.id === mode)]} />
           </svg>
           {navItems.map((item, index) => {
             const Icon = item.icon;
@@ -300,7 +312,7 @@ export default function Home() {
               <button
                 key={item.id}
                 className={mode === item.id ? "is-active" : ""}
-                style={{ left: ARC_SEATS[index].left, top: ARC_SEATS[index].top }}
+                style={{ left: ARC_SEATS[index].left, top: ARC_SEATS[index].top, "--tilt": ARC_TILTS[index] } as React.CSSProperties}
                 onClick={() => setMode(item.id)}
               >
                 <Icon size={19} /><span>{item.label}</span>
