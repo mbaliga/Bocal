@@ -360,7 +360,7 @@ button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--c
 }
 
 @media (max-width: 680px) {
-  .app-shell { display: block; padding-bottom: 76px; }
+  .app-shell { display: block; padding-bottom: 132px; }
   .side-rail { display: none; }
   .top-bar { min-height: 70px; padding: 12px 17px; }
   .session-clock, .icon-button { display: none; }
@@ -379,12 +379,20 @@ button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--c
   .side-stack { grid-template-columns: 1fr; }
   .today-strip { grid-template-columns: 1fr; padding: 22px; }
   .metric { border-left: 0; border-top: 1px solid var(--line); padding: 17px 0; }
-  .mobile-dock { position: fixed; left: 9px; right: 9px; bottom: 9px; z-index: 50; display: flex; align-items: center; gap: 8px; }
-  .mobile-nav { flex: 1; min-width: 0; height: 64px; padding: 6px; border: 1px solid #303035; background: rgba(17,17,19,.92); backdrop-filter: blur(20px) saturate(160%); border-radius: 999px; display: grid; grid-template-columns: repeat(4, 1fr); box-shadow: 0 1px 0 rgba(255,255,255,.06) inset, 0 20px 46px -12px rgba(0,0,0,.75), 0 4px 14px rgba(0,0,0,.5); }
-  .mobile-nav button { border: 0; background: transparent; color: #74747a; border-radius: 999px; display: grid; justify-items: center; align-content: center; gap: 3px; font-size: 8px; cursor: pointer; transition: 160ms ease; }
-  .mobile-nav button.is-active { color: var(--cyan); background: linear-gradient(180deg, #16302c, #102723); box-shadow: 0 0 0 1px rgba(8,254,213,.22) inset, 0 4px 14px rgba(8,254,213,.14); }
+  .mobile-dock { display: block; position: fixed; left: 6px; right: 6px; bottom: 4px; z-index: 50; max-width: 480px; margin-inline: auto; }
+  /* Soft scrim so page content fades out behind the floating arc instead of
+     showing raw through the gaps around the curve. */
+  .mobile-dock::before { content: ""; position: absolute; left: -6px; right: -6px; top: -48px; bottom: -8px; background: linear-gradient(180deg, rgba(6,6,7,0) 0%, rgba(6,6,7,.9) 52%, var(--black) 100%); pointer-events: none; }
+  /* The nav box keeps the SVG's 400×100 proportions so the % seats in
+     ARC_SEATS land exactly on the drawn curve at any width. */
+  .mobile-nav { position: relative; width: 100%; aspect-ratio: 4 / 1; display: block; }
+  .arc-shape { position: absolute; inset: 0; width: 100%; height: 100%; filter: drop-shadow(0 16px 28px rgba(0,0,0,.65)) drop-shadow(0 3px 8px rgba(0,0,0,.45)); }
+  .mobile-nav button { position: absolute; transform: translate(-50%, -50%); width: 21%; max-width: 84px; height: 52%; border: 0; background: transparent; color: #74747a; border-radius: 999px; display: grid; justify-items: center; align-content: center; gap: 3px; font-size: 8px; cursor: pointer; transition: background 160ms ease, color 160ms ease, box-shadow 160ms ease; }
+  .mobile-nav button.is-active { color: #071a17; background: var(--cyan); box-shadow: 0 6px 18px rgba(8,254,213,.28); }
   .mobile-nav span { display: block; }
-  .dock-side-button { flex: 0 0 auto; width: 52px; height: 52px; border-radius: 50%; border: 1px solid #303035; background: rgba(17,17,19,.92); backdrop-filter: blur(20px) saturate(160%); color: #9a9a9e; display: grid; place-items: center; font-size: 10px; font-weight: 700; box-shadow: 0 1px 0 rgba(255,255,255,.06) inset, 0 14px 30px -10px rgba(0,0,0,.7); cursor: pointer; }
+  .dock-side-button { position: absolute; z-index: 2; width: 48px; height: 48px; border-radius: 50%; border: 1px solid #303035; background: rgba(17,17,19,.94); backdrop-filter: blur(20px) saturate(160%); color: #9a9a9e; display: grid; place-items: center; font-size: 10px; font-weight: 700; box-shadow: 0 1px 0 rgba(255,255,255,.06) inset, 0 14px 30px -10px rgba(0,0,0,.7); cursor: pointer; }
+  .dock-left { left: 2px; top: -26px; }
+  .dock-right { right: 2px; top: -26px; }
   .placeholder-panel { min-height: 360px; padding-inline: 25px; }
   .sax-lab-view { width: calc(100% - 28px); padding-top: 25px; }
   .lab-header { display: block; }

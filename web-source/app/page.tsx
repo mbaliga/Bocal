@@ -106,6 +106,16 @@ const navItems: { id: Mode; label: string; icon: typeof Crosshair }[] = [
   { id: "practice", label: "Practice", icon: Music2 },
 ];
 
+// Seats along the arc "M34 62 Q200 30 366 62" (viewBox 400×100): button centers
+// at 12.5% / 37.5% / 62.5% / 87.5% of the bar, y from the Bézier at those t
+// values — outer tabs ride lower than inner ones, so the row follows the curve.
+const ARC_SEATS = [
+  { left: "18.9%", top: "54%" },
+  { left: "39.6%", top: "46%" },
+  { left: "60.4%", top: "46%" },
+  { left: "81.1%", top: "54%" },
+];
+
 export default function Home() {
   const [mode, setMode] = useState<Mode>("tune");
   const [reading, setReading] = useState<PitchReading>({
@@ -274,18 +284,30 @@ export default function Home() {
       </main>
 
       <div className="mobile-dock">
-        <div className="dock-side-button" aria-hidden="true"><LockKeyhole size={16} /></div>
+        <div className="dock-side-button dock-left" aria-hidden="true"><LockKeyhole size={16} /></div>
+        <button className="dock-side-button dock-right" aria-label="Open profile">TU</button>
         <nav className="mobile-nav" aria-label="Primary navigation">
-          {navItems.map((item) => {
+          {/* The bar is a true arc: a quadratic path stroked with round caps.
+              Outer path is the border, inner path the fill. Buttons below sit
+              on the same curve via ARC_SEATS. */}
+          <svg className="arc-shape" viewBox="0 0 400 100" aria-hidden="true" focusable="false">
+            <path d="M34 62 Q200 30 366 62" fill="none" stroke="#303035" strokeWidth="60" strokeLinecap="round" />
+            <path d="M34 62 Q200 30 366 62" fill="none" stroke="rgba(16,16,18,0.97)" strokeWidth="58" strokeLinecap="round" />
+          </svg>
+          {navItems.map((item, index) => {
             const Icon = item.icon;
             return (
-              <button key={item.id} className={mode === item.id ? "is-active" : ""} onClick={() => setMode(item.id)}>
+              <button
+                key={item.id}
+                className={mode === item.id ? "is-active" : ""}
+                style={{ left: ARC_SEATS[index].left, top: ARC_SEATS[index].top }}
+                onClick={() => setMode(item.id)}
+              >
                 <Icon size={19} /><span>{item.label}</span>
               </button>
             );
           })}
         </nav>
-        <button className="dock-side-button" aria-label="Open profile">TU</button>
       </div>
     </div>
   );
