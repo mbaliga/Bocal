@@ -286,14 +286,21 @@ def build_sax(spec):
 def build_flute(spec):
     g=GLB(spec["name"]); m=palette(g); silver=g.mesh("cylinder",m["silver"]); hole=g.mesh("cylinder",m["hole"])
     s=spec["scale"]**0.30
-    g.node("tube",silver,(0,0,0),(3.3*s,.19*s,.19*s),rotation=(0,0,-.707,.707),extras={"partType":"body","label":"Cylindrical bore"})
+    # The -90 deg Z rotation maps local +Y onto world +X, so the bore's length
+    # belongs on Y in scale. It was on X, which left the tube standing
+    # perpendicular to its own keywork, lip plate and embouchure hole (all of
+    # which are laid out unrotated along X below).
+    g.node("tube",silver,(0,0,0),(.19*s,3.3*s,.19*s),rotation=(0,0,-.707,.707),extras={"partType":"body","label":"Cylindrical bore"})
     g.node("crown",silver,(-3.38*s,0,0),(.25*s,.16*s,.25*s),rotation=(0,0,-.707,.707),extras={"partType":"crown"})
     g.node("lip_plate",g.mesh("sphere",m["silver"]),(-2.55*s,.22*s,0),(.42*s,.10*s,.28*s),extras={"partType":"embouchure","label":"Lip plate and embouchure hole"})
     g.node("embouchure_hole",hole,(-2.55*s,.30*s,0),(.16*s,.018*s,.10*s),extras={"partType":"toneHole"})
     for i,x in enumerate([-1.35,-.95,-.55,-.15,.25,.65,1.05,1.45,1.85,2.25,2.62]):
         z=.20*s if i%2==0 else -.20*s; y=.17*s
         g.node(f"key__k{i+1:02d}",silver,(x*s,y,z),(.18*s,.055*s,.18*s),extras={"partType":"key","keyId":f"k{i+1:02d}","label":f"Flute key {i+1}","interactive":True})
-    for z in (-.25,.25): g.node(f"rod_{'front' if z>0 else 'back'}",silver,(.35*s,.04*s,z*s),(.026*s,4.8*s,.026*s),rotation=(0,0,-.707,.707),extras={"partType":"rod"})
+    # Half-length 2.4 spans the keywork (x -1.35..2.62 about a rod at x .35)
+    # and stays inside the 3.3 bore. The previous 4.8 was carried over from the
+    # upright builders and left the rods longer than the flute itself.
+    for z in (-.25,.25): g.node(f"rod_{'front' if z>0 else 'back'}",silver,(.35*s,.04*s,z*s),(.026*s,2.4*s,.026*s),rotation=(0,0,-.707,.707),extras={"partType":"rod"})
     spec.update(keySystem="Boehm-system educational topology",interactiveControls=11,fingering=spec.get("fingering","validation-required"))
     g.write(OUT/f"{spec['id']}.glb",spec)
 

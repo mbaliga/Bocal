@@ -41,7 +41,7 @@ const SaxophoneLab = dynamic(
   },
 );
 
-type Mode = "tune" | "sax" | "pulse" | "practice";
+type Mode = "tune" | "sax" | "pulse" | "analyze" | "practice";
 
 type PitchReading = {
   hz: number;
@@ -69,7 +69,7 @@ function autoCorrelate(buffer: Float32Array, sampleRate: number) {
   let rms = 0;
   for (let i = 0; i < buffer.length; i += 1) rms += buffer[i] * buffer[i];
   rms = Math.sqrt(rms / buffer.length);
-  if (rms < 0.012) return -1;
+  if (rms < 0.012) return { hz: -1, confidence: 0, rms };
 
   const minOffset = Math.floor(sampleRate / 1200);
   const maxOffset = Math.min(Math.floor(sampleRate / 55), Math.floor(buffer.length / 2));
@@ -90,7 +90,8 @@ function autoCorrelate(buffer: Float32Array, sampleRate: number) {
     lastCorrelation = correlation;
   }
 
-  return bestOffset > 0 && bestCorrelation > 0.92 ? sampleRate / bestOffset : -1;
+  const hz = bestOffset > 0 && bestCorrelation > 0.92 ? sampleRate / bestOffset : -1;
+  return { hz, confidence: bestCorrelation, rms };
 }
 
 function formatTime(seconds: number) {
@@ -101,40 +102,17 @@ function formatTime(seconds: number) {
 
 const navItems: { id: Mode; label: string; icon: typeof Crosshair }[] = [
   { id: "tune", label: "Tune", icon: Crosshair },
-  { id: "sax", label: "Sax lab", icon: Wind },
+  { id: "sax", label: "3D lab", icon: Wind },
   { id: "pulse", label: "Pulse", icon: Waves },
+  { id: "analyze", label: "Analyze", icon: Activity },
   { id: "practice", label: "Practice", icon: Music2 },
 ];
 
-// Everything below derives from the one bar curve "M34 62 Q200 30 366 62"
-// (viewBox 400×100), y(t) = 62 − 64t + 64t², tabs centered at t = .125/.375/.625/.875.
-//
-// ARC_SEATS: button centers, y taken from the Bézier at each t — the row rides the curve.
-// ARC_TILTS: the curve's tangent angle at each seat, so icons/labels lie along the arc.
-// ARC_PILLS: the active highlight as a sub-segment of the same curve (de Casteljau
-// split at t ± .095), stroked with round caps — an arc-shaped pill, not a straight one.
-const ARC_SEATS = [
-  { left: "18.9%", top: "55%" },
-  { left: "39.6%", top: "47%" },
-  { left: "60.4%", top: "47%" },
-  { left: "81.1%", top: "55%" },
-];
-const ARC_TILTS = ["-8.2deg", "-2.8deg", "2.8deg", "8.2deg"];
-const ARC_PILLS = [
-  "M43.96 60.14 Q75.5 54.42 107.04 51.02",
-  "M126.96 49.1 Q158.5 46.42 190.04 46.06",
-  "M209.96 46.06 Q241.5 46.42 273.04 49.1",
-  "M292.96 51.02 Q324.5 54.42 356.04 60.14",
-];
 
 export default function Home() {
   const [mode, setMode] = useState<Mode>("tune");
-  const [reading, setReading] = useState<PitchReading>({
-    hz: 261.1,
-    note: "A",
-    octave: 4,
-    cents: -3,
-  });
+  const [reading, setReading] = useState<PitchReading | null>(null);
+  const [tracker, setTracker] = useState({ level: 0, confidence: 0, accepted: 0 });
   const [listening, setListening] = useState(false);
   const [micMessage, setMicMessage] = useState("");
   const [sessionActive, setSessionActive] = useState(false);
@@ -163,6 +141,8 @@ export default function Home() {
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
     setListening(false);
+    setReading(null);
+    setTracker({ level: 0, confidence: 0, accepted: 0 });
   }, []);
 
   const startListening = useCallback(async () => {
@@ -188,10 +168,26 @@ export default function Home() {
       setMicMessage("");
       setListening(true);
 
+      // Three consecutive accepted frames before a note is shown, and a
+      // 550 ms hold before a dropout clears it — the lock policy the UI states.
+      let streak = 0;
+      let lastGood = 0;
       const sample = () => {
         analyser.getFloatTimeDomainData(data);
-        const detected = autoCorrelate(data, audioContext.sampleRate);
-        if (detected > 0) setReading(pitchFromFrequency(detected));
+        const { hz, confidence, rms } = autoCorrelate(data, audioContext.sampleRate);
+        if (hz > 0) {
+          streak += 1;
+          lastGood = performance.now();
+          if (streak >= 3) setReading(pitchFromFrequency(hz));
+        } else {
+          streak = 0;
+          if (performance.now() - lastGood > 550) setReading(null);
+        }
+        setTracker({
+          level: Math.min(1, rms / 0.12),
+          confidence: hz > 0 ? confidence : 0,
+          accepted: streak,
+        });
         frameRef.current = requestAnimationFrame(sample);
       };
       sample();
@@ -230,7 +226,7 @@ export default function Home() {
   };
 
   return (
-    <div className="app-shell">
+    <div className="app-shell nav-left">
       <aside className="side-rail" aria-label="Primary navigation">
         <button className="brand-mark" onClick={() => setMode("tune")} aria-label="Bocal home">
           <span className="brand-glyph"><Wind size={20} strokeWidth={2.4} /></span>
@@ -262,11 +258,13 @@ export default function Home() {
 
       <main className="main-stage">
         <header className="top-bar">
-          <button className="instrument-picker" aria-label="Choose instrument">
+          <div className="instrument-picker-wrap">
+          <button className="instrument-picker" aria-label="Choose instrument" aria-expanded={false}>
             <span className="instrument-icon"><Wind size={18} /></span>
             <span><small>Instrument</small>Alto sax · E♭</span>
             <ChevronDown size={16} />
           </button>
+          </div>
           <div className="top-actions">
             <div className={`session-clock ${sessionActive ? "is-running" : ""}`}>
               <Clock3 size={15} /> {formatTime(sessionSeconds)}
@@ -282,6 +280,7 @@ export default function Home() {
         {mode === "tune" && (
           <TunerView
             reading={reading}
+            tracker={tracker}
             listening={listening}
             micMessage={micMessage}
             onListen={startListening}
@@ -291,59 +290,58 @@ export default function Home() {
         )}
         {mode === "sax" && <SaxophoneLab onBack={() => setMode("tune")} />}
         {mode === "pulse" && <PulseView />}
+        {mode === "analyze" && (
+          // Placeholder: the live site has a built Analyze view, but its markup
+          // was not recoverable from the saved page, so this is a stub rather
+          // than an invented screen.
+          <div className="content-wrap placeholder-view">
+            <p className="eyebrow">Analyze · Alto saxophone</p>
+            <h1>Not built yet.</h1>
+            <p className="placeholder-lead">
+              Analyze is part of the current navigation but has no view in this repository yet.
+            </p>
+            <div className="placeholder-panel compact"><div className="model-orbit"><Activity size={64} /></div></div>
+          </div>
+        )}
         {mode === "practice" && <PracticeView />}
       </main>
 
-      <div className="mobile-dock">
-        <div className="dock-side-button dock-left" aria-hidden="true"><LockKeyhole size={16} /></div>
-        <button className="dock-side-button dock-right" aria-label="Open profile">TU</button>
-        <nav className="mobile-nav" aria-label="Primary navigation">
-          {/* The bar is a true arc: a quadratic path stroked with round caps.
-              Outer path is the border, inner path the fill. Buttons below sit
-              on the same curve via ARC_SEATS. */}
-          <svg className="arc-shape" viewBox="0 0 400 100" aria-hidden="true" focusable="false">
-            <path d="M34 62 Q200 30 366 62" fill="none" stroke="#303035" strokeWidth="60" strokeLinecap="round" />
-            <path d="M34 62 Q200 30 366 62" fill="none" stroke="rgba(16,16,18,0.97)" strokeWidth="58" strokeLinecap="round" />
-            <path className="arc-active" d={ARC_PILLS[navItems.findIndex((item) => item.id === mode)]} />
-          </svg>
-          {navItems.map((item, index) => {
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.id}
-                className={mode === item.id ? "is-active" : ""}
-                style={{ left: ARC_SEATS[index].left, top: ARC_SEATS[index].top, "--tilt": ARC_TILTS[index] } as React.CSSProperties}
-                onClick={() => setMode(item.id)}
-              >
-                <Icon size={19} /><span>{item.label}</span>
-              </button>
-            );
-          })}
-        </nav>
-      </div>
+      <nav className="mobile-nav" aria-label="Primary navigation">
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          return (
+            <button key={item.id} className={mode === item.id ? "is-active" : ""} onClick={() => setMode(item.id)}>
+              <Icon size={19} /><span>{item.label}</span>
+            </button>
+          );
+        })}
+      </nav>
     </div>
   );
 }
 
 function TunerView({
   reading,
+  tracker,
   listening,
   micMessage,
   onListen,
   onReference,
   onOpenSax,
 }: {
-  reading: PitchReading;
+  reading: PitchReading | null;
+  tracker: { level: number; confidence: number; accepted: number };
   listening: boolean;
   micMessage: string;
   onListen: () => void;
   onReference: () => void;
   onOpenSax: () => void;
 }) {
-  const inTune = Math.abs(reading.cents) <= 5;
-  const direction = reading.cents > 5 ? "Sharp" : reading.cents < -5 ? "Flat" : "Centered";
-  const markerPosition = Math.max(4, Math.min(96, 50 + reading.cents * 0.8));
+  const inTune = reading !== null && Math.abs(reading.cents) <= 5;
+  const direction = !reading ? "Ready" : reading.cents > 5 ? "Sharp" : reading.cents < -5 ? "Flat" : "Centered";
+  const markerPosition = reading ? Math.max(4, Math.min(96, 50 + reading.cents * 0.8)) : 50;
   const concertNote = useMemo(() => {
+    if (!reading) return null;
     const writtenMidi = (reading.octave + 1) * 12 + NOTE_NAMES.indexOf(reading.note);
     const concertMidi = writtenMidi - 9;
     return `${NOTE_NAMES[((concertMidi % 12) + 12) % 12]}${Math.floor(concertMidi / 12) - 1}`;
@@ -361,28 +359,55 @@ function TunerView({
       </section>
 
       <div className="tuner-grid">
-        <section className={`tuner-card ${inTune ? "is-centered" : ""}`} aria-live="polite">
+        <section className={`tuner-card ${inTune ? "is-centered" : ""} ${reading ? "" : "is-waiting"}`} aria-live="polite">
           <div className="tuner-card-top">
             <span className="status-label"><CircleDot size={15} /> {direction}</span>
             <button className="small-action" onClick={onReference}><Volume2 size={16} /> Hear concert C</button>
           </div>
 
           <div className="note-readout">
-            <div className="note-name">{reading.note}<sup>{reading.octave}</sup></div>
+            {reading ? (
+              <div className="note-name">{reading.note}<sup>{reading.octave}</sup></div>
+            ) : (
+              <div className="note-name is-empty">—</div>
+            )}
             <div className="pitch-detail">
-              <span>{reading.cents > 0 ? "+" : ""}{reading.cents} cents</span>
-              <small>{reading.hz.toFixed(1)} Hz · sounds {concertNote}</small>
+              {reading ? (
+                <>
+                  <span>{reading.cents > 0 ? "+" : ""}{reading.cents} cents</span>
+                  <small>{reading.hz.toFixed(1)} Hz · sounds {concertNote}</small>
+                </>
+              ) : (
+                <>
+                  <span>Waiting for a stable tone</span>
+                  <small>No note is shown until confidence passes the lock threshold</small>
+                </>
+              )}
             </div>
           </div>
 
-          <div className="tune-scale" role="meter" aria-valuemin={-50} aria-valuemax={50} aria-valuenow={reading.cents}>
+          <div className="tune-scale" role="meter" aria-valuemin={-50} aria-valuemax={50} aria-valuenow={reading?.cents ?? 0} aria-label="Pitch deviation in cents">
             <div className="scale-labels"><span>−50</span><span>−25</span><strong>0</strong><span>+25</span><span>+50</span></div>
             <div className="scale-track">
               <span className="center-zone" />
               <span className="scale-center" />
-              <span className="pitch-marker" style={{ left: `${markerPosition}%` }}><i /></span>
+              {reading && <span className="pitch-marker" style={{ left: `${markerPosition}%` }}><i /></span>}
             </div>
-            <div className="direction-row"><span>Flatten ↓</span><strong>{inTune ? <><Check size={15} /> Tone locked</> : direction === "Sharp" ? "Relax the pitch" : "Support the air"}</strong><span>Sharpen ↑</span></div>
+            <div className="direction-row">
+              <span>Flatten ↓</span>
+              <strong>{!reading ? "Start the tuner" : inTune ? <><Check size={15} /> Tone locked</> : direction === "Sharp" ? "Relax the pitch" : "Support the air"}</strong>
+              <span>Sharpen ↑</span>
+            </div>
+          </div>
+
+          <div className="tracker-diagnostics" aria-label="Pitch lock diagnostics">
+            <div>
+              <span>Input</span>
+              <i><b style={{ width: `${Math.round(tracker.level * 100)}%` }} /></i>
+              <small>{tracker.level > 0.1 ? "Signal" : "Below gate"}</small>
+            </div>
+            <div><span>Confidence</span><strong>{tracker.confidence ? tracker.confidence.toFixed(2) : "—"}</strong></div>
+            <div><span>Accepted</span><strong>{tracker.accepted}</strong></div>
           </div>
 
           <button className={`listen-button ${listening ? "is-live" : ""}`} onClick={onListen}>
@@ -395,32 +420,38 @@ function TunerView({
 
         <aside className="side-stack">
           <article className="insight-card">
-            <div className="card-kicker"><Sparkles size={15} /> Next best action</div>
-            <h2>Settle your long-tone A.</h2>
-            <p>You tend to arrive slightly flat, then center within 1.8 seconds. Use a softer attack and keep the air moving.</p>
-            <div className="mini-bars" aria-label="Recent pitch stability">
-              {[48, 61, 56, 72, 69, 84, 78, 91, 88, 93, 95, 92].map((height, index) => <i key={index} style={{ height: `${height}%` }} />)}
+            <div className="card-kicker"><Sparkles size={15} /> What the tuner hears</div>
+            <h2>Play one steady note.</h2>
+            <p>The display stays blank until Bocal hears a clear pitch.</p>
+            <div className="mini-bars" aria-label="Accepted pitch-frame stability">
+              {Array.from({ length: 18 }, (_, index) => (
+                <i
+                  key={index}
+                  className={index < tracker.accepted * 6 ? "" : "is-empty"}
+                  style={{ height: index < tracker.accepted * 6 ? `${40 + index * 3}%` : "8%" }}
+                />
+              ))}
             </div>
-            <button className="text-button">Start 60-second hold <ArrowRight size={15} /></button>
+            <p className="lock-policy"><LockKeyhole size={13} /> Noise gate · 3-frame lock · 550 ms dropout hold</p>
           </article>
 
           <article className="sax-card" onClick={onOpenSax} role="button" tabIndex={0} onKeyDown={(event) => event.key === "Enter" && onOpenSax()}>
             <div>
               <span className="card-kicker"><Rotate3D size={15} /> Fingering lab</span>
-              <h3>See A on the sax.</h3>
-              <p>Explore the instrument and learn which keys make every note.</p>
+              <h3>Open the interactive alto sax.</h3>
+              <p>Open the sax and the keys for this note will light up.</p>
             </div>
-            <div className="sax-silhouette" aria-hidden="true"><span /><i /><b /></div>
+            <div className="sax-card-photo" aria-hidden="true" />
             <span className="round-arrow"><ArrowRight size={17} /></span>
           </article>
         </aside>
       </div>
 
       <section className="today-strip">
-        <div className="today-title"><span>Today</span><strong>Small wins, clearly seen.</strong></div>
-        <Metric value="08:42" label="Focused minutes" detail="of 15 min goal" icon={TimerReset} />
-        <Metric value="±7¢" label="Pitch stability" detail="2¢ tighter this week" icon={Crosshair} />
-        <Metric value="4" label="Practice days" detail="never miss twice" icon={Activity} />
+        <div className="today-title"><span>This session</span><strong>Your practice, as it happens.</strong></div>
+        <Metric value="00:00" label="Practice timer" detail="start when ready" icon={TimerReset} />
+        <Metric value={reading ? `${reading.cents > 0 ? "+" : ""}${reading.cents}¢` : "—"} label="Pitch offset" detail={reading ? "current lock" : "awaiting lock"} icon={Crosshair} />
+        <Metric value={String(tracker.accepted)} label="Accepted frames" detail="this tuner run" icon={Activity} />
       </section>
     </div>
   );
