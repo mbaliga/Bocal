@@ -108,6 +108,30 @@ const navItems: { id: Mode; label: string; icon: typeof Crosshair }[] = [
   { id: "practice", label: "Practice", icon: Music2 },
 ];
 
+// Everything below derives from the one bar curve "M34 62 Q200 30 366 62"
+// (viewBox 400×100 — x is linear in t since the three control x's are evenly
+// spaced, y(t) = 62 − 64t + 64t²). Five seats at t = .1/.3/.5/.7/.9.
+//
+// ARC_SEATS: button centers, taken from the Bézier at each t — the row rides the curve.
+// ARC_TILTS: the curve's tangent angle at each seat, so icons/labels lie along the arc.
+// ARC_PILLS: the active highlight as a sub-segment of the same curve (quadratic
+// reparam to [t−.075, t+.075]), stroked with round caps — an arc-shaped pill.
+const ARC_SEATS = [
+  { left: "16.8%", top: "56.2%" },
+  { left: "33.4%", top: "48.6%" },
+  { left: "50.0%", top: "46.0%" },
+  { left: "66.6%", top: "48.6%" },
+  { left: "83.2%", top: "56.2%" },
+];
+const ARC_TILTS = ["-8.77deg", "-4.41deg", "0deg", "4.41deg", "8.77deg"];
+const ARC_PILLS = [
+  "M42.30 60.44 Q67.20 55.88 92.10 52.76",
+  "M108.70 50.84 Q133.60 48.20 158.50 47.00",
+  "M175.10 46.36 Q200.00 45.64 224.90 46.36",
+  "M241.50 47.00 Q266.40 48.20 291.30 50.84",
+  "M307.90 52.76 Q332.80 55.88 357.70 60.44",
+];
+
 
 export default function Home() {
   const [mode, setMode] = useState<Mode>("tune");
@@ -306,16 +330,30 @@ export default function Home() {
         {mode === "practice" && <PracticeView />}
       </main>
 
-      <nav className="mobile-nav" aria-label="Primary navigation">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          return (
-            <button key={item.id} className={mode === item.id ? "is-active" : ""} onClick={() => setMode(item.id)}>
-              <Icon size={19} /><span>{item.label}</span>
-            </button>
-          );
-        })}
-      </nav>
+      <div className="mobile-dock">
+        <div className="dock-side-button dock-left" aria-hidden="true"><LockKeyhole size={16} /></div>
+        <button className="dock-side-button dock-right" aria-label="Open profile">TU</button>
+        <nav className="mobile-nav is-arc" aria-label="Primary navigation">
+          <svg className="arc-shape" viewBox="0 0 400 100" aria-hidden="true" focusable="false">
+            <path d="M34 62 Q200 30 366 62" fill="none" stroke="#303035" strokeWidth="60" strokeLinecap="round" />
+            <path d="M34 62 Q200 30 366 62" fill="none" stroke="rgba(16,16,18,0.97)" strokeWidth="58" strokeLinecap="round" />
+            <path className="arc-active" d={ARC_PILLS[navItems.findIndex((item) => item.id === mode)]} />
+          </svg>
+          {navItems.map((item, index) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.id}
+                className={mode === item.id ? "is-active" : ""}
+                style={{ left: ARC_SEATS[index].left, top: ARC_SEATS[index].top, "--tilt": ARC_TILTS[index] } as React.CSSProperties}
+                onClick={() => setMode(item.id)}
+              >
+                <Icon size={19} /><span>{item.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+      </div>
     </div>
   );
 }
