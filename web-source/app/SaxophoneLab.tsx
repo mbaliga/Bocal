@@ -219,9 +219,16 @@ function SaxophoneModel({
       model.add(post);
     }
 
-    const guard = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.035, 8, 36, Math.PI * 1.22), lacquer);
+    // Bottom bow guard: a protective wire loop wrapping the body just above
+    // the bow. The body's cylinder radius at y=-1.84 is ~0.374 (interpolated
+    // between its 0.38 bottom / 0.31 top radii); this rides just outside
+    // that, centered on the body's own axis, rather than the ring radius
+    // 0.5 offset (0.07, z 0.45) it shipped with, which put roughly a third
+    // of the loop floating visibly clear of the body with no surface to
+    // wrap.
+    const guard = new THREE.Mesh(new THREE.TorusGeometry(0.41, 0.035, 8, 36, Math.PI * 1.22), lacquer);
     guard.rotation.set(Math.PI / 2, 0.2, -0.52);
-    guard.position.set(0.07, -1.84, 0.45);
+    guard.position.set(0, -1.84, 0);
     model.add(guard);
 
     const strapRing = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.025, 8, 24), lacquer);

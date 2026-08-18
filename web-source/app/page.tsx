@@ -334,24 +334,35 @@ export default function Home() {
         <div className="dock-side-button dock-left" aria-hidden="true"><LockKeyhole size={16} /></div>
         <button className="dock-side-button dock-right" aria-label="Open profile">TU</button>
         <nav className="mobile-nav is-arc" aria-label="Primary navigation">
-          <svg className="arc-shape" viewBox="0 0 400 100" aria-hidden="true" focusable="false">
-            <path d="M34 62 Q200 30 366 62" fill="none" stroke="#303035" strokeWidth="60" strokeLinecap="round" />
-            <path d="M34 62 Q200 30 366 62" fill="none" stroke="rgba(16,16,18,0.97)" strokeWidth="58" strokeLinecap="round" />
-            <path className="arc-active" d={ARC_PILLS[navItems.findIndex((item) => item.id === mode)]} />
-          </svg>
-          {navItems.map((item, index) => {
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.id}
-                className={mode === item.id ? "is-active" : ""}
-                style={{ left: ARC_SEATS[index].left, top: ARC_SEATS[index].top, "--tilt": ARC_TILTS[index] } as React.CSSProperties}
-                onClick={() => setMode(item.id)}
-              >
-                <Icon size={19} /><span>{item.label}</span>
-              </button>
-            );
-          })}
+          {/* .mobile-nav.is-arc establishes the 4:1 box via the classic
+              padding-bottom trick (height:0; padding-bottom:25%) rather than
+              the `aspect-ratio` CSS property — some WebViews (in particular
+              the constrained renderer inside file-preview panes on Android)
+              were observed collapsing an aspect-ratio'd box with only
+              absolutely-positioned children to zero height, which sends every
+              percentage-based top/left on the buttons and the SVG to garbage.
+              padding-bottom-on-width has been reliable cross-browser for
+              over a decade; .arc-inner is what buttons/SVG position against. */}
+          <div className="arc-inner">
+            <svg className="arc-shape" viewBox="0 0 400 100" aria-hidden="true" focusable="false">
+              <path d="M34 62 Q200 30 366 62" fill="none" stroke="#303035" strokeWidth="60" strokeLinecap="round" />
+              <path d="M34 62 Q200 30 366 62" fill="none" stroke="rgba(16,16,18,0.97)" strokeWidth="58" strokeLinecap="round" />
+              <path className="arc-active" d={ARC_PILLS[navItems.findIndex((item) => item.id === mode)]} />
+            </svg>
+            {navItems.map((item, index) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.id}
+                  className={mode === item.id ? "is-active" : ""}
+                  style={{ left: ARC_SEATS[index].left, top: ARC_SEATS[index].top, "--tilt": ARC_TILTS[index] } as React.CSSProperties}
+                  onClick={() => setMode(item.id)}
+                >
+                  <Icon size={19} /><span>{item.label}</span>
+                </button>
+              );
+            })}
+          </div>
         </nav>
       </div>
     </div>
