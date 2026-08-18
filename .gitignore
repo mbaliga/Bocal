@@ -15,6 +15,12 @@ node_modules/
 .vinext/
 .openai/
 
+# web-source build output — vite build (dist/) and the standalone on-device
+# preview (preview-dist/, see web-source/preview/README.md). Both regenerate
+# from source; neither is meant to be committed.
+web-source/dist/
+web-source/preview-dist/
+
 # Environment
 .env
 .env.*
