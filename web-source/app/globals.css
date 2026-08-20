@@ -868,7 +868,7 @@ button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--c
 }
 
 @media (max-width: 680px) {
-  .app-shell { display: block; padding-bottom: 76px; }
+  .app-shell { display: block; padding-bottom: 196px; }
   .side-rail { display: none; }
   .top-bar { min-height: 70px; padding: 12px 17px; }
   .session-clock { display: none; }
@@ -1153,33 +1153,100 @@ button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--c
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
 /* ============================================================
-   Arc-shaped mobile nav (override) — curved-keyboard composition.
-   Matches the reference: two circular side buttons flanking a centered
-   segmented pill (the instrument switch), floating above an arced bar
-   drawn as a stroked Bezier; tabs ride the curve, and the active tab is
-   a compact pill hugging its glyph (reference contrast inverted for the
-   dark theme). The 4:1 box uses height:0/padding-bottom:25% — NOT the
-   aspect-ratio property, which collapsed on some Android WebViews.
-   Scoped to .mobile-dock/.mobile-nav.is-arc; nothing else is touched.
+   Arc-shaped mobile nav + Hyle tactile overlay.
+   Dock composition mirrors the curved-keyboard reference (circles +
+   segmented pill above an arced bar; active items are raised keycaps).
+   Shading recipes adapted from the Hyle design system's tactile kit
+   (mbaliga/hyle-design-system, src/kit/kit-css.ts, "gunmetal" token
+   set): raised elements use a 40%/32% radial keycap gradient with an
+   inset top highlight and inset bottom shade; recessed tracks use the
+   crater stack (deep top inset shadows + a lit bottom lip + a 1px rim
+   light under the bottom edge). No outline borders — shape is carried
+   by light. The 4:1 arc box keeps height:0/padding-bottom:25% (the
+   aspect-ratio property collapsed on Android WebViews).
    ============================================================ */
 @media (width<=680px) {
-  .mobile-dock { display: block; position: fixed; left: 6px; right: 6px; bottom: 4px; z-index: 50; max-width: 480px; margin-inline: auto; }
-  .mobile-dock::before { content: ""; position: absolute; left: -6px; right: -6px; top: -58px; bottom: -8px; background: linear-gradient(180deg, rgba(6,6,7,0) 0%, rgba(6,6,7,.9) 46%, var(--black) 100%); pointer-events: none; z-index: -1; }
+  .mobile-dock { display: block; position: fixed; left: 6px; right: 6px; bottom: 4px; z-index: 50; max-width: 480px; margin-inline: auto;
+    --hy-srf: #1f2129; --hy-srf2: #282d37; --hy-srf3: #323844; --hy-groove: #0c0e13;
+    --hy-rim: rgba(255,255,255,.14); --hy-rim2: rgba(255,255,255,.07); --hy-lip: rgba(255,255,255,.1);
+    --hy-drk: rgba(0,0,0,.78); --hy-drk2: rgba(0,0,0,.42);
+    --hy-cap-hi: #fffef9; --hy-cap: #edebe2; --hy-cap-lo: #c9c6b9; --hy-cap-ink: #16171c;
+  }
+  .mobile-dock::before { content: ""; position: absolute; left: -6px; right: -6px; top: -64px; bottom: -8px; background: linear-gradient(180deg, rgba(6,6,7,0) 0%, rgba(6,6,7,.72) 20%, rgba(6,6,7,.97) 38%, var(--black) 55%); pointer-events: none; z-index: -1; }
 
-  .dock-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 2px; padding: 0 2px; }
-  .dock-side-button { flex: 0 0 auto; width: 46px; height: 46px; border-radius: 50%; border: 1px solid #303035; background: rgba(17,17,19,.96); backdrop-filter: blur(20px) saturate(160%); color: #9a9a9e; display: grid; place-items: center; font-size: 10px; font-weight: 700; box-shadow: 0 1px 0 rgba(255,255,255,.07) inset, 0 12px 26px -10px rgba(0,0,0,.7); cursor: pointer; }
-  .dock-pill { flex: 0 1 auto; display: flex; gap: 3px; padding: 4px; border-radius: 999px; border: 1px solid #303035; background: rgba(17,17,19,.96); backdrop-filter: blur(20px) saturate(160%); box-shadow: 0 1px 0 rgba(255,255,255,.07) inset, 0 12px 26px -10px rgba(0,0,0,.7); }
-  .dock-pill button { border: 0; border-radius: 999px; padding: 8px 16px; font-size: 12.5px; font-weight: 600; color: #9a9a9e; background: transparent; cursor: pointer; transition: background .2s ease, color .2s ease; white-space: nowrap; }
-  .dock-pill button.is-active { background: var(--ink); color: #141416; box-shadow: 0 3px 10px rgba(0,0,0,.45); }
+  .dock-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: -8px; padding: 0 2px; position: relative; z-index: 2; }
+  /* Side circles: raised mounds. */
+  .dock-side-button { flex: 0 0 auto; width: 46px; height: 46px; border-radius: 50%; border: 0; color: #a8acb6; display: grid; place-items: center; font-size: 10px; font-weight: 700; cursor: pointer;
+    background: radial-gradient(circle at 40% 32%, var(--hy-srf3), var(--hy-srf2) 55%, var(--hy-groove));
+    box-shadow: inset 0 2px 2px var(--hy-rim2), inset 0 -4px 8px var(--hy-drk2), 0 2px 5px var(--hy-drk), 0 0 0 1px rgba(0,0,0,.2);
+    transition: transform .1s ease, box-shadow .1s ease; }
+  .dock-side-button:active { transform: translateY(2px); box-shadow: inset 0 2px 4px rgba(0,0,0,.5), 0 1px 3px var(--hy-drk); }
+  /* Instrument switch: recessed crater track, raised keycap segment. */
+  .dock-pill { flex: 0 1 auto; display: flex; gap: 3px; padding: 4px; border-radius: 999px; border: 0;
+    background: radial-gradient(140% 150% at 50% 130%, var(--hy-srf2) 0%, var(--hy-srf) 45%, var(--hy-groove) 100%);
+    box-shadow: inset 0 8px 14px -4px rgba(0,0,0,.7), inset 0 2px 3px rgba(0,0,0,.5), inset 0 -2px 2px var(--hy-lip), 0 1px 0 var(--hy-rim2), 0 2px 6px rgba(0,0,0,.45); }
+  .dock-pill button { border: 0; border-radius: 999px; padding: 8px 16px; font-size: 12.5px; font-weight: 650; color: #8e929c; background: transparent; cursor: pointer; transition: color .2s ease, transform .1s ease, box-shadow .15s ease; white-space: nowrap; }
+  .dock-pill button.is-active { color: var(--hy-cap-ink);
+    background: radial-gradient(circle at 40% 32%, var(--hy-cap-hi) 0%, var(--hy-cap) 60%, var(--hy-cap-lo) 100%);
+    box-shadow: inset 0 1px 1px rgba(255,255,255,.9), inset 0 -2px 4px rgba(0,0,0,.18), 0 2px 5px rgba(0,0,0,.55), 0 0 0 1px rgba(0,0,0,.3); }
+  .dock-pill button.is-active:active { transform: translateY(1px); box-shadow: inset 0 1px 2px rgba(0,0,0,.25), 0 1px 2px rgba(0,0,0,.5); }
 
   .mobile-nav.is-arc { display: block; position: relative; width: 100%; height: 0; padding: 0 0 25%; background: none; border: 0; border-radius: 0; box-shadow: none; backdrop-filter: none; }
   .mobile-nav.is-arc::before { content: none; }
   .arc-inner { position: absolute; inset: 0; }
-  .arc-shape { position: absolute; inset: 0; width: 100%; height: 100%; filter: drop-shadow(0 18px 30px rgba(0,0,0,.7)) drop-shadow(0 4px 9px rgba(0,0,0,.5)); }
+  .arc-shape { position: absolute; inset: 0; width: 100%; height: 100%; filter: drop-shadow(0 20px 32px rgba(0,0,0,.72)) drop-shadow(0 5px 10px rgba(0,0,0,.55)); }
 
-  .mobile-nav.is-arc button { position: absolute; transform: translate(-50%, -50%) rotate(var(--tilt, 0deg)); width: auto; min-width: 44px; height: 46%; padding: 0 12px; border: 0; background: transparent; color: #7c7c82; border-radius: 999px; display: flex; align-items: center; justify-content: center; gap: 7px; font-size: 11px; font-weight: 650; cursor: pointer; transition: color 160ms ease; white-space: nowrap; }
-  .mobile-nav.is-arc button.is-active { color: #141416; background: var(--ink); box-shadow: 0 1px 0 rgba(255,255,255,.35) inset, 0 6px 16px rgba(0,0,0,.5); animation: arc-pill-in 220ms cubic-bezier(.2,.8,.25,1); }
+  .mobile-nav.is-arc button { position: absolute; transform: translate(-50%, -50%) rotate(var(--tilt, 0deg)); width: auto; min-width: 44px; height: 42%; padding: 0 12px; border: 0; background: transparent; color: #83878f; border-radius: 999px; display: flex; align-items: center; justify-content: center; gap: 7px; font-size: 11px; font-weight: 650; cursor: pointer; transition: color 160ms ease; white-space: nowrap; }
+  /* Active tab: a raised keycap riding the curve. */
+  .mobile-nav.is-arc button.is-active { color: var(--hy-cap-ink);
+    background: radial-gradient(circle at 40% 32%, var(--hy-cap-hi) 0%, var(--hy-cap) 60%, var(--hy-cap-lo) 100%);
+    box-shadow: inset 0 1px 1px rgba(255,255,255,.9), inset 0 -2px 5px rgba(0,0,0,.2), 0 3px 7px rgba(0,0,0,.6), 0 0 0 1px rgba(0,0,0,.32);
+    animation: arc-pill-in 220ms cubic-bezier(.2,.8,.25,1); }
+  .mobile-nav.is-arc button.is-active:active { transform: translate(-50%, calc(-50% + 1px)) rotate(var(--tilt, 0deg)); box-shadow: inset 0 1px 2px rgba(0,0,0,.3), 0 1px 3px rgba(0,0,0,.5); }
   .mobile-nav.is-arc span { display: block; }
   @keyframes arc-pill-in { from { transform: translate(-50%, -50%) rotate(var(--tilt, 0deg)) scale(.85); opacity: .5; } to { transform: translate(-50%, -50%) rotate(var(--tilt, 0deg)) scale(1); opacity: 1; } }
   @media (prefers-reduced-motion: reduce) { .mobile-nav.is-arc button.is-active { animation: none; } }
+}
+
+/* ============================================================
+   Hyle tactile overlay — app-wide controls.
+   The same keycap/crater recipes applied to Bocal's primary controls so
+   the whole surface reads as physical hardware, not outlined flat UI.
+   Cyan action keys keep their hue but gain molded depth and a real
+   pressed state; mode switches become recessed tracks with raised
+   selected segments. Scope: controls only; cards/typography untouched.
+   ============================================================ */
+.listen-button, .tone-button, .challenge-button, .play-pulse {
+  border: 0;
+  background: radial-gradient(circle at 40% 32%, #5fffe4 0%, var(--cyan) 55%, #06b89a 100%);
+  box-shadow: inset 0 2px 2px rgba(255,255,255,.45), inset 0 -4px 8px rgba(0,0,0,.35), 0 3px 7px rgba(0,0,0,.5), 0 0 18px rgba(8,254,213,.25), 0 0 0 1px rgba(0,0,0,.25);
+  transition: transform .1s ease, box-shadow .1s ease, filter .1s ease;
+}
+.listen-button:active, .tone-button:active, .challenge-button:active, .play-pulse:active {
+  transform: translateY(2px);
+  box-shadow: inset 0 2px 4px rgba(0,0,0,.45), 0 1px 3px rgba(0,0,0,.5), 0 0 10px rgba(8,254,213,.2);
+}
+.listen-button.is-live { background: linear-gradient(180deg, #2b2b31, #202024); color: var(--ink); box-shadow: inset 0 6px 10px -3px rgba(0,0,0,.65), inset 0 -1px 1px rgba(255,255,255,.08), 0 1px 0 rgba(255,255,255,.05); }
+.button.secondary {
+  border: 0;
+  background: radial-gradient(circle at 40% 30%, #323844, #282d37 55%, #16181f);
+  box-shadow: inset 0 2px 2px rgba(255,255,255,.08), inset 0 -4px 8px rgba(0,0,0,.4), 0 2px 5px rgba(0,0,0,.6), 0 0 0 1px rgba(0,0,0,.25);
+  transition: transform .1s ease, box-shadow .1s ease;
+}
+.button.secondary:hover { transform: none; filter: brightness(1.08); }
+.button.secondary:active { transform: translateY(2px); box-shadow: inset 0 2px 4px rgba(0,0,0,.5), 0 1px 2px rgba(0,0,0,.5); }
+.icon-button, .reveal-button {
+  border: 0;
+  background: radial-gradient(circle at 40% 32%, #2c313c, #23272f 60%, #14161c);
+  box-shadow: inset 0 1px 1px rgba(255,255,255,.09), inset 0 -3px 6px rgba(0,0,0,.4), 0 2px 4px rgba(0,0,0,.5);
+}
+.icon-button:active, .reveal-button:active { transform: translateY(1px); box-shadow: inset 0 2px 4px rgba(0,0,0,.5); }
+.lab-mode-switch {
+  border: 0;
+  background: radial-gradient(160% 170% at 50% 135%, #282d37 0%, #1c1e25 45%, #0c0e13 100%);
+  box-shadow: inset 0 8px 14px -4px rgba(0,0,0,.72), inset 0 2px 3px rgba(0,0,0,.5), inset 0 -2px 2px rgba(255,255,255,.08), 0 1px 0 rgba(255,255,255,.06);
+}
+.lab-mode-switch button.is-active {
+  background: radial-gradient(circle at 40% 32%, #3a4150, #2f3542 60%, #1a1d26);
+  box-shadow: inset 0 1px 1px rgba(255,255,255,.14), inset 0 -2px 5px rgba(0,0,0,.35), 0 2px 5px rgba(0,0,0,.55), 0 0 0 1px rgba(0,0,0,.3);
 }

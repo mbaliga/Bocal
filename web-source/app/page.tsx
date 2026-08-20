@@ -90,20 +90,20 @@ const navItems: { id: Mode; label: string; icon: typeof Crosshair }[] = [
   { id: "practice", label: "Practice", icon: Music2 },
 ];
 
-// Everything below derives from the one bar curve "M34 62 Q200 30 366 62"
-// (viewBox 400×100 — x is linear in t since the three control x's are evenly
-// spaced, y(t) = 62 − 64t + 64t²). Five seats at t = .1/.3/.5/.7/.9.
+// Everything below derives from the one bar curve "M22 62 Q200 27 378 62"
+// (viewBox 400×100; x linear in t, evenly spaced control x's). Seats at
+// t = .07/.285/.5/.715/.93 — spread to fill the bar like the reference.
 //
 // ARC_SEATS: button centers, taken from the Bézier at each t — the row rides the curve.
 // ARC_TILTS: the curve's tangent angle at each seat, so icons/labels lie along the arc.
 const ARC_SEATS = [
-  { left: "16.8%", top: "56.2%" },
-  { left: "33.4%", top: "48.6%" },
-  { left: "50.0%", top: "46.0%" },
-  { left: "66.6%", top: "48.6%" },
-  { left: "83.2%", top: "56.2%" },
+  { left: "11.7%", top: "57.4%" },
+  { left: "30.9%", top: "47.7%" },
+  { left: "50.0%", top: "44.5%" },
+  { left: "69.1%", top: "47.7%" },
+  { left: "88.3%", top: "57.4%" },
 ];
-const ARC_TILTS = ["-8.77deg", "-4.41deg", "0deg", "4.41deg", "8.77deg"];
+const ARC_TILTS = ["-9.6deg", "-4.83deg", "0deg", "4.83deg", "9.6deg"];
 
 
 export default function Home() {
@@ -428,16 +428,31 @@ export default function Home() {
               box the SVG and seats position against. */}
           <div className="arc-inner">
             <svg className="arc-shape" viewBox="0 0 400 100" aria-hidden="true" focusable="false">
+              {/* Molded-bar shading per the Hyle tactile kit (gunmetal set):
+                  no outline ring — the shape is carried by light. A dark seam
+                  underlay, a vertical srf gradient fill, a top-lip sheen, and
+                  a faint bottom rim-light where the bar catches bounce. */}
               <defs>
+                <linearGradient id="arcFill" x1="0" y1="8" x2="0" y2="94" gradientUnits="userSpaceOnUse">
+                  <stop offset="0" stopColor="#282d37" />
+                  <stop offset="0.55" stopColor="#1f2129" />
+                  <stop offset="1" stopColor="#171922" />
+                </linearGradient>
                 <linearGradient id="arcSheen" x1="0" y1="10" x2="0" y2="92" gradientUnits="userSpaceOnUse">
-                  <stop offset="0" stopColor="rgba(255,255,255,0.09)" />
-                  <stop offset="0.45" stopColor="rgba(255,255,255,0.015)" />
+                  <stop offset="0" stopColor="rgba(255,255,255,0.12)" />
+                  <stop offset="0.4" stopColor="rgba(255,255,255,0.02)" />
                   <stop offset="1" stopColor="rgba(255,255,255,0)" />
                 </linearGradient>
+                <linearGradient id="arcRim" x1="0" y1="10" x2="0" y2="94" gradientUnits="userSpaceOnUse">
+                  <stop offset="0" stopColor="rgba(255,255,255,0)" />
+                  <stop offset="0.8" stopColor="rgba(255,255,255,0)" />
+                  <stop offset="1" stopColor="rgba(255,255,255,0.07)" />
+                </linearGradient>
               </defs>
-              <path d="M34 62 Q200 30 366 62" fill="none" stroke="#33333a" strokeWidth="60" strokeLinecap="round" />
-              <path d="M34 62 Q200 30 366 62" fill="none" stroke="rgba(17,17,19,0.98)" strokeWidth="58" strokeLinecap="round" />
-              <path d="M34 62 Q200 30 366 62" fill="none" stroke="url(#arcSheen)" strokeWidth="56" strokeLinecap="round" />
+              <path d="M22 62 Q200 27 378 62" fill="none" stroke="#0c0e13" strokeWidth="61" strokeLinecap="round" />
+              <path d="M22 62 Q200 27 378 62" fill="none" stroke="url(#arcFill)" strokeWidth="58" strokeLinecap="round" />
+              <path d="M22 62 Q200 27 378 62" fill="none" stroke="url(#arcSheen)" strokeWidth="56" strokeLinecap="round" />
+              <path d="M22 62 Q200 27 378 62" fill="none" stroke="url(#arcRim)" strokeWidth="58" strokeLinecap="round" />
             </svg>
             {navItems.map((item, index) => {
               const Icon = item.icon;
