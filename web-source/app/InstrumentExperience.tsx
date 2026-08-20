@@ -1,0 +1,239 @@
+"use client";
+
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  CircleDot,
+  Crosshair,
+  LockKeyhole,
+  Music2,
+  Sparkles,
+  Wind,
+  X,
+} from "lucide-react";
+import { useEffect, useState } from "react";
+import type { InstrumentId } from "./instruments";
+
+export const BOCAL_ONBOARDING_KEY = "bocal-onboarding-v2";
+
+type GalleryInstrument = {
+  id: string;
+  name: string;
+  family: string;
+  pitch: string;
+  status: string;
+  image?: string;
+  imagePosition?: string;
+  gradient: string;
+  availableId?: InstrumentId;
+};
+
+const GALLERY_INSTRUMENTS: GalleryInstrument[] = [
+  {
+    id: "alto-sax",
+    name: "Alto saxophone",
+    family: "Saxophone family",
+    pitch: "E♭",
+    status: "Full fingering lab",
+    image: "/images/bocal-alto-sax-cinematic.webp",
+    imagePosition: "58% center",
+    gradient: "linear-gradient(160deg, #4e210d, #121018 72%)",
+    availableId: "alto-sax",
+  },
+  {
+    id: "oboe",
+    name: "Oboe",
+    family: "Double reed",
+    pitch: "C",
+    status: "Anatomy preview",
+    image: "/images/bocal-oboe-cinematic.webp",
+    imagePosition: "66% center",
+    gradient: "linear-gradient(160deg, #241645, #081716 72%)",
+    availableId: "oboe",
+  },
+  { id: "tenor-sax", name: "Tenor saxophone", family: "Saxophone family", pitch: "B♭", status: "Model source under review", image: "/images/bocal-tenor-sax-cinematic.webp", imagePosition: "57% center", gradient: "linear-gradient(160deg, #672d19, #231116)" },
+  { id: "soprano-sax", name: "Soprano saxophone", family: "Saxophone family", pitch: "B♭", status: "Commission brief ready", image: "/images/bocal-soprano-sax-cinematic.webp", imagePosition: "55% center", gradient: "linear-gradient(160deg, #153a48, #0d1821)" },
+  { id: "clarinet", name: "Clarinet", family: "Single reed", pitch: "B♭", status: "Commercial licence required", image: "/images/bocal-clarinet-cinematic.webp", imagePosition: "55% center", gradient: "linear-gradient(160deg, #293652, #12121c)" },
+  { id: "flute", name: "Flute", family: "Air reed", pitch: "C", status: "CC BY candidate found", image: "/images/bocal-flute-cinematic.webp", imagePosition: "54% center", gradient: "linear-gradient(160deg, #5b6573, #181c24)" },
+  { id: "bassoon", name: "Bassoon", family: "Double reed", pitch: "C", status: "Licensed candidate found", image: "/images/bocal-bassoon-cinematic.webp", imagePosition: "61% center", gradient: "linear-gradient(160deg, #5b281e, #1d1112)" },
+];
+
+function useEscape(open: boolean, close: () => void) {
+  useEffect(() => {
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKeyDown = (event: KeyboardEvent) => event.key === "Escape" && close();
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [close, open]);
+}
+
+function InstrumentPanelDeck({
+  focusedId,
+  selectedId,
+  onFocus,
+}: {
+  focusedId: string;
+  selectedId: InstrumentId;
+  onFocus: (id: string) => void;
+}) {
+  return (
+    <div className="instrument-panel-deck" role="listbox" aria-label="Instrument collection">
+      {GALLERY_INSTRUMENTS.map((item, index) => {
+        const focused = item.id === focusedId;
+        const selected = item.availableId === selectedId;
+        return (
+          <button
+            key={item.id}
+            role="option"
+            aria-selected={focused}
+            className={`instrument-panel ${focused ? "is-focused" : ""} ${selected ? "is-selected" : ""} ${item.availableId ? "is-available" : "is-upcoming"}`}
+            onClick={() => onFocus(item.id)}
+            style={{
+              backgroundImage: `${item.image ? `linear-gradient(180deg, rgba(4,4,6,.02), rgba(4,4,6,.88)), url("${item.image}")` : item.gradient}`,
+              backgroundPosition: item.image ? `center, ${item.imagePosition ?? "center"}` : "center",
+              backgroundSize: item.image ? (focused ? "cover, cover" : "cover, auto 94%") : "cover",
+              backgroundRepeat: "no-repeat",
+            }}
+          >
+            <span className="instrument-panel-number">{String(index + 1).padStart(2, "0")}</span>
+            {!item.image && <span className="instrument-ghost" aria-hidden="true"><i /><b /></span>}
+            <span className="instrument-panel-copy">
+              <small>{item.family} · {item.pitch}</small>
+              <strong>{item.name}</strong>
+              <em>{item.status}</em>
+            </span>
+            {selected && <span className="instrument-selected-mark"><Check size={13} /> Current</span>}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+export function InstrumentPickerExperience({
+  open,
+  selectedId,
+  onSelect,
+  onClose,
+}: {
+  open: boolean;
+  selectedId: InstrumentId;
+  onSelect: (id: InstrumentId) => void;
+  onClose: () => void;
+}) {
+  const [focusedId, setFocusedId] = useState<string>(selectedId);
+  useEscape(open, onClose);
+  if (!open) return null;
+  const focused = GALLERY_INSTRUMENTS.find((item) => item.id === focusedId) ?? GALLERY_INSTRUMENTS[0];
+
+  return (
+    <div className="experience-overlay" role="presentation">
+      <section className="instrument-experience" role="dialog" aria-modal="true" aria-labelledby="instrument-experience-title">
+        <header className="experience-header">
+          <div><p className="eyebrow">Choose an instrument</p><h2 id="instrument-experience-title">What are you playing today?</h2><p>Pick an instrument and Bocal will adjust the tuner, lessons and written-pitch display around it.</p></div>
+          <button onClick={onClose} aria-label="Close instrument selection"><X size={20} /></button>
+        </header>
+        <InstrumentPanelDeck focusedId={focusedId} selectedId={selectedId} onFocus={setFocusedId} />
+        <footer className="experience-footer">
+          <div><small>{focused.family}</small><strong>{focused.name} · {focused.pitch}</strong><span>{focused.status}</span></div>
+          {focused.availableId ? (
+            <button className="experience-primary" onClick={() => onSelect(focused.availableId!)}>Enter {focused.name} <ArrowRight size={16} /></button>
+          ) : (
+            <button className="experience-primary" disabled>Coming next</button>
+          )}
+        </footer>
+      </section>
+    </div>
+  );
+}
+
+const ONBOARDING_STEPS = [
+  { kicker: "First things first", title: "Pick the instrument you’re playing." },
+  { kicker: "Tune", title: "Play one steady note." },
+  { kicker: "Learn", title: "Watch the right keys light up." },
+  { kicker: "Practice", title: "Your work stays on your device." },
+];
+
+export function OnboardingGuide({
+  open,
+  selectedId,
+  onSelect,
+  onComplete,
+}: {
+  open: boolean;
+  selectedId: InstrumentId;
+  onSelect: (id: InstrumentId) => void;
+  onComplete: () => void;
+}) {
+  const [step, setStep] = useState(0);
+  const [focusedId, setFocusedId] = useState<string>(selectedId);
+  const finish = () => { setStep(0); onComplete(); };
+  useEscape(open, finish);
+  if (!open) return null;
+  const focusedInstrument = GALLERY_INSTRUMENTS.find((item) => item.id === focusedId) ?? GALLERY_INSTRUMENTS[0];
+
+  const chooseFocused = () => {
+    const selected = focusedInstrument.availableId;
+    if (!selected) return;
+    onSelect(selected);
+    setStep(1);
+  };
+
+  return (
+    <div className="experience-overlay onboarding-overlay" role="presentation">
+      <section className="onboarding-guide" role="dialog" aria-modal="true" aria-labelledby="onboarding-title">
+        <header className="onboarding-topline">
+          <span className="onboarding-brand"><Wind size={18} /> bocal</span>
+          <div className="onboarding-progress" aria-label={`Step ${step + 1} of ${ONBOARDING_STEPS.length}`}>{ONBOARDING_STEPS.map((_, index) => <i key={index} className={index <= step ? "is-active" : ""} />)}</div>
+          <button onClick={finish}>Skip guide</button>
+        </header>
+
+        <div className="onboarding-heading">
+          <p className="eyebrow">{ONBOARDING_STEPS[step].kicker}</p>
+          <h2 id="onboarding-title">{ONBOARDING_STEPS[step].title}</h2>
+        </div>
+
+        {step === 0 && <InstrumentPanelDeck focusedId={focusedId} selectedId={selectedId} onFocus={setFocusedId} />}
+        {step === 1 && (
+          <div className="onboarding-scene tuner-onboarding-scene">
+            <div className="onboarding-copy"><span><Crosshair size={17} /> How tuning works</span><h3>No note until you play.</h3><p>Bocal listens for a steady pitch before it shows a note. A short dropout won’t make the display jump.</p></div>
+            <div className="onboarding-tuner-visual"><small>ACQUIRING</small><strong>A<sup>4</sup></strong><div><i /><b /></div><span>−50</span><span>0</span><span>+50</span></div>
+          </div>
+        )}
+        {step === 2 && (
+          <div className="onboarding-scene contact-onboarding-scene">
+            <div className="onboarding-copy"><span><CircleDot size={17} /> Key glow</span><h3>Follow the light.</h3><p>Each note lights only the touch-pieces you need. Rotate the instrument to find the side and thumb keys; nothing sits between you and the keywork.</p></div>
+            <div className="onboarding-contact-visual" aria-hidden="true"><span className="onboarding-key-rail" /><b /><b /><b /><em>KEY GLOW</em></div>
+          </div>
+        )}
+        {step === 3 && (
+          <div className="onboarding-scene privacy-onboarding-scene">
+            <div className="onboarding-copy"><span><LockKeyhole size={17} /> Your data</span><h3>Nothing leaves your device.</h3><p>Pitch readings, practice time and scores stay in this browser. You don’t need an account.</p></div>
+            <div className="onboarding-proof-grid">
+              <span className="proof-tune"><Crosshair size={18} /><i>LIVE PITCH</i><strong>Tune</strong><small>Settle on the note instead of chasing the needle.</small><b>±5¢ target</b></span>
+              <span className="proof-practice"><Music2 size={18} /><i>YOUR SESSION</i><strong>Practice</strong><small>Build a focused set and keep a simple local history.</small><b>15 min plan</b></span>
+              <span className="proof-learn"><Sparkles size={18} /><i>3D KEY MAP</i><strong>Learn</strong><small>Choose a note and see the exact touch-pieces light up.</small><b>Live key glow</b></span>
+            </div>
+          </div>
+        )}
+
+        <footer className="onboarding-actions">
+          <button className="onboarding-back" disabled={step === 0} onClick={() => setStep((value) => Math.max(0, value - 1))}><ArrowLeft size={16} /> Back</button>
+          {step === 0 ? (
+            <button className="experience-primary" disabled={!focusedInstrument.availableId} onClick={chooseFocused}>{focusedInstrument.availableId ? "Use this instrument" : "Coming next"} {focusedInstrument.availableId && <ArrowRight size={16} />}</button>
+          ) : step < ONBOARDING_STEPS.length - 1 ? (
+            <button className="experience-primary" onClick={() => setStep((value) => value + 1)}>Continue <ArrowRight size={16} /></button>
+          ) : (
+            <button className="experience-primary" onClick={finish}>Enter Bocal <ArrowRight size={16} /></button>
+          )}
+        </footer>
+      </section>
+    </div>
+  );
+}

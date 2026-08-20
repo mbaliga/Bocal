@@ -12,6 +12,8 @@ command -v timeout || {
   exit 69
 }
 
+"${script_dir}/stage-debug-apk.sh"
+
 vinext="${SITES_PROJECT_ROOT}/node_modules/.bin/vinext"
 if [[ ! -x "${vinext}" ]]; then
   echo "vinext is unavailable. Run npm run install:ci and wait for it to finish before building." >&2

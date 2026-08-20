@@ -1,108 +1,70 @@
-# vinext-starter
+# Bocal
 
-A clean full-stack starter running on
-[vinext](https://github.com/cloudflare/vinext), with optional Cloudflare D1 and
-Drizzle support.
+Bocal is a local-first music practice app for learners, teachers and working musicians. The current public product combines a stable-note tuner, pulse and practice tools, local analysis, and instrument-specific spatial learning.
 
-## Prerequisites
+This repository is the source of truth for the hosted web app, its licensed 3D assets, visual masters, automated checks and the native Android foundation. The only public handoff download is `BOCAL_HANDOFF.md`.
 
-- Node.js `>=22.13.0`
-- Linux with `flock`, `curl`, and GNU `timeout`
+## Current instrument support
 
-## Sites Lifecycle
+| Instrument | Tuner | 3D learning readiness |
+|---|---:|---|
+| E♭ alto saxophone | Yes | Interactive fingering contacts, linked-mechanism trace and XR-style phantom hands |
+| C oboe | Yes | Single-instrument anatomy preview and component inspection; fingering intentionally withheld pending specialist validation |
 
-The Sites lifecycle CLI runs the locked dependency install before returning this checkout. Edit the source under `app/`, then checkpoint when a coherent milestone is ready to inspect or share. The remote Sites builder runs `npm run build` against the pushed commit. Do not repeat install or build as a normal pre-checkpoint step.
+The instrument gallery also shows the planned woodwind sequence, but unavailable instruments cannot be selected.
 
-This starter does not use `wrangler.jsonc`.
+## Product surfaces
 
-`install:ci` is intentionally a single, non-retrying `npm ci`. It refuses a concurrent install for the same project, consumes a matching image-seeded npm cache with `--prefer-offline` while retaining registry fallback for a missing cache object, otherwise downloads and verifies the complete vinext tarball recorded in `package-lock.json`, limits npm to one socket, and terminates a stalled install. `build` applies a short timeout and then validates the Sites artifact. These helpers target Linux and use GNU `timeout`; they are not native macOS scripts.
+- Confidence-gated chromatic tuner with explicit silence and local microphone processing.
+- Metronome, tap tempo, drone, practice planning and deterministic local skill evidence.
+- Local waveform/spectrum views and browser take recording.
+- Detailed licensed alto GLB with 23 semantic touch targets, view presets and full-screen focus mode.
+- First-run expanding-panel instrument gallery and replayable four-step onboarding.
+- Visual setup-part coverflow for finishes, necks, mouthpieces, reeds and ligatures.
+- Native Kotlin/Compose source under `android/`; no APK is claimed until built and tested with an Android SDK and physical devices.
 
-Scripts that need writable project-scoped home, npm, XDG, and temporary paths use `scripts/sites-env.sh`. The `dev` and `start` scripts honor the caller's runtime environment and keep Wrangler logs inside the checkout. The generated `.sites-runtime/` directory is disposable and ignored by Git.
+## Repository map
 
-## Included Shape
+- `app/` — React/Vinext product source.
+- `public/models/` — optimized public GLBs and attribution.
+- `public/images/` — optimized cinematic web images.
+- `assets/source/` — generated visual masters.
+- `android/` — native Android foundation.
+- `tests/` — product-truth, musical-data, asset and release checks.
+- `docs/` — supporting research and validation notes.
+- `BOCAL_HANDOFF.md` — consolidated product, persona, workflow, architecture and release handoff.
 
-- edit site code under `app/`
-- `app/chatgpt-auth.ts` provides optional dispatch-owned ChatGPT sign-in helpers
-- `.openai/hosting.json` declares optional Sites D1 and R2 bindings
-- `vite.config.ts` simulates declared bindings for local development
-- `db/index.ts` reads the D1 binding from the Cloudflare Worker environment
-- `db/schema.ts` starts intentionally empty
-- `examples/d1/` contains an optional D1 example surface
-- `drizzle.config.ts` supports local migration generation when needed
+## Local development
 
-## Workspace Auth Headers
+Requires Node.js 22.13 or newer.
 
-OpenAI workspace sites can read the current user's email from
-`oai-authenticated-user-email`.
-
-SIWC-authenticated workspace sites may also receive
-`oai-authenticated-user-full-name` when the user's SIWC profile has a non-empty
-`name` claim. The full-name value is percent-encoded UTF-8 and is accompanied by
-`oai-authenticated-user-full-name-encoding: percent-encoded-utf-8`.
-
-Treat the full name as optional and fall back to email when it is absent:
-
-```tsx
-import { headers } from "next/headers";
-
-export default async function Home() {
-  const requestHeaders = await headers();
-  const email = requestHeaders.get("oai-authenticated-user-email");
-  const encodedFullName = requestHeaders.get("oai-authenticated-user-full-name");
-  const fullName =
-    encodedFullName &&
-    requestHeaders.get("oai-authenticated-user-full-name-encoding") ===
-      "percent-encoded-utf-8"
-      ? decodeURIComponent(encodedFullName)
-      : null;
-
-  const displayName = fullName ?? email;
-  // ...
-}
+```bash
+npm ci
+npm run dev
 ```
 
-## Optional Dispatch-Owned ChatGPT Sign-In
+Useful checks:
 
-Import the ready-to-use helpers from `app/chatgpt-auth.ts` when the site needs
-optional or required ChatGPT sign-in:
+```bash
+npm run lint
+npm test
+```
 
-- Use `getChatGPTUser()` for optional signed-in UI.
-- Use `requireChatGPTUser(returnTo)` for server-rendered pages that should send
-  anonymous visitors through Sign in with ChatGPT.
-- Use `chatGPTSignInPath(returnTo)` and `chatGPTSignOutPath(returnTo)` for
-  browser links or actions.
-- Pass a same-origin relative `returnTo` path for the destination after sign-in
-  or sign-out. The helper validates and safely encodes it.
-- Mark protected pages with `export const dynamic = "force-dynamic"` because
-  they depend on per-request identity headers.
+`npm test` performs the verified production build before running the Node test suite.
 
-Dispatch owns `/signin-with-chatgpt`, `/signout-with-chatgpt`, `/callback`, the
-OAuth cookies, and identity header injection. Do not implement app routes for
-those reserved paths. Routes that do not import and call the helper remain
-anonymous-compatible.
+## Android status
 
-SIWC establishes identity only; it does not prove workspace membership. Use the
-Sites hosting platform's access policy controls for workspace-wide restrictions,
-or enforce explicit server-side membership or allowlist checks.
+The checked-in native project targets API 36 and uses Kotlin/Compose with a local `AudioRecord`/YIN tuner foundation. Build it only in an environment with JDK 17, Android SDK 36 and the matching Gradle/AGP toolchain:
 
-Use SIWC for account pages, user-specific dashboards, saved records, and write
-actions tied to the current ChatGPT user. Leave public content anonymous.
+```bash
+cd android
+gradle :app:assembleDebug
+gradle :app:testDebugUnitTest
+gradle :app:lintDebug
+```
 
-## Diagnostic Commands
+No signing key belongs in this repository.
 
-- `npm run install:ci`: perform the one bounded lockfile install
-- `npm run dev`: start the Vite/Vinext development server
-- `npm run build`: build and validate the deployable Sites artifact
-- `npm run start`: start the built Vinext application
-- `npm test`: build, validate, and verify the rendered development-preview metadata
-- `npm run validate:artifact`: recheck an existing artifact's manifest and ESM `default.fetch` export
-- `npm run db:generate`: generate Drizzle migrations after schema changes
+## Accuracy and rights
 
-Use build and validation commands for targeted diagnosis after a remote failure, not as part of the normal checkpoint path.
-
-The timeout defaults can be overridden for a controlled canary with `SITES_INSTALL_TIMEOUT`, `SITES_INSTALL_KILL_AFTER`, `SITES_BUILD_TIMEOUT`, and `SITES_BUILD_KILL_AFTER`. A timeout fails the command; the helpers never retry an unchanged install or build.
-
-## Learn More
-
-- [vinext Documentation](https://github.com/cloudflare/vinext)
-- [Drizzle D1 Guide](https://orm.drizzle.team/docs/get-started/d1-new)
+Musical truth is data-driven and versioned separately from rendering. The alto learning map remains an educational prototype pending named expert/device validation; the oboe is explicitly an anatomy preview. See `public/models/ATTRIBUTION.md` and `BOCAL_HANDOFF.md` for licences, exclusions and release gates.

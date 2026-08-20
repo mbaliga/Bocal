@@ -25,6 +25,14 @@ import {
   Zap,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  calculateSkillRating,
+  emptySkillEvidence,
+  parseSkillEvidence,
+  SKILL_EVIDENCE_STORAGE_KEY,
+  type SkillEvidenceBundle,
+  withRhythmAttempt,
+} from "./skill-rating";
 
 const DRONES = [
   { label: "Concert B♭", hz: 233.08 },
@@ -58,6 +66,10 @@ export function PulseView() {
   const contextRef = useRef<AudioContext | null>(null);
   const tickRef = useRef(0);
   const tapsRef = useRef<number[]>([]);
+  const lastBeatAtRef = useRef<number | null>(null);
+  const rhythmErrorsRef = useRef<number[]>([]);
+  const [rhythmTapCount, setRhythmTapCount] = useState(0);
+  const [rhythmFeedback, setRhythmFeedback] = useState("");
 
   useEffect(() => {
     if (!playing) return;
@@ -71,6 +83,7 @@ export function PulseView() {
       const accent = beat === 0 && subTick === 0;
       audioClick(context, accent, subTick !== 0);
       if (subTick === 0) {
+        lastBeatAtRef.current = performance.now();
         setCurrentBeat(beat);
         if (haptics && navigator.vibrate) navigator.vibrate(accent ? 28 : 14);
       }
@@ -116,12 +129,57 @@ export function PulseView() {
     }
   };
 
+  const tapWithPulse = () => {
+    const lastBeat = lastBeatAtRef.current;
+    if (lastBeat === null) return;
+    const beatDuration = 60_000 / bpm;
+    const elapsed = performance.now() - lastBeat;
+    const phase = ((elapsed % beatDuration) + beatDuration) % beatDuration;
+    const error = Math.min(phase, beatDuration - phase);
+    const nextErrors = [...rhythmErrorsRef.current, error].slice(-16);
+    rhythmErrorsRef.current = nextErrors;
+    setRhythmTapCount(nextErrors.length);
+    if (nextErrors.length < 16) return;
+
+    const ordered = [...nextErrors].sort((left, right) => left - right);
+    const medianError = (ordered[7] + ordered[8]) / 2;
+    try {
+      const capturedAt = new Date().toISOString();
+      const current = parseSkillEvidence(localStorage.getItem(SKILL_EVIDENCE_STORAGE_KEY));
+      const next = withRhythmAttempt(current, {
+        id: `rhythm-${capturedAt}`,
+        capturedAt,
+        hitCount: 16,
+        medianAbsoluteErrorMs: Number(medianError.toFixed(2)),
+      });
+      localStorage.setItem(SKILL_EVIDENCE_STORAGE_KEY, JSON.stringify(next));
+      window.dispatchEvent(new Event("bocal-skill-evidence"));
+      setRhythmFeedback(`Saved 16 attacks · ${Math.round(medianError)} ms median timing error.`);
+    } catch {
+      setRhythmFeedback(`Measured ${Math.round(medianError)} ms median timing error; device storage is unavailable.`);
+    }
+    rhythmErrorsRef.current = [];
+    setRhythmTapCount(0);
+  };
+
+  const handleTap = () => playing ? tapWithPulse() : tapTempo();
+  const togglePlaying = () => {
+    if (!playing) {
+      rhythmErrorsRef.current = [];
+      setRhythmTapCount(0);
+      setRhythmFeedback("Tap with the pulse 16 times to add measured rhythm evidence.");
+    } else {
+      lastBeatAtRef.current = null;
+    }
+    setPlaying((value) => !value);
+  };
+
   const tempoName = bpm < 60 ? "Largo" : bpm < 76 ? "Adagio" : bpm < 108 ? "Andante" : bpm < 120 ? "Moderato" : bpm < 168 ? "Allegro" : "Presto";
 
   return (
     <div className="content-wrap pulse-view">
       <section className="section-heading">
-        <div><p className="eyebrow">Pulse · Metronome</p><h1>Time, without friction.</h1><p>One surface for tempo, feel, subdivision, and a tuning drone.</p></div>
+        <div><p className="eyebrow">Pulse · Metronome</p><h1>Set the pulse.</h1><p>Adjust the tempo, meter and subdivision, or add a tuning drone underneath.</p></div>
         <div className={`live-badge ${playing ? "metronome-live" : ""}`}><span className={playing ? "pulse-dot" : "quiet-dot"} /> {playing ? "In motion" : "Ready"}</div>
       </section>
 
@@ -133,7 +191,8 @@ export function PulseView() {
           <div className="beat-lights" aria-label={`Beat ${currentBeat + 1} of ${beatsPerBar}`}>
             {Array.from({ length: beatsPerBar }, (_, index) => <i key={index} className={playing && currentBeat === index ? "is-active" : ""}><span>{index + 1}</span></i>)}
           </div>
-          <div className="pulse-primary-actions"><button className="tap-button" onClick={tapTempo}>Tap tempo</button><button className={`play-pulse ${playing ? "is-playing" : ""}`} onClick={() => setPlaying((value) => !value)}>{playing ? <Pause size={22} fill="currentColor" /> : <Play size={22} fill="currentColor" />}{playing ? "Pause" : "Start"}</button></div>
+          <div className="pulse-primary-actions"><button className={`tap-button ${playing ? "is-assessing" : ""}`} onClick={handleTap}>{playing ? `Tap with pulse · ${rhythmTapCount}/16` : "Tap tempo"}</button><button className={`play-pulse ${playing ? "is-playing" : ""}`} onClick={togglePlaying}>{playing ? <Pause size={22} fill="currentColor" /> : <Play size={22} fill="currentColor" />}{playing ? "Pause" : "Start"}</button></div>
+          {rhythmFeedback && <p className="rhythm-feedback"><Activity size={13} /> {rhythmFeedback}</p>}
         </section>
 
         <aside className="pulse-controls">
@@ -153,28 +212,60 @@ export function PulseView() {
 
 type SessionRecord = { date: string; seconds: number; note?: string };
 
-const WEEK = [
-  { day: "M", minutes: 12 }, { day: "T", minutes: 18 }, { day: "W", minutes: 0 },
-  { day: "T", minutes: 23 }, { day: "F", minutes: 9 }, { day: "S", minutes: 16 }, { day: "S", minutes: 0 },
-];
+function dayKey(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
 
-export function PracticeView() {
+function weekFromSessions(sessions: SessionRecord[]) {
+  const now = new Date();
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (6 - index), 12);
+    const key = dayKey(date);
+    const seconds = sessions.reduce((sum, session) => {
+      const captured = new Date(session.date);
+      return Number.isFinite(captured.getTime()) && dayKey(captured) === key ? sum + Math.max(0, session.seconds) : sum;
+    }, 0);
+    return { key, day: date.toLocaleDateString(undefined, { weekday: "narrow" }), minutes: Math.round(seconds / 60) };
+  });
+}
+
+export function PracticeView({
+  onOpenTuner,
+  onOpenSax,
+  onOpenPulse,
+}: {
+  onOpenTuner: () => void;
+  onOpenSax: () => void;
+  onOpenPulse: () => void;
+}) {
   const [completed, setCompleted] = useState<string[]>([]);
   const [note, setNote] = useState("");
   const [savedNote, setSavedNote] = useState("");
   const [sessions, setSessions] = useState<SessionRecord[]>([]);
+  const [skillEvidence, setSkillEvidence] = useState<SkillEvidenceBundle>(() => emptySkillEvidence());
 
   useEffect(() => {
-    const restore = window.setTimeout(() => {
+    const restore = () => {
       try {
         setSessions(JSON.parse(localStorage.getItem("bocal-sessions") ?? "[]"));
         setSavedNote(localStorage.getItem("bocal-lesson-note") ?? "");
+        setSkillEvidence(parseSkillEvidence(localStorage.getItem(SKILL_EVIDENCE_STORAGE_KEY)));
       } catch { /* Local storage can be unavailable in private browsing. */ }
-    }, 0);
-    return () => window.clearTimeout(restore);
+    };
+    const restoreTimer = window.setTimeout(restore, 0);
+    window.addEventListener("bocal-skill-evidence", restore);
+    window.addEventListener("storage", restore);
+    return () => {
+      window.clearTimeout(restoreTimer);
+      window.removeEventListener("bocal-skill-evidence", restore);
+      window.removeEventListener("storage", restore);
+    };
   }, []);
 
-  const totalMinutes = useMemo(() => WEEK.reduce((sum, day) => sum + day.minutes, 0) + Math.round(sessions.reduce((sum, session) => sum + session.seconds, 0) / 60), [sessions]);
+  const week = useMemo(() => weekFromSessions(sessions), [sessions]);
+  const totalMinutes = useMemo(() => week.reduce((sum, day) => sum + day.minutes, 0), [week]);
+  const daysPlayed = useMemo(() => week.filter((day) => day.minutes > 0).length, [week]);
+  const skillRating = useMemo(() => calculateSkillRating(skillEvidence), [skillEvidence]);
   const saveNote = () => {
     const clean = note.trim();
     if (!clean) return;
@@ -183,7 +274,7 @@ export function PracticeView() {
     try { localStorage.setItem("bocal-lesson-note", clean); } catch { /* Non-critical local enhancement. */ }
   };
   const exportData = () => {
-    const payload = { schemaVersion: 1, exportedAt: new Date().toISOString(), sessions, lessonNote: savedNote, completed };
+    const payload = { schemaVersion: 1, exportedAt: new Date().toISOString(), sessions, lessonNote: savedNote, completed, skillEvidence, skillRating };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -197,9 +288,16 @@ export function PracticeView() {
   return (
     <div className="content-wrap practice-view">
       <section className="section-heading practice-heading">
-        <div><p className="eyebrow">Practice · Your studio</p><h1>A plan worth returning to.</h1><p>Useful direction, honest progress, and no guilt mechanics.</p></div>
+        <div><p className="eyebrow">Practice · Your studio</p><h1>Plan your next session.</h1><p>Pick a short set, keep the notes that matter, and see what you actually practised.</p></div>
         <button className="button secondary export-button" onClick={exportData}><Download size={15} /> Export my data</button>
       </section>
+
+      <SkillRatingCard
+        rating={skillRating}
+        onOpenTuner={onOpenTuner}
+        onOpenSax={onOpenSax}
+        onOpenPulse={onOpenPulse}
+      />
 
       <div className="practice-overview">
         <section className="focus-plan">
@@ -210,9 +308,9 @@ export function PracticeView() {
         </section>
 
         <section className="week-card">
-          <div className="practice-card-head"><div><span className="card-kicker"><Activity size={14} /> This week</span><h2>{totalMinutes} focused minutes</h2></div><span className="trend-chip">+18%</span></div>
-          <div className="week-chart">{WEEK.map((item, index) => <div key={index}><i style={{ height: `${Math.max(4, item.minutes / 24 * 100)}%` }} className={item.minutes === 0 ? "is-empty" : ""} /><span>{item.day}</span></div>)}</div>
-          <div className="week-summary"><span><strong>4</strong> days played</span><span><strong>±7¢</strong> typical stability</span></div>
+          <div className="practice-card-head"><div><span className="card-kicker"><Activity size={14} /> Last seven days</span><h2>{totalMinutes} focused minutes</h2></div><span className="trend-chip">Device data</span></div>
+          <div className="week-chart">{week.map((item) => <div key={item.key}><i style={{ height: `${Math.max(4, item.minutes / Math.max(24, ...week.map((day) => day.minutes)) * 100)}%` }} className={item.minutes === 0 ? "is-empty" : ""} /><span>{item.day}</span></div>)}</div>
+          <div className="week-summary"><span><strong>{daysPlayed}</strong> days played</span><span><strong>{skillRating.evidence.acceptedPitchFrames}</strong> accepted pitch frames</span></div>
         </section>
       </div>
 
@@ -239,6 +337,67 @@ export function PracticeView() {
         </section>
       </div>
     </div>
+  );
+}
+
+function SkillRatingCard({
+  rating,
+  onOpenTuner,
+  onOpenSax,
+  onOpenPulse,
+}: {
+  rating: ReturnType<typeof calculateSkillRating>;
+  onOpenTuner: () => void;
+  onOpenSax: () => void;
+  onOpenPulse: () => void;
+}) {
+  const statusLabel = rating.status === "unrated" ? "Unrated" : rating.status === "provisional" ? "Provisional" : "Established";
+  return (
+    <section className="skill-rating-card">
+      <header>
+        <div><span className="card-kicker"><Gauge size={14} /> Bocal skill rating · {rating.formulaVersion}</span><h2>Your score, explained.</h2><p>Bocal scores only the work recorded on this device. Open the details to see the formula and what is still missing. It does not try to judge expression, tone colour, sight-reading or repertoire.</p></div>
+        <span className={`rating-status is-${rating.status}`}>{statusLabel}</span>
+      </header>
+
+      <div className="rating-overview">
+        <div className="rating-number"><strong>{rating.rating ?? "—"}</strong><span>{rating.level} benchmark</span><small>{rating.rating === null ? "A provisional score starts after 75 accepted pitch frames" : `${rating.confidence}% data coverage`}</small></div>
+        <div className="rating-confidence">
+          <div><span>Evidence coverage</span><strong>{rating.confidence}%</strong></div>
+          <i><b style={{ width: `${rating.confidence}%` }} /></i>
+          <p>This shows how much practice data the score is based on. More coverage makes the score better supported; it does not add bonus points.</p>
+        </div>
+        <div className="rating-evidence">
+          <span><strong>{rating.evidence.tunerSessions}</strong> tuner sessions</span>
+          <span><strong>{rating.evidence.acceptedPitchFrames}</strong> pitch frames</span>
+          <span><strong>{rating.evidence.fingeringAttempts}</strong> fingering checks</span>
+          <span><strong>{rating.evidence.rhythmHits}</strong> rhythm attacks</span>
+          <span><strong>{rating.evidence.distinctNotes}</strong> distinct notes</span>
+        </div>
+      </div>
+
+      <div className="rating-dimensions">
+        {rating.dimensions.map((dimension) => (
+          <article key={dimension.id}>
+            <div><span>{dimension.label} · {Math.round(dimension.weight * 100)}%</span><strong>{dimension.score ?? "—"}</strong></div>
+            <i><b style={{ width: `${dimension.score ?? 0}%` }} /></i>
+            <small>{dimension.evidence}</small>
+          </article>
+        ))}
+      </div>
+
+      <div className="rating-actions">
+        <button onClick={onOpenTuner}><Headphones size={15} /> Measure pitch</button>
+        <button onClick={onOpenSax}><Music2 size={15} /> Test fingering</button>
+        <button onClick={onOpenPulse}><Waves size={15} /> Measure rhythm</button>
+      </div>
+
+      <details className="rating-formula">
+        <summary>Show the exact scoring rules</summary>
+        <p><strong>Rating = 400 + 16 × measured weighted score.</strong> Bocal leaves a category out until there is enough data for it. The categories that do have enough data are reweighted for a provisional score.</p>
+        <ul>{rating.dimensions.map((dimension) => <li key={dimension.id}><span>{dimension.label}</span><code>{dimension.formula}</code></li>)}</ul>
+        <p>A score becomes established after 3 tuner sessions, 600 accepted frames, 30 fingering checks, 64 rhythm attacks and 18 different notes. The same saved data always produces the same result. These are Bocal benchmarks, not a ranking against other players.</p>
+      </details>
+    </section>
   );
 }
 
