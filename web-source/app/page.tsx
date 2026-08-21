@@ -62,6 +62,7 @@ type PitchReading = {
 
 const NOTE_NAMES = ["C", "C♯", "D", "E♭", "E", "F", "F♯", "G", "A♭", "A", "B♭", "B"];
 const NAVIGATION_SIDE_STORAGE_KEY = "bocal-navigation-side";
+const INSTRUMENT_STORAGE_KEY = "bocal-instrument";
 
 function pitchFromFrequency(hz: number, writtenOffset: number): PitchReading {
   const concertMidiFloat = 69 + 12 * Math.log2(hz / 440);
@@ -154,6 +155,18 @@ export default function Home() {
         if (saved === "left" || saved === "right") setRailSide(saved);
       } catch {
         // The navigation remains on the left when device storage is unavailable.
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      try {
+        const saved = localStorage.getItem(INSTRUMENT_STORAGE_KEY);
+        if (saved && saved in INSTRUMENTS) setInstrumentId(saved as InstrumentId);
+      } catch {
+        // Bocal opens on the alto when device storage is unavailable.
       }
     }, 0);
     return () => window.clearTimeout(timer);
@@ -304,6 +317,7 @@ export default function Home() {
     if (listening) stopListening();
     setInstrumentId(nextId);
     setInstrumentPickerOpen(false);
+    try { localStorage.setItem(INSTRUMENT_STORAGE_KEY, nextId); } catch { /* The choice still applies for this visit. */ }
   };
 
   const completeOnboarding = () => {
@@ -406,7 +420,9 @@ export default function Home() {
             is a compact pill hugging its glyph. Inverted for the dark theme:
             the reference's dark-pill-on-light-bar becomes ink-on-dark. */}
         <div className="dock-top">
-          <div className="dock-side-button" aria-hidden="true"><LockKeyhole size={16} /></div>
+          {/* Left circle is a privacy BADGE (mirrors the rail's "Local only"
+              dot), deliberately styled flat so it doesn't read as a button. */}
+          <div className="dock-side-button is-badge" aria-hidden="true"><LockKeyhole size={16} /></div>
           <div className="dock-pill" role="group" aria-label="Instrument">
             {INSTRUMENT_ORDER.map((id) => (
               <button
@@ -419,7 +435,7 @@ export default function Home() {
               </button>
             ))}
           </div>
-          <button className="dock-side-button" aria-label="Open profile">TU</button>
+          <button className="dock-side-button" aria-label="Open Bocal settings" onClick={() => setDownloadCenterOpen(true)}>TU</button>
         </div>
         <nav className="mobile-nav is-arc" aria-label="Primary navigation">
           {/* The 4:1 box uses height:0/padding-bottom:25% (NOT the aspect-ratio
