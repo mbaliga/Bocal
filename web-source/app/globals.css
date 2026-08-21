@@ -1165,7 +1165,7 @@ button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--c
    by light. The 4:1 arc box keeps height:0/padding-bottom:25% (the
    aspect-ratio property collapsed on Android WebViews).
    ============================================================ */
-@media (width<=680px) {
+@media (width<=680px), (orientation: landscape) and (max-height: 520px) {
   .mobile-dock { display: block; position: fixed; left: 6px; right: 6px; bottom: 4px; z-index: 50; max-width: 480px; margin-inline: auto;
     --hy-srf: #1f2129; --hy-srf2: #282d37; --hy-srf3: #323844; --hy-groove: #0c0e13;
     --hy-rim: rgba(255,255,255,.14); --hy-rim2: rgba(255,255,255,.07); --hy-lip: rgba(255,255,255,.1);
@@ -1182,16 +1182,26 @@ button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--c
     transition: transform .1s ease, box-shadow .1s ease; }
   .dock-side-button:active { transform: translateY(2px); box-shadow: inset 0 2px 4px rgba(0,0,0,.5), 0 1px 3px var(--hy-drk); }
   /* Instrument switch: recessed crater track, raised keycap segment. */
-  .dock-pill { flex: 0 1 auto; display: flex; gap: 3px; padding: 4px; border-radius: 999px; border: 0;
-    background: radial-gradient(140% 150% at 50% 130%, var(--hy-srf2) 0%, var(--hy-srf) 45%, var(--hy-groove) 100%);
-    box-shadow: inset 0 8px 14px -4px rgba(0,0,0,.7), inset 0 2px 3px rgba(0,0,0,.5), inset 0 -2px 2px var(--hy-lip), 0 1px 0 var(--hy-rim2), 0 2px 6px rgba(0,0,0,.45); }
-  .dock-pill button { border: 0; border-radius: 999px; padding: 8px 16px; font-size: 12.5px; font-weight: 650; color: #8e929c; background: transparent; cursor: pointer; transition: color .2s ease, transform .1s ease, box-shadow .15s ease; white-space: nowrap; }
+  /* Arced instrument switch: a fixed 200x48-proportioned box so the SVG
+     curve stays undistorted, with buttons seated on the same Bezier. */
+  .dock-pill { position: relative; flex: 0 0 auto; width: 216px; height: 52px; border: 0; background: none; box-shadow: none; padding: 0; }
+  .pill-track { position: absolute; inset: 0; width: 100%; height: 100%;
+    filter: drop-shadow(0 2px 5px rgba(0,0,0,.5)); }
+  .dock-pill button { position: absolute; transform: translate(-50%, -50%) rotate(var(--tilt, 0deg));
+    border: 0; border-radius: 999px; padding: 7px 14px; font-size: 12.5px; font-weight: 650;
+    color: #8e929c; background: transparent; cursor: pointer; white-space: nowrap;
+    transition: color .2s ease, box-shadow .15s ease; }
   .dock-pill button.is-active { color: var(--hy-cap-ink);
     background: radial-gradient(circle at 40% 32%, var(--hy-cap-hi) 0%, var(--hy-cap) 60%, var(--hy-cap-lo) 100%);
     box-shadow: inset 0 1px 1px rgba(255,255,255,.9), inset 0 -2px 4px rgba(0,0,0,.18), 0 2px 5px rgba(0,0,0,.55), 0 0 0 1px rgba(0,0,0,.3); }
-  .dock-pill button.is-active:active { transform: translateY(1px); box-shadow: inset 0 1px 2px rgba(0,0,0,.25), 0 1px 2px rgba(0,0,0,.5); }
+  .dock-pill button.is-active:active { transform: translate(-50%, calc(-50% + 1px)) rotate(var(--tilt, 0deg)); }
 
-  .mobile-nav.is-arc { display: block; position: relative; width: 100%; height: 0; padding: 0 0 25%; background: none; border: 0; border-radius: 0; box-shadow: none; backdrop-filter: none; }
+  /* The adopted landscape side-dock pins .mobile-nav with inset:50% and a
+     translateY(-50%); position:relative alone leaves those in force and
+     displaces the arc box out of flow, so reset them explicitly here. */
+  .mobile-nav.is-arc { display: block; position: relative; inset: auto; transform: none;
+    width: 100%; height: 0; padding: 0 0 25%; margin: 0;
+    background: none; border: 0; border-radius: 0; box-shadow: none; backdrop-filter: none; }
   .mobile-nav.is-arc::before { content: none; }
   .arc-inner { position: absolute; inset: 0; }
   .arc-shape { position: absolute; inset: 0; width: 100%; height: 100%; filter: drop-shadow(0 20px 32px rgba(0,0,0,.72)) drop-shadow(0 5px 10px rgba(0,0,0,.55)); }
@@ -1203,7 +1213,11 @@ button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--c
     box-shadow: inset 0 1px 1px rgba(255,255,255,.9), inset 0 -2px 5px rgba(0,0,0,.2), 0 3px 7px rgba(0,0,0,.6), 0 0 0 1px rgba(0,0,0,.32);
     animation: arc-pill-in 220ms cubic-bezier(.2,.8,.25,1); }
   .mobile-nav.is-arc button.is-active:active { transform: translate(-50%, calc(-50% + 1px)) rotate(var(--tilt, 0deg)); box-shadow: inset 0 1px 2px rgba(0,0,0,.3), 0 1px 3px rgba(0,0,0,.5); }
-  .mobile-nav.is-arc span { display: block; }
+  /* The adopted landscape side-dock styles .mobile-nav button span as a
+     hidden hover tooltip (opacity:0, absolutely placed). In the arc dock the
+     label is part of the keycap, so reset it explicitly. */
+  .mobile-nav.is-arc button span { display: block; position: static; opacity: 1;
+    background: none; border: 0; padding: 0; transform: none; color: inherit; white-space: nowrap; }
   @keyframes arc-pill-in { from { transform: translate(-50%, -50%) rotate(var(--tilt, 0deg)) scale(.85); opacity: .5; } to { transform: translate(-50%, -50%) rotate(var(--tilt, 0deg)) scale(1); opacity: 1; } }
   @media (prefers-reduced-motion: reduce) { .mobile-nav.is-arc button.is-active { animation: none; } }
 }
@@ -1256,3 +1270,52 @@ button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--c
 @media (width<=680px) {
   .dock-side-button.is-badge { background: #17191f; box-shadow: inset 0 2px 5px rgba(0,0,0,.55), inset 0 -1px 1px rgba(255,255,255,.05); color: #565b66; }
 }
+
+/* ============================================================
+   Phone-class landscape: keep the arc anchored to the bottom edge.
+   The adopted design turns the nav into a floating side dock for every
+   landscape viewport >=681px wide, which catches a rotated phone and
+   clipped the arc against the screen edge. A rotated phone is still a
+   phone, so below 520px of height the bottom dock wins; the dock is
+   width-capped so the 4:1 bar stays proportionate on a wide, short
+   viewport, and the rail stays hidden. Tablets, foldables open and
+   desktops keep the design's side dock.
+   ============================================================ */
+@media (orientation: landscape) and (max-height: 520px) {
+  .app-shell { display: block; padding-bottom: 150px; }
+  .side-rail { display: none; }
+  .mobile-dock { max-width: 430px; bottom: 2px; }
+  .mobile-dock::before { top: -44px; }
+  .dock-side-button { width: 40px; height: 40px; }
+  .dock-pill { width: 178px; height: 44px; }
+  .dock-pill button { padding: 6px 12px; font-size: 11.5px; }
+  .mobile-nav.is-arc button { height: 44%; padding: 0 10px; font-size: 10px; gap: 6px; }
+  .content-wrap, .sax-lab-view { padding-bottom: 12px; }
+}
+
+/* ============================================================
+   Mouse and keyboard (ChromeOS, foldables in desktop mode, laptops).
+   Touch targets already work with a pointer; these add the affordances a
+   pointer/keyboard user expects and a touch user never sees.
+   ============================================================ */
+@media (hover: hover) and (pointer: fine) {
+  .mobile-nav.is-arc button:not(.is-active):hover,
+  .dock-pill button:not(.is-active):hover { color: var(--ink); }
+  .dock-side-button:hover { filter: brightness(1.15); }
+  .rail-button:hover { background: #17171a; }
+}
+/* A visible, high-contrast focus ring on every dock control, drawn outside
+   the keycap so it reads against both the bar and the page behind it. */
+.mobile-nav.is-arc button:focus-visible,
+.dock-pill button:focus-visible,
+.dock-side-button:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 3px;
+  border-radius: 999px;
+}
+.skip-to-content {
+  position: fixed; top: -60px; left: 12px; z-index: 200;
+  background: var(--cyan); color: #061a17; font-weight: 700; font-size: 13px;
+  padding: 10px 16px; border-radius: 10px; border: 0; transition: top .16s ease;
+}
+.skip-to-content:focus-visible { top: 12px; outline: 2px solid var(--ink); outline-offset: 2px; }

@@ -106,6 +106,26 @@ const ARC_SEATS = [
 ];
 const ARC_TILTS = ["-9.6deg", "-4.83deg", "0deg", "4.83deg", "9.6deg"];
 
+// The instrument switch rides its own shallower arc so the dock reads as two
+// stacked curves, as in the reference. Seats are computed at runtime rather
+// than baked in like ARC_SEATS, because the instrument list grows as models
+// clear licensing and expert review.
+const PILL_VIEWBOX = { w: 200, h: 48 };
+const PILL_PATH = "M16 32 Q100 16 184 32";
+const PILL_POINTS: [number, number][] = [[16, 32], [100, 16], [184, 32]];
+
+function pillSeat(index: number, count: number) {
+  const t = (index + 0.5) / count;
+  const [p0, p1, p2] = PILL_POINTS;
+  const at = (a: number, b: number, c: number) => (1 - t) ** 2 * a + 2 * (1 - t) * t * b + t ** 2 * c;
+  const slope = (a: number, b: number, c: number) => 2 * (1 - t) * (b - a) + 2 * t * (c - b);
+  return {
+    left: `${(at(p0[0], p1[0], p2[0]) / PILL_VIEWBOX.w) * 100}%`,
+    top: `${(at(p0[1], p1[1], p2[1]) / PILL_VIEWBOX.h) * 100}%`,
+    tilt: `${(Math.atan2(slope(p0[1], p1[1], p2[1]), slope(p0[0], p1[0], p2[0])) * 180) / Math.PI}deg`,
+  };
+}
+
 
 export default function Home() {
   const [mode, setMode] = useState<Mode>("tune");
@@ -325,6 +345,38 @@ export default function Home() {
     setOnboardingOpen(false);
   };
 
+  // Keyboard access for pointer/keyboard devices (ChromeOS, laptops,
+  // foldables docked to a keyboard). Digits jump straight to a destination;
+  // arrows walk the nav. Suppressed while typing so the lesson-note textarea
+  // and any future text input keep their keys.
+  useEffect(() => {
+    const isTyping = (target: EventTarget | null) => {
+      const el = target as HTMLElement | null;
+      if (!el) return false;
+      return el.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.metaKey || event.ctrlKey || event.altKey || isTyping(event.target)) return;
+      if (instrumentPickerOpen || onboardingOpen || downloadCenterOpen) return;
+
+      const digit = Number(event.key);
+      if (Number.isInteger(digit) && digit >= 1 && digit <= navItems.length) {
+        event.preventDefault();
+        selectMode(navItems[digit - 1].id);
+        return;
+      }
+      if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
+        const index = navItems.findIndex((item) => item.id === mode);
+        if (index < 0) return;
+        event.preventDefault();
+        const step = event.key === "ArrowRight" ? 1 : -1;
+        selectMode(navItems[(index + step + navItems.length) % navItems.length].id);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [downloadCenterOpen, instrumentPickerOpen, mode, onboardingOpen, selectMode]);
+
   const chooseRailSide = (side: RailSide) => {
     setRailSide(side);
     try { localStorage.setItem(NAVIGATION_SIDE_STORAGE_KEY, side); } catch { /* The preference still applies for this visit. */ }
@@ -332,6 +384,7 @@ export default function Home() {
 
   return (
     <div className={`app-shell nav-${railSide}`}>
+      <a className="skip-to-content" href="#bocal-main">Skip to content</a>
       <aside className="side-rail" aria-label="Primary navigation">
         <button className="brand-mark" onClick={() => selectMode("tune")} aria-label="Bocal home">
           <span className="brand-glyph"><Wind size={20} strokeWidth={2.4} /></span>
@@ -361,7 +414,7 @@ export default function Home() {
         </div>
       </aside>
 
-      <main className="main-stage">
+      <main className="main-stage" id="bocal-main" tabIndex={-1}>
         <header className="top-bar">
           <div className="instrument-picker-wrap">
             <button className="instrument-picker" aria-label="Choose instrument" aria-expanded={instrumentPickerOpen} onClick={() => setInstrumentPickerOpen((value) => !value)}>
@@ -424,16 +477,32 @@ export default function Home() {
               dot), deliberately styled flat so it doesn't read as a button. */}
           <div className="dock-side-button is-badge" aria-hidden="true"><LockKeyhole size={16} /></div>
           <div className="dock-pill" role="group" aria-label="Instrument">
-            {INSTRUMENT_ORDER.map((id) => (
-              <button
-                key={id}
-                className={instrumentId === id ? "is-active" : ""}
-                aria-pressed={instrumentId === id}
-                onClick={() => chooseInstrument(id)}
-              >
-                {INSTRUMENTS[id].shortName}
-              </button>
-            ))}
+            <svg className="pill-track" viewBox={`0 0 ${PILL_VIEWBOX.w} ${PILL_VIEWBOX.h}`} aria-hidden="true" focusable="false">
+              <defs>
+                <linearGradient id="pillFill" x1="0" y1="6" x2="0" y2="44" gradientUnits="userSpaceOnUse">
+                  <stop offset="0" stopColor="#1a1c23" />
+                  <stop offset="1" stopColor="#23262f" />
+                </linearGradient>
+              </defs>
+              {/* Recessed track: dark seam, then a bottom-lit fill, so the
+                  groove reads as cut into the dock (Hyle crater logic). */}
+              <path d={PILL_PATH} fill="none" stroke="#0a0b0f" strokeWidth="36" strokeLinecap="round" />
+              <path d={PILL_PATH} fill="none" stroke="url(#pillFill)" strokeWidth="32" strokeLinecap="round" />
+            </svg>
+            {INSTRUMENT_ORDER.map((id, index) => {
+              const seat = pillSeat(index, INSTRUMENT_ORDER.length);
+              return (
+                <button
+                  key={id}
+                  className={instrumentId === id ? "is-active" : ""}
+                  aria-pressed={instrumentId === id}
+                  style={{ left: seat.left, top: seat.top, "--tilt": seat.tilt } as React.CSSProperties}
+                  onClick={() => chooseInstrument(id)}
+                >
+                  {INSTRUMENTS[id].shortName}
+                </button>
+              );
+            })}
           </div>
           <button className="dock-side-button" aria-label="Open Bocal settings" onClick={() => setDownloadCenterOpen(true)}>TU</button>
         </div>
