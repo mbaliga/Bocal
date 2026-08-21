@@ -9,7 +9,6 @@ import {
   ChevronDown,
   CircleDot,
   Clock3,
-  Download,
   Gauge,
   Headphones,
   Minus,
@@ -19,6 +18,7 @@ import {
   Plus,
   RotateCcw,
   Save,
+  Share2,
   Sparkles,
   Volume2,
   Waves,
@@ -41,18 +41,22 @@ const DRONES = [
   { label: "Concert F", hz: 349.23 },
 ];
 
-function audioClick(context: AudioContext, accent: boolean, subdivision: boolean) {
+function audioClick(context: AudioContext, accent: boolean, subdivision: boolean, when: number) {
   const oscillator = context.createOscillator();
   const gain = context.createGain();
   oscillator.type = "sine";
   oscillator.frequency.value = accent ? 1320 : subdivision ? 560 : 880;
-  const now = context.currentTime;
-  gain.gain.setValueAtTime(subdivision ? 0.045 : 0.1, now);
-  gain.gain.exponentialRampToValueAtTime(0.0001, now + (subdivision ? 0.035 : 0.055));
+  gain.gain.setValueAtTime(subdivision ? 0.045 : 0.1, when);
+  gain.gain.exponentialRampToValueAtTime(0.0001, when + (subdivision ? 0.035 : 0.055));
   oscillator.connect(gain).connect(context.destination);
-  oscillator.start(now);
-  oscillator.stop(now + 0.07);
+  oscillator.start(when);
+  oscillator.stop(when + 0.07);
 }
+
+/** How far ahead of the audio clock clicks are queued. */
+const SCHEDULE_AHEAD = 0.12;
+/** How often the scheduler wakes to top up the queue. */
+const SCHEDULER_TICK_MS = 25;
 
 export function PulseView() {
   const [bpm, setBpm] = useState(92);
@@ -66,7 +70,9 @@ export function PulseView() {
   const contextRef = useRef<AudioContext | null>(null);
   const tickRef = useRef(0);
   const tapsRef = useRef<number[]>([]);
-  const lastBeatAtRef = useRef<number | null>(null);
+  /** Audio-clock time of tick 0 for the current run; null when stopped. */
+  const startAudioTimeRef = useRef<number | null>(null);
+  const hapticsRef = useRef(false);
   const rhythmErrorsRef = useRef<number[]>([]);
   const [rhythmTapCount, setRhythmTapCount] = useState(0);
   const [rhythmFeedback, setRhythmFeedback] = useState("");
@@ -77,22 +83,51 @@ export function PulseView() {
     contextRef.current = context;
     tickRef.current = 0;
 
-    const tick = () => {
-      const subTick = tickRef.current % subdivision;
-      const beat = Math.floor(tickRef.current / subdivision) % beatsPerBar;
-      const accent = beat === 0 && subTick === 0;
-      audioClick(context, accent, subTick !== 0);
-      if (subTick === 0) {
-        lastBeatAtRef.current = performance.now();
-        setCurrentBeat(beat);
-        if (haptics && navigator.vibrate) navigator.vibrate(accent ? 28 : 14);
+    // The metronome runs on the audio clock, not on setInterval. A timer
+    // callback is only accurate to a handful of milliseconds and drifts
+    // steadily under load, in a background tab, or on a throttled phone --
+    // which is exactly the tool a player is using to judge whether *they* are
+    // drifting. Instead the scheduler wakes often, queues every click due in
+    // the next fraction of a second at an exact audio-clock time, and the
+    // audio hardware plays them on the sample. Only the on-screen beat dot
+    // and the haptic pulse ride a plain timer, where a few milliseconds of
+    // jitter is invisible.
+    const secondsPerTick = 60 / bpm / subdivision;
+    const startTime = context.currentTime + 0.06;
+    startAudioTimeRef.current = startTime;
+    const visualTimers: number[] = [];
+
+    const schedule = () => {
+      while (startTime + tickRef.current * secondsPerTick < context.currentTime + SCHEDULE_AHEAD) {
+        const index = tickRef.current;
+        const when = startTime + index * secondsPerTick;
+        const subTick = index % subdivision;
+        const beat = Math.floor(index / subdivision) % beatsPerBar;
+        const accent = beat === 0 && subTick === 0;
+        audioClick(context, accent, subTick !== 0, when);
+        if (subTick === 0) {
+          visualTimers.push(
+            window.setTimeout(
+              () => {
+                setCurrentBeat(beat);
+                if (hapticsRef.current && navigator.vibrate) navigator.vibrate(accent ? 28 : 14);
+              },
+              Math.max(0, (when - context.currentTime) * 1000),
+            ),
+          );
+        }
+        tickRef.current += 1;
       }
-      tickRef.current += 1;
     };
-    tick();
-    const timer = window.setInterval(tick, 60000 / bpm / subdivision);
-    return () => window.clearInterval(timer);
-  }, [beatsPerBar, bpm, haptics, playing, subdivision]);
+
+    schedule();
+    const timer = window.setInterval(schedule, SCHEDULER_TICK_MS);
+    return () => {
+      window.clearInterval(timer);
+      visualTimers.forEach(window.clearTimeout);
+      startAudioTimeRef.current = null;
+    };
+  }, [beatsPerBar, bpm, playing, subdivision]);
 
   useEffect(() => {
     if (!droneOn) return;
@@ -118,6 +153,10 @@ export function PulseView() {
     };
   }, [droneIndex, droneOn]);
 
+  // Toggling haptics must not restart the click scheduler, so the flag is read
+  // through a ref rather than captured in the effect's dependency list.
+  useEffect(() => { hapticsRef.current = haptics; }, [haptics]);
+
   const tapTempo = () => {
     const now = performance.now();
     const recent = [...tapsRef.current.filter((tap) => now - tap < 2400), now].slice(-5);
@@ -130,10 +169,17 @@ export function PulseView() {
   };
 
   const tapWithPulse = () => {
-    const lastBeat = lastBeatAtRef.current;
-    if (lastBeat === null) return;
+    // Measured against the audio clock the clicks were scheduled on, not
+    // against when the screen last updated. Grading someone's timing on a
+    // clock looser than the error being measured would invent most of the
+    // number. Phase is taken from the run's start time, so it stays exact
+    // however long the metronome has been going.
+    const context = contextRef.current;
+    const startTime = startAudioTimeRef.current;
+    if (!context || startTime === null) return;
     const beatDuration = 60_000 / bpm;
-    const elapsed = performance.now() - lastBeat;
+    const elapsed = (context.currentTime - startTime) * 1000;
+    if (elapsed < 0) return;
     const phase = ((elapsed % beatDuration) + beatDuration) % beatDuration;
     const error = Math.min(phase, beatDuration - phase);
     const nextErrors = [...rhythmErrorsRef.current, error].slice(-16);
@@ -169,7 +215,7 @@ export function PulseView() {
       setRhythmTapCount(0);
       setRhythmFeedback("Tap with the pulse 16 times to add measured rhythm evidence.");
     } else {
-      lastBeatAtRef.current = null;
+      startAudioTimeRef.current = null;
     }
     setPlaying((value) => !value);
   };
@@ -241,6 +287,7 @@ export function PracticeView({
   const [completed, setCompleted] = useState<string[]>([]);
   const [note, setNote] = useState("");
   const [savedNote, setSavedNote] = useState("");
+  const [shareMessage, setShareMessage] = useState("");
   const [sessions, setSessions] = useState<SessionRecord[]>([]);
   const [skillEvidence, setSkillEvidence] = useState<SkillEvidenceBundle>(() => emptySkillEvidence());
 
@@ -275,13 +322,43 @@ export function PracticeView({
   };
   const exportData = () => {
     const payload = { schemaVersion: 1, exportedAt: new Date().toISOString(), sessions, lessonNote: savedNote, completed, skillEvidence, skillRating };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "bocal-practice-data.json";
-    link.click();
-    URL.revokeObjectURL(url);
+    const json = JSON.stringify(payload, null, 2);
+    const file = new File([json], "bocal-practice-data.json", { type: "application/json" });
+    // A short human-readable line rides along with the file. What the player
+    // usually wants is to send this to a teacher, and a teacher opening a
+    // message that is only a JSON attachment learns nothing from the preview.
+    const summary =
+      `Bocal practice export · ${totalMinutes} focused minutes over ${daysPlayed} ` +
+      `${daysPlayed === 1 ? "day" : "days"} in the last week · ` +
+      `${skillRating.evidence.acceptedPitchFrames} accepted pitch frames.`;
+
+    const download = () => {
+      const url = URL.createObjectURL(file);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = file.name;
+      link.click();
+      URL.revokeObjectURL(url);
+      setShareMessage("Saved to your downloads.");
+    };
+
+    // Prefer the OS sharesheet. On a phone "export" nearly always means "send
+    // this to someone", and a download drops the file into a folder the player
+    // then has to go and find. canShare is synchronous, so the click gesture
+    // that permits share() is still live when we call it.
+    if (typeof navigator !== "undefined" && navigator.canShare?.({ files: [file] })) {
+      navigator
+        .share({ files: [file], title: "Bocal practice data", text: summary })
+        .then(() => setShareMessage("Shared."))
+        .catch((error: unknown) => {
+          // Dismissing the sheet is a decision, not a failure. Anything else
+          // falls back to a download so the data is never trapped in the app.
+          if (error instanceof DOMException && error.name === "AbortError") return;
+          download();
+        });
+      return;
+    }
+    download();
   };
   const toggleComplete = (id: string) => setCompleted((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
 
@@ -289,7 +366,12 @@ export function PracticeView({
     <div className="content-wrap practice-view">
       <section className="section-heading practice-heading">
         <div><p className="eyebrow">Practice · Your studio</p><h1>Plan your next session.</h1><p>Pick a short set, keep the notes that matter, and see what you actually practised.</p></div>
-        <button className="button secondary export-button" onClick={exportData}><Download size={15} /> Export my data</button>
+        <div className="export-stack">
+          <button className="button secondary export-button" onClick={exportData}>
+            <Share2 size={15} /> Share my progress
+          </button>
+          {shareMessage && <small className="export-status" role="status">{shareMessage}</small>}
+        </div>
       </section>
 
       <SkillRatingCard

@@ -68,7 +68,13 @@ test("first run uses an immersive instrument gallery and replayable onboarding",
   assert.match(page, /InstrumentPickerExperience/);
   assert.match(page, /Replay the onboarding guide/);
   assert.match(experience, /What are you playing today\?/);
-  assert.match(experience, /Model source under review/);
+  // Every gallery entry has to say what a player actually gets. Instruments
+  // without a licensed model are still fully playable in the tuner and the
+  // practice tools, so they say so and name the part that is missing; the
+  // clarinet, which is not shipping at all, says that instead.
+  assert.match(experience, /Tuner \+ practice · lab pending/);
+  assert.match(experience, /Not shipping · commercial licence required/);
+  assert.doesNotMatch(experience, /availableId: "clarinet"/);
   assert.match(experience, /Watch the right keys light up/);
   assert.doesNotMatch(experience, /ghost-palm|Hand guide|See the grip/);
 });

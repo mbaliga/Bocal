@@ -52,11 +52,12 @@ const GALLERY_INSTRUMENTS: GalleryInstrument[] = [
     gradient: "linear-gradient(160deg, #241645, #081716 72%)",
     availableId: "oboe",
   },
-  { id: "tenor-sax", name: "Tenor saxophone", family: "Saxophone family", pitch: "B♭", status: "Model source under review", image: "/images/bocal-tenor-sax-cinematic.webp", imagePosition: "57% center", gradient: "linear-gradient(160deg, #672d19, #231116)" },
-  { id: "soprano-sax", name: "Soprano saxophone", family: "Saxophone family", pitch: "B♭", status: "Commission brief ready", image: "/images/bocal-soprano-sax-cinematic.webp", imagePosition: "55% center", gradient: "linear-gradient(160deg, #153a48, #0d1821)" },
-  { id: "clarinet", name: "Clarinet", family: "Single reed", pitch: "B♭", status: "Commercial licence required", image: "/images/bocal-clarinet-cinematic.webp", imagePosition: "55% center", gradient: "linear-gradient(160deg, #293652, #12121c)" },
-  { id: "flute", name: "Flute", family: "Air reed", pitch: "C", status: "CC BY candidate found", image: "/images/bocal-flute-cinematic.webp", imagePosition: "54% center", gradient: "linear-gradient(160deg, #5b6573, #181c24)" },
-  { id: "bassoon", name: "Bassoon", family: "Double reed", pitch: "C", status: "Licensed candidate found", image: "/images/bocal-bassoon-cinematic.webp", imagePosition: "61% center", gradient: "linear-gradient(160deg, #5b281e, #1d1112)" },
+  { id: "tenor-sax", name: "Tenor saxophone", family: "Saxophone family", pitch: "B♭", status: "Tuner + practice · lab pending", image: "/images/bocal-tenor-sax-cinematic.webp", imagePosition: "57% center", gradient: "linear-gradient(160deg, #672d19, #231116)", availableId: "tenor-sax" },
+  { id: "soprano-sax", name: "Soprano saxophone", family: "Saxophone family", pitch: "B♭", status: "Tuner + practice · lab pending", image: "/images/bocal-soprano-sax-cinematic.webp", imagePosition: "55% center", gradient: "linear-gradient(160deg, #153a48, #0d1821)", availableId: "soprano-sax" },
+  { id: "bari-sax", name: "Baritone saxophone", family: "Saxophone family", pitch: "E♭", status: "Tuner + practice · lab pending", gradient: "linear-gradient(160deg, #4a2a12, #1b1410)", availableId: "bari-sax" },
+  { id: "flute", name: "Flute", family: "Air reed", pitch: "C", status: "Tuner + practice · lab pending", image: "/images/bocal-flute-cinematic.webp", imagePosition: "54% center", gradient: "linear-gradient(160deg, #5b6573, #181c24)", availableId: "flute" },
+  { id: "bassoon", name: "Bassoon", family: "Double reed", pitch: "C", status: "Tuner + practice · lab pending", image: "/images/bocal-bassoon-cinematic.webp", imagePosition: "61% center", gradient: "linear-gradient(160deg, #5b281e, #1d1112)", availableId: "bassoon" },
+  { id: "clarinet", name: "Clarinet", family: "Single reed", pitch: "B♭", status: "Not shipping · commercial licence required", image: "/images/bocal-clarinet-cinematic.webp", imagePosition: "55% center", gradient: "linear-gradient(160deg, #293652, #12121c)" },
 ];
 
 function useEscape(open: boolean, close: () => void) {

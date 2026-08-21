@@ -36,7 +36,17 @@ import {
   OnboardingGuide,
 } from "./InstrumentExperience";
 import { StablePitchTracker, type PitchTrackerReading } from "./pitch-engine";
-import { INSTRUMENT_ORDER, INSTRUMENTS, type InstrumentId } from "./instruments";
+import { INSTRUMENTS, isInstrumentId, type InstrumentId } from "./instruments";
+import StaffNote from "./StaffNote";
+import {
+  fullNoteLabel,
+  NOTATION_ORDER,
+  NOTATION_SYSTEMS,
+  noteName,
+  octaveLabel,
+  TONIC_CHOICES,
+  type NotationSystem,
+} from "./notation";
 import { PracticeView, PulseView } from "./PracticeTools";
 import {
   parseSkillEvidence,
@@ -55,24 +65,26 @@ type RailSide = "left" | "right";
 
 type PitchReading = {
   hz: number;
-  note: string;
-  octave: number;
+  /** The note as the player reads it, already transposed for the instrument. */
+  writtenMidi: number;
+  /** What the note actually sounds as, for anyone tuning against a piano. */
+  concertMidi: number;
   cents: number;
 };
 
-const NOTE_NAMES = ["C", "C♯", "D", "E♭", "E", "F", "F♯", "G", "A♭", "A", "B♭", "B"];
 const NAVIGATION_SIDE_STORAGE_KEY = "bocal-navigation-side";
 const INSTRUMENT_STORAGE_KEY = "bocal-instrument";
+const PARTNER_INSTRUMENT_STORAGE_KEY = "bocal-instrument-partner";
+const NOTATION_STORAGE_KEY = "bocal-notation";
+const TONIC_STORAGE_KEY = "bocal-sa-tonic";
 
 function pitchFromFrequency(hz: number, writtenOffset: number): PitchReading {
-  const concertMidiFloat = 69 + 12 * Math.log2(hz / 440);
-  const concertMidi = Math.round(concertMidiFloat);
-  const writtenMidi = concertMidi + writtenOffset;
+  const concertMidi = Math.round(69 + 12 * Math.log2(hz / 440));
   const targetHz = 440 * 2 ** ((concertMidi - 69) / 12);
   return {
     hz,
-    note: NOTE_NAMES[((writtenMidi % 12) + 12) % 12],
-    octave: Math.floor(writtenMidi / 12) - 1,
+    writtenMidi: concertMidi + writtenOffset,
+    concertMidi,
     cents: Math.round(1200 * Math.log2(hz / targetHz)),
   };
 }
@@ -130,10 +142,13 @@ function pillSeat(index: number, count: number) {
 export default function Home() {
   const [mode, setMode] = useState<Mode>("tune");
   const [instrumentId, setInstrumentId] = useState<InstrumentId>("alto-sax");
+  const [partnerInstrumentId, setPartnerInstrumentId] = useState<InstrumentId>("oboe");
   const [instrumentPickerOpen, setInstrumentPickerOpen] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [downloadCenterOpen, setDownloadCenterOpen] = useState(false);
   const [railSide, setRailSide] = useState<RailSide>("left");
+  const [notation, setNotation] = useState<NotationSystem>("western");
+  const [saTonic, setSaTonic] = useState(0);
   const [reading, setReading] = useState<PitchReading | null>(null);
   const [trackerReading, setTrackerReading] = useState<PitchTrackerReading>({
     state: "silence",
@@ -156,6 +171,11 @@ export default function Home() {
   const trackerRef = useRef(new StablePitchTracker());
   const tunerEvidenceRef = useRef<{ startedAt: number; cents: number[]; midiNotes: number[] } | null>(null);
   const instrument = INSTRUMENTS[instrumentId];
+  // Seated left to right along the pill arc, current instrument first.
+  const pillInstruments = useMemo<InstrumentId[]>(
+    () => (partnerInstrumentId === instrumentId ? [instrumentId] : [instrumentId, partnerInstrumentId]),
+    [instrumentId, partnerInstrumentId],
+  );
 
   useEffect(() => {
     let shouldOpen = true;
@@ -184,12 +204,47 @@ export default function Home() {
     const timer = window.setTimeout(() => {
       try {
         const saved = localStorage.getItem(INSTRUMENT_STORAGE_KEY);
-        if (saved && saved in INSTRUMENTS) setInstrumentId(saved as InstrumentId);
+        if (isInstrumentId(saved)) setInstrumentId(saved);
+        const savedPartner = localStorage.getItem(PARTNER_INSTRUMENT_STORAGE_KEY);
+        if (isInstrumentId(savedPartner) && savedPartner !== saved) setPartnerInstrumentId(savedPartner);
+        else if (saved === "oboe") setPartnerInstrumentId("alto-sax");
       } catch {
         // Bocal opens on the alto when device storage is unavailable.
       }
     }, 0);
     return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      try {
+        const savedNotation = localStorage.getItem(NOTATION_STORAGE_KEY);
+        if (savedNotation && savedNotation in NOTATION_SYSTEMS) setNotation(savedNotation as NotationSystem);
+        const savedTonic = Number(localStorage.getItem(TONIC_STORAGE_KEY));
+        if (Number.isInteger(savedTonic) && savedTonic >= 0 && savedTonic < 12) setSaTonic(savedTonic);
+      } catch {
+        // Letter names are the fallback when device storage is unavailable.
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  const chooseNotation = useCallback((next: NotationSystem) => {
+    setNotation(next);
+    try {
+      localStorage.setItem(NOTATION_STORAGE_KEY, next);
+    } catch {
+      // The choice still applies for this session.
+    }
+  }, []);
+
+  const chooseSaTonic = useCallback((next: number) => {
+    setSaTonic(next);
+    try {
+      localStorage.setItem(TONIC_STORAGE_KEY, String(next));
+    } catch {
+      // The choice still applies for this session.
+    }
   }, []);
 
   useEffect(() => {
@@ -333,12 +388,30 @@ export default function Home() {
     setMode(nextMode);
   }, [listening, stopListening]);
 
-  const chooseInstrument = (nextId: InstrumentId) => {
-    if (listening) stopListening();
-    setInstrumentId(nextId);
-    setInstrumentPickerOpen(false);
-    try { localStorage.setItem(INSTRUMENT_STORAGE_KEY, nextId); } catch { /* The choice still applies for this visit. */ }
-  };
+  // The dock pill is a doubling toggle, not a library. Bocal now carries seven
+  // instruments, and seven seats will not fit on an arc at phone width -- nor
+  // would a player want them there. The pill holds the instrument in your hands
+  // and the one you put down; the header picker reaches the whole library, and
+  // choosing from it demotes the outgoing instrument into the second seat.
+  const chooseInstrument = useCallback(
+    (nextId: InstrumentId) => {
+      if (nextId === instrumentId) {
+        setInstrumentPickerOpen(false);
+        return;
+      }
+      if (listening) stopListening();
+      setPartnerInstrumentId(instrumentId);
+      setInstrumentId(nextId);
+      setInstrumentPickerOpen(false);
+      try {
+        localStorage.setItem(INSTRUMENT_STORAGE_KEY, nextId);
+        localStorage.setItem(PARTNER_INSTRUMENT_STORAGE_KEY, instrumentId);
+      } catch {
+        // The choice still applies for this visit.
+      }
+    },
+    [instrumentId, listening, stopListening],
+  );
 
   const completeOnboarding = () => {
     try { localStorage.setItem(BOCAL_ONBOARDING_KEY, "complete"); } catch { /* The guide can close without storage. */ }
@@ -452,11 +525,15 @@ export default function Home() {
             onReference={playReferenceTone}
             onOpenSax={() => selectMode("sax")}
             instrument={instrument}
+            notation={notation}
+            saTonic={saTonic}
+            onNotationChange={chooseNotation}
+            onSaTonicChange={chooseSaTonic}
           />
         )}
         {mode === "sax" && <SaxophoneLab onBack={() => selectMode("tune")} instrumentId={instrumentId} />}
         {mode === "pulse" && <PulseView />}
-        {mode === "analyze" && <AnalysisView />}
+        {mode === "analyze" && <AnalysisView instrument={instrument} notation={notation} saTonic={saTonic} />}
         {mode === "practice" && (
           <PracticeView
             onOpenTuner={() => selectMode("tune")}
@@ -489,13 +566,14 @@ export default function Home() {
               <path d={PILL_PATH} fill="none" stroke="#0a0b0f" strokeWidth="36" strokeLinecap="round" />
               <path d={PILL_PATH} fill="none" stroke="url(#pillFill)" strokeWidth="32" strokeLinecap="round" />
             </svg>
-            {INSTRUMENT_ORDER.map((id, index) => {
-              const seat = pillSeat(index, INSTRUMENT_ORDER.length);
+            {pillInstruments.map((id, index) => {
+              const seat = pillSeat(index, pillInstruments.length);
               return (
                 <button
                   key={id}
                   className={instrumentId === id ? "is-active" : ""}
                   aria-pressed={instrumentId === id}
+                  title={INSTRUMENTS[id].name}
                   style={{ left: seat.left, top: seat.top, "--tilt": seat.tilt } as React.CSSProperties}
                   onClick={() => chooseInstrument(id)}
                 >
@@ -641,6 +719,51 @@ function DownloadCenter({
   );
 }
 
+function NotationPicker({
+  notation,
+  saTonic,
+  onNotationChange,
+  onSaTonicChange,
+}: {
+  notation: NotationSystem;
+  saTonic: number;
+  onNotationChange: (next: NotationSystem) => void;
+  onSaTonicChange: (next: number) => void;
+}) {
+  const profile = NOTATION_SYSTEMS[notation];
+  return (
+    <div className="notation-picker">
+      <div className="notation-switch" role="radiogroup" aria-label="Note naming system">
+        {NOTATION_ORDER.map((id) => (
+          <button
+            key={id}
+            type="button"
+            role="radio"
+            aria-checked={notation === id}
+            className={notation === id ? "is-active" : ""}
+            onClick={() => onNotationChange(id)}
+          >
+            {NOTATION_SYSTEMS[id].label}
+          </button>
+        ))}
+      </div>
+      <p className="notation-hint">{profile.description}</p>
+      {profile.needsTonic && (
+        <label className="notation-tonic">
+          <span>Sa is</span>
+          <select value={saTonic} onChange={(event) => onSaTonicChange(Number(event.target.value))}>
+            {TONIC_CHOICES.map((choice) => (
+              <option key={choice.pc} value={choice.pc}>
+                {choice.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+    </div>
+  );
+}
+
 function TunerView({
   reading,
   listening,
@@ -653,6 +776,10 @@ function TunerView({
   onReference,
   onOpenSax,
   instrument,
+  notation,
+  saTonic,
+  onNotationChange,
+  onSaTonicChange,
 }: {
   reading: PitchReading | null;
   listening: boolean;
@@ -665,16 +792,19 @@ function TunerView({
   onReference: () => void;
   onOpenSax: () => void;
   instrument: (typeof INSTRUMENTS)[InstrumentId];
+  notation: NotationSystem;
+  saTonic: number;
+  onNotationChange: (next: NotationSystem) => void;
+  onSaTonicChange: (next: number) => void;
 }) {
   const inTune = trackerReading.state === "locked" && reading !== null && Math.abs(reading.cents) <= 5;
   const direction = reading === null ? "Waiting" : reading.cents > 5 ? "Sharp" : reading.cents < -5 ? "Flat" : "Centered";
   const markerPosition = reading === null ? 50 : Math.max(4, Math.min(96, 50 + reading.cents * 0.8));
-  const concertNote = useMemo(() => {
-    if (!reading) return null;
-    const writtenMidi = (reading.octave + 1) * 12 + NOTE_NAMES.indexOf(reading.note);
-    const concertMidi = writtenMidi - instrument.writtenOffset;
-    return `${NOTE_NAMES[((concertMidi % 12) + 12) % 12]}${Math.floor(concertMidi / 12) - 1}`;
-  }, [instrument.writtenOffset, reading]);
+  // The concert name is always shown in letters. It exists so a player can
+  // check themselves against a piano or another section, and that conversation
+  // happens in letter names whatever the player reads from.
+  const concertNote = reading === null ? null : fullNoteLabel(reading.concertMidi, "western");
+  const writtenLabel = reading === null ? null : fullNoteLabel(reading.writtenMidi, notation, saTonic);
   const trackerLabel = !listening ? "Ready" : {
     calibrating: "Calibrating room",
     silence: "No clear tone",
@@ -731,12 +861,36 @@ function TunerView({
           </div>
 
           <div className="note-readout">
-            <div className={`note-name ${reading ? "" : "is-empty"}`}>{reading ? <>{reading.note}<sup>{reading.octave}</sup></> : "—"}</div>
+            {notation === "staff" ? (
+              <StaffNote
+                midi={reading?.writtenMidi ?? null}
+                clef={instrument.clef}
+                title={reading ? `Written ${fullNoteLabel(reading.writtenMidi, "western")}` : "No note detected yet"}
+              />
+            ) : (
+              <div className={`note-name ${reading ? "" : "is-empty"}`}>
+                {reading ? (
+                  <>
+                    {noteName(reading.writtenMidi, notation, saTonic)}
+                    <sup>{octaveLabel(reading.writtenMidi, notation, saTonic)}</sup>
+                  </>
+                ) : (
+                  "—"
+                )}
+              </div>
+            )}
             <div className="pitch-detail">
               <span>{reading ? `${reading.cents > 0 ? "+" : ""}${reading.cents} cents` : "Waiting for a stable tone"}</span>
               <small>{reading ? `${reading.hz.toFixed(1)} Hz · sounds ${concertNote}` : "No note is shown until confidence passes the lock threshold"}</small>
             </div>
           </div>
+
+          <NotationPicker
+            notation={notation}
+            saTonic={saTonic}
+            onNotationChange={onNotationChange}
+            onSaTonicChange={onSaTonicChange}
+          />
 
           <div className="tune-scale" role="meter" aria-valuemin={-50} aria-valuemax={50} aria-valuenow={reading?.cents} aria-label="Pitch deviation in cents">
             <div className="scale-labels"><span>−50</span><span>−25</span><strong>0</strong><span>+25</span><span>+50</span></div>
@@ -778,7 +932,7 @@ function TunerView({
           <article className="sax-card" onClick={onOpenSax} role="button" tabIndex={0} onKeyDown={(event) => event.key === "Enter" && onOpenSax()}>
             <div>
               <span className="card-kicker"><Rotate3D size={15} /> {instrument.id === "alto-sax" ? "Fingering lab" : "Anatomy preview"}</span>
-              <h3>{instrument.id === "alto-sax" ? (reading ? `See ${reading.note}${reading.octave} on the sax.` : "Open the interactive alto sax.") : "Explore the oboe up close."}</h3>
+              <h3>{instrument.id === "alto-sax" ? (reading ? `See ${writtenLabel} on the sax.` : "Open the interactive alto sax.") : "Explore the oboe up close."}</h3>
               <p>{instrument.id === "alto-sax" ? "Open the sax and the keys for this note will light up." : "Turn the model and tap its rods, springs and keywork."}</p>
             </div>
             <div className={`sax-card-photo ${instrument.id === "oboe" ? "is-oboe" : ""}`} aria-hidden="true" />

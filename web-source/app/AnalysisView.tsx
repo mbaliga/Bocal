@@ -13,6 +13,9 @@ import {
   Waves,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { InstrumentProfile } from "./instruments";
+import type { NotationSystem } from "./notation";
+import { TranscribePanel } from "./TranscribePanel";
 
 type AnalysisMode = "waveform" | "spectrum";
 
@@ -20,7 +23,15 @@ function formatTime(seconds: number) {
   return `${Math.floor(seconds / 60).toString().padStart(2, "0")}:${(seconds % 60).toString().padStart(2, "0")}`;
 }
 
-export function AnalysisView() {
+export function AnalysisView({
+  instrument,
+  notation,
+  saTonic,
+}: {
+  instrument: InstrumentProfile;
+  notation: NotationSystem;
+  saTonic: number;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -246,6 +257,11 @@ export function AnalysisView() {
           </article>
         </aside>
       </div>
+
+      {/* Transcription lives here rather than behind its own tab: Analyze is
+          already the surface where audio goes in and information comes out,
+          and the nav arc is built for five destinations. */}
+      <TranscribePanel instrument={instrument} notation={notation} saTonic={saTonic} />
     </div>
   );
 }

@@ -34,7 +34,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { ImportedInstrumentCanvas, type InstrumentViewId } from "./ImportedInstrumentCanvas";
 import { OboeLab } from "./OboeLab";
 import { animateEducationalSaxKeys, buildEducationalAltoSaxophone } from "./alto-sax-model";
-import type { InstrumentId } from "./instruments";
+import { INSTRUMENTS, type InstrumentId } from "./instruments";
 import {
   ALTO_FINGERINGS,
   midiToFrequency,
@@ -343,8 +343,37 @@ export function SaxophoneLab({
   onBack: () => void;
   instrumentId?: InstrumentId;
 }) {
-  if (instrumentId === "oboe") return <OboeLab onBack={onBack} />;
+  const tier = INSTRUMENTS[instrumentId].labTier;
+  if (tier === "anatomy") return <OboeLab onBack={onBack} />;
+  if (tier === "none") return <LabUnavailable onBack={onBack} instrumentId={instrumentId} />;
   return <AltoSaxLab onBack={onBack} />;
+}
+
+/**
+ * Shown for instruments Bocal supports everywhere except the 3D lab. Rather
+ * than hiding the tab or silently showing the alto's model under another
+ * instrument's name, this says plainly what is missing and points at the tools
+ * that do work for it.
+ */
+function LabUnavailable({ onBack, instrumentId }: { onBack: () => void; instrumentId: InstrumentId }) {
+  const profile = INSTRUMENTS[instrumentId];
+  return (
+    <div className="lab-unavailable">
+      <button className="lab-back" onClick={onBack}>Back to the tuner</button>
+      <h1>The {profile.name.toLowerCase()} lab is not built yet.</h1>
+      <p>
+        The 3D lab needs a model Bocal is licensed to ship and a fingering chart checked by a teacher.
+        Neither is in place for the {profile.name.toLowerCase()} yet, and showing a guessed fingering to
+        someone learning it would do more harm than showing nothing.
+      </p>
+      <p className="lab-unavailable-note">
+        Everything else works for the {profile.name.toLowerCase()}: the tuner already transposes to
+        {profile.writtenOffset === 0 ? " concert pitch" : ` ${profile.pitchLabel}`}, and pulse, analysis and
+        practice logging are all live.
+      </p>
+      <button className="lab-unavailable-cta" onClick={onBack}>Open the tuner</button>
+    </div>
+  );
 }
 
 function AltoSaxLab({ onBack }: { onBack: () => void }) {

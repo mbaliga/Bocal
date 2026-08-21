@@ -1319,3 +1319,99 @@ button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--c
   padding: 10px 16px; border-radius: 10px; border: 0; transition: top .16s ease;
 }
 .skip-to-content:focus-visible { top: 12px; outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* ============================================================
+   Notation systems, staff rendering, and the transcription panel.
+   The switch and the note list reuse the Hyle tactile vocabulary already
+   established by the dock: recessed crater tracks for anything you choose
+   from, raised keycaps for the thing you chose. Stated locally rather than
+   inherited, because these surfaces live in the page body where the dock's
+   media-scoped custom properties do not reach.
+   ============================================================ */
+.notation-picker { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: -2px 0 4px; }
+.notation-switch { display: inline-flex; gap: 3px; padding: 4px; border-radius: 999px;
+  background: linear-gradient(180deg, #0b0b0d, #131316);
+  box-shadow: inset 0 2px 5px rgba(0,0,0,.72), inset 0 -1px 0 rgba(255,255,255,.05), 0 1px 0 rgba(255,255,255,.04); }
+.notation-switch button { border: 0; border-radius: 999px; padding: 7px 13px; cursor: pointer;
+  font-size: 12px; font-weight: 620; letter-spacing: .01em; color: var(--subtle); background: transparent;
+  transition: color .18s ease, box-shadow .14s ease, transform .1s ease; }
+.notation-switch button.is-active { color: #16171c;
+  background: radial-gradient(circle at 40% 32%, #fffef9 0%, #edebe2 60%, #c9c6b9 100%);
+  box-shadow: inset 0 1px 1px rgba(255,255,255,.9), inset 0 -2px 4px rgba(0,0,0,.18), 0 2px 5px rgba(0,0,0,.55); }
+.notation-switch button.is-active:active { transform: translateY(1px); }
+.notation-hint { margin: 0; max-width: 42ch; text-align: center; font-size: 11.5px; line-height: 1.5; color: var(--subtle); }
+.notation-tonic { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+.notation-tonic select { font: inherit; color: var(--ink); background: var(--panel-2); border: 1px solid var(--line);
+  border-radius: 8px; padding: 5px 8px; cursor: pointer; }
+
+/* The stave inherits its colour so it sits in whatever card it is dropped
+   into, and centres itself the way the big note name it replaces did. */
+.staff-note { display: block; margin: 4px auto 2px; color: var(--ink); max-width: 100%; }
+.note-readout .staff-note { color: var(--ink); }
+
+.transcribe-panel { margin-top: 22px; padding: 22px clamp(18px, 3vw, 26px); border: 1px solid var(--line-soft);
+  border-radius: 20px; background: var(--panel); display: flex; flex-direction: column; gap: 14px; }
+.transcribe-scope { margin: 0; font-size: 13px; line-height: 1.6; color: var(--muted); max-width: 70ch; }
+.transcribe-scope strong { color: var(--ink); }
+.transcribe-drop { position: relative; display: flex; flex-direction: column; align-items: center; gap: 5px;
+  padding: 26px 18px; border-radius: 16px; cursor: pointer; text-align: center;
+  border: 1px dashed #33333a; background: linear-gradient(180deg, #0c0c0e, #141417);
+  box-shadow: inset 0 2px 6px rgba(0,0,0,.6); transition: border-color .18s ease, background .18s ease; }
+.transcribe-drop input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.transcribe-drop input:disabled { cursor: progress; }
+.transcribe-drop-label { font-size: 14.5px; font-weight: 620; color: var(--ink); }
+.transcribe-drop small { font-size: 11.5px; color: var(--subtle); }
+.transcribe-drop:focus-within { border-color: var(--cyan); }
+
+.transcribe-progress { position: relative; height: 24px; border-radius: 999px; overflow: hidden;
+  background: #0b0b0d; box-shadow: inset 0 2px 5px rgba(0,0,0,.7); display: grid; place-items: center; }
+.transcribe-progress i { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(90deg, var(--cyan-deep), var(--cyan)); transition: width .2s linear; }
+.transcribe-progress span { position: relative; font-size: 11px; font-weight: 700; color: var(--ink); mix-blend-mode: difference; }
+
+.transcribe-result { display: flex; flex-direction: column; gap: 14px; }
+.transcribe-warning { display: flex; gap: 9px; align-items: flex-start; margin: 0; padding: 12px 14px;
+  border-radius: 12px; font-size: 12.5px; line-height: 1.55;
+  color: #f0d9a6; background: rgba(122, 88, 20, .18); border: 1px solid rgba(190, 145, 55, .34); }
+.transcribe-warning svg { flex: 0 0 auto; margin-top: 1px; color: #e5b95c; }
+.transcribe-empty { margin: 0; font-size: 13px; color: var(--muted); }
+
+.transcribe-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.transcribe-summary div { padding: 12px; border-radius: 12px; background: var(--panel-2); border: 1px solid var(--line-soft); text-align: center; }
+.transcribe-summary strong { display: block; font-size: 21px; font-variant-numeric: tabular-nums; }
+.transcribe-summary span { font-size: 10.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--subtle); }
+
+.transcribe-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+
+.transcribe-notes { list-style: none; margin: 0; padding: 6px; display: flex; flex-direction: column; gap: 2px;
+  max-height: 340px; overflow-y: auto; border-radius: 14px;
+  background: #0b0b0d; box-shadow: inset 0 2px 6px rgba(0,0,0,.6); }
+.transcribe-notes li { display: grid; grid-template-columns: 58px 1fr auto auto; align-items: center; gap: 10px;
+  padding: 7px 10px; border-radius: 9px; }
+.transcribe-notes li:nth-child(odd) { background: rgba(255,255,255,.022); }
+.transcribe-notes .staff-note { margin: 0; }
+.transcribe-time { font-size: 11px; font-variant-numeric: tabular-nums; color: var(--subtle); }
+.transcribe-notes strong { font-size: 16px; font-weight: 650; }
+.transcribe-length { font-size: 11px; font-variant-numeric: tabular-nums; color: var(--subtle); }
+.transcribe-cents { font-size: 11px; font-variant-numeric: tabular-nums; color: var(--muted); min-width: 44px; text-align: right; }
+.transcribe-cents.is-off { color: #e5b95c; }
+.transcribe-foot { margin: 0; font-size: 11.5px; color: var(--subtle); }
+
+.export-stack { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.export-status { font-size: 11.5px; color: var(--cyan); }
+
+/* Shown for an instrument whose 3D lab has no licensed model yet. */
+.lab-unavailable { max-width: 560px; margin: 0 auto; padding: clamp(28px, 6vw, 64px) 24px 120px; display: flex; flex-direction: column; gap: 14px; }
+.lab-unavailable h1 { margin: 6px 0 0; font-size: clamp(24px, 5vw, 32px); line-height: 1.2; }
+.lab-unavailable p { margin: 0; font-size: 14px; line-height: 1.65; color: var(--muted); }
+.lab-unavailable-note { color: var(--subtle) !important; font-size: 13px !important; }
+.lab-back { align-self: flex-start; border: 1px solid var(--line); background: var(--panel-2); color: var(--muted);
+  border-radius: 999px; padding: 7px 14px; font-size: 12.5px; cursor: pointer; }
+.lab-unavailable-cta { align-self: flex-start; margin-top: 6px; border: 0; border-radius: 12px; cursor: pointer;
+  padding: 11px 20px; font-size: 14px; font-weight: 650; color: #061a17; background: var(--cyan); }
+
+@media (width<=680px) {
+  .transcribe-notes li { grid-template-columns: 54px 1fr auto; }
+  .transcribe-length { display: none; }
+  .transcribe-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .transcribe-summary strong { font-size: 17px; }
+}
