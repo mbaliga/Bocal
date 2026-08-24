@@ -1,6 +1,7 @@
 package com.bocal.music.ui
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -8,12 +9,8 @@ import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
-import android.webkit.RenderProcessGoneDetail
-import android.webkit.WebResourceRequest
-import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
-import android.webkit.WebViewClient
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
@@ -60,6 +57,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -486,8 +484,8 @@ private fun TuneScreen(instrument: InstrumentProfile, onOpenLab: () -> Unit) {
     var stableResult by remember { mutableStateOf<YinPitchDetector.Result?>(null) }
     var listening by remember { mutableStateOf(false) }
     var microphoneMessage by remember { mutableStateOf<String?>(null) }
-    var a4 by remember { mutableStateOf(440f) }
-    var tolerance by remember { mutableStateOf(10f) }
+    var a4 by remember { mutableFloatStateOf(440f) }
+    var tolerance by remember { mutableFloatStateOf(10f) }
     var transposition by remember { mutableIntStateOf(instrumentTransposition(instrument)) }
     val centsTrace = remember { mutableStateListOf<Float>() }
     val stabilizer = remember { PitchStabilizer() }
@@ -713,6 +711,7 @@ private fun SettingSlider(label: String, value: Float, range: ClosedFloatingPoin
 }
 
 @Composable
+@SuppressLint("SetJavaScriptEnabled") // Required by the bundled Lab; all non-appassets requests are rejected below.
 private fun LabScreen(instrument: InstrumentProfile) {
     val context = LocalContext.current
     var renderGeneration by remember { mutableIntStateOf(0) }
@@ -734,7 +733,6 @@ private fun LabScreen(instrument: InstrumentProfile) {
                     setBackgroundColor(android.graphics.Color.rgb(7, 8, 9))
                     settings.javaScriptEnabled = true
                     settings.domStorageEnabled = false
-                    settings.databaseEnabled = false
                     settings.allowFileAccess = false
                     settings.allowContentAccess = false
                     @Suppress("DEPRECATION")
@@ -746,25 +744,7 @@ private fun LabScreen(instrument: InstrumentProfile) {
                     settings.javaScriptCanOpenWindowsAutomatically = false
                     settings.setSupportMultipleWindows(false)
                     settings.mediaPlaybackRequiresUserGesture = true
-                    webViewClient = object : WebViewClient() {
-                        private fun isLocal(request: WebResourceRequest): Boolean =
-                            request.url.scheme == "https" && request.url.host == "appassets.androidplatform.net"
-
-                        override fun shouldInterceptRequest(view: WebView?, request: WebResourceRequest): WebResourceResponse? {
-                            if (!isLocal(request)) {
-                                return WebResourceResponse("text/plain", "UTF-8", java.io.ByteArrayInputStream(ByteArray(0)))
-                            }
-                            return loader.shouldInterceptRequest(request.url)
-                        }
-
-                        override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest): Boolean = !isLocal(request)
-
-                        override fun onRenderProcessGone(view: WebView?, detail: RenderProcessGoneDetail?): Boolean {
-                            view?.destroy()
-                            renderGeneration += 1
-                            return true
-                        }
-                    }
+                    webViewClient = LocalAssetWebViewClient(loader) { renderGeneration += 1 }
                     loadUrl("https://appassets.androidplatform.net/assets/www/lab.html?instrument=${instrument.id}")
                 }
             },
@@ -894,7 +874,7 @@ private fun SoundScreen(instrument: InstrumentProfile) {
     var octave by remember { mutableIntStateOf(4) }
     var playing by remember { mutableStateOf<Int?>(null) }
     var waveform by remember { mutableStateOf(ReferenceToneEngine.Waveform.SINE) }
-    var a4 by remember { mutableStateOf(440f) }
+    var a4 by remember { mutableFloatStateOf(440f) }
     val engine = remember { ReferenceToneEngine() }
     LaunchedEffect(playing, waveform, a4) {
         val midi = playing

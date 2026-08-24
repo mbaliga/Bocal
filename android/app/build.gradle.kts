@@ -10,7 +10,7 @@ android {
     defaultConfig {
         applicationId = "com.bocal.music"
         minSdk = 26
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 6
         versionName = "0.5.0"
 
@@ -21,6 +21,7 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -39,6 +40,7 @@ android {
     }
 
     packaging {
+        jniLibs.keepDebugSymbols += "**/libandroidx.graphics.path.so"
         resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
     }
 }
@@ -54,7 +56,7 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.material3:material3")
-    implementation("androidx.webkit:webkit:1.16.0")
+    implementation("androidx.webkit:webkit:1.17.0")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     testImplementation("junit:junit:4.13.2")

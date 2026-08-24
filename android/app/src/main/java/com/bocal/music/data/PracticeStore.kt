@@ -1,6 +1,7 @@
 package com.bocal.music.data
 
 import android.content.Context
+import androidx.core.content.edit
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.Instant
@@ -25,7 +26,7 @@ class PracticeStore(context: Context) {
                 .put("inTunePercent", session.inTunePercent ?: JSONObject.NULL),
         )
         for (index in 0 until minOf(sessions.length(), 99)) updated.put(sessions.get(index))
-        preferences.edit().putString(SESSIONS, updated.toString()).apply()
+        preferences.edit { putString(SESSIONS, updated.toString()) }
     }
 
     fun sessions(): List<PracticeSession> {
@@ -46,8 +47,8 @@ class PracticeStore(context: Context) {
     }
 
     fun lessonNote(): String = preferences.getString(LESSON, "") ?: ""
-    fun saveLessonNote(value: String) = preferences.edit().putString(LESSON, value).apply()
-    fun clearSessions() = preferences.edit().remove(SESSIONS).apply()
+    fun saveLessonNote(value: String) = preferences.edit { putString(LESSON, value) }
+    fun clearSessions() = preferences.edit { remove(SESSIONS) }
 
     companion object {
         private const val SESSIONS = "sessions"
