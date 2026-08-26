@@ -1,0 +1,55 @@
+name: Android debug APK
+
+# Builds the debug-signed APK and uploads it as a workflow artifact -- the
+# repo has no release-signing keystore (a deliberate, permanent decision, not
+# a missing build step), so this is the distribution path for on-device
+# testing until one exists.
+on:
+  push:
+    branches:
+      - main
+      - "claude/**"
+    paths:
+      - "android/**"
+      - "web-source/**"
+      - ".github/workflows/android-debug-apk.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.0"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: "platforms;android-37 build-tools;36.0.0"
+
+      # The APK bundles the web app verbatim (assets/www/app.html), so it has
+      # to exist and be current before Gradle packages it.
+      - name: Build the standalone web app
+        working-directory: web-source
+        run: |
+          npm ci
+          npm run preview:standalone
+          mkdir -p ../android/app/src/main/assets/www
+          cp preview-dist/index.html ../android/app/src/main/assets/www/app.html
+
+      - name: Build debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug --console=plain
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bocal-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
