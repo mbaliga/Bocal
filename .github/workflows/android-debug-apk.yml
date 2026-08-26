@@ -32,7 +32,11 @@ jobs:
 
       - uses: android-actions/setup-android@v3
         with:
-          packages: "platforms;android-37 build-tools;36.0.0"
+          # compileSdk 37 resolves to the dotted package id below, not
+          # "platforms;android-37" -- confirmed against this platform's own
+          # package.xml, which is where the first run of this workflow
+          # failed (sdkmanager: "Failed to find package 'platforms;android-37'").
+          packages: "platforms;android-37.0 build-tools;36.0.0"
 
       # The APK bundles the web app verbatim (assets/www/app.html), so it has
       # to exist and be current before Gradle packages it.
