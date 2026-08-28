@@ -6,6 +6,18 @@ Bocal is a strong instrument-first prototype, not yet a TonalEnergy replacement.
 
 This review uses the current Bocal web source. “Implemented” means present in this codebase, not proven on every browser or Android device.
 
+## 28 August implementation addendum
+
+The parity-foundation branch now closes the first web gaps identified below:
+
+- All supported tuner surfaces use the same calibrated reference and the guitar surface includes Standard, Drop D and Open G string tuning, colour-coded finger charts, and a root-gated chord flow.
+- The tuner includes an eight-octave reference-tone keyboard, four safe synthetic voices, volume control and standard/fine/ultra tolerance choices.
+- Pulse adds click voices, count-ins, repeatable silent-bar drills and device-local presets while retaining audio-clock scheduling.
+- Analyze supports multiple named in-session takes, local audio import, looping, tempo playback, rename, delete and download.
+- Practice now records tuner activity, persists the checklist, exposes weekly goals and a low-pressure streak signal, supports song progress, and includes a local coach brief with review-capability coverage and export.
+
+This is a web parity foundation, not a TonalEnergy replacement claim. The remaining gaps are intentionally listed in the matrix and still include region/A-B recording, harmonic/staff/interval analysis, multi-section metronome sequences, MIDI/Ableton Link, synced coach exchange, and physical-device validation.
+
 ## What Bocal now provides
 
 | Area | Current capability | Status |
@@ -14,8 +26,8 @@ This review uses the current Bocal web source. “Implemented” means present i
 | Guitar | Standard, Drop D and Open G open-string tuner views; six basic chord charts with numbered, colour-coded fingers. | Implemented web baseline. |
 | Paced chords | A four-chord original practice flow can advance every four beats or wait for three stable frames of the next *root note*. | Implemented; this is not polyphonic chord recognition. |
 | Visual learning | Bronze alto/oboe study models with key glows; guitar uses a clear 2D fretboard diagram. | Alto fingering is the only fully documented, validated map. |
-| Practice insight | Device-local day activity, tool/type time distribution, note cloud and a gentle progress message. | Implemented from recorded Bocal activity, not fabricated totals. |
-| Wishlisted songs | Local title-only wishlist. One original, playable four-chord practice pattern is included. | Implemented; licensed charts/audio are not yet supplied. |
+| Practice insight | Device-local day activity, tool/type time distribution, note cloud, weekly goal, active-day streak and a gentle progress message. | Implemented from recorded Bocal activity, not fabricated totals. |
+| Wishlisted songs | Local title-only wishlist with studying state and a 0–100% player-controlled progress field. One original, playable four-chord practice pattern is included. | Implemented; licensed charts/audio are not yet supplied. |
 | Motivation | Small-win acknowledgement without streak pressure or ranking. | Implemented; no rewards economy. |
 
 ## TonalEnergy benchmark
@@ -26,10 +38,10 @@ TonalEnergy is a paid professional utility, not a chord-course app. Its official
 |---|---|---|---|
 | Reliable tuner | Basic confidence-gated chromatic pitch estimate | Configurable visuals, targets/ranges, pitch history, reference/temperament/transposition controls | P0 — test and instrument the audio engine first |
 | String tuner | Three guitar tunings; nearest-string selection | Broad configurable string instruments/tunings | P1 |
-| Metronome | BPM, beat count, subdivision, basic practice evidence | Presets, set lists, complex sequences/automation, accents, count-ins and professional timing tools | P0/P1 |
-| Tone/chord generator | Single reference tone and chord roots | Keyboard/grid/chord/interval/exercise generator | P1 |
-| Recording/analysis | Browser take view is partial | Recording/playback/export plus waveform, pitch, spectrum, harmonics and staff tools | P1 |
-| Practice history | Local day/type/note activity map | Practice activity and streak/goal support | P1, after evidence integrity tests |
+| Metronome | BPM, beat count, subdivision, click voices, count-in, silent-bar drill, drone, saved presets and measured rhythm evidence | Presets, set lists, complex sequences/automation, accents, count-ins and professional timing tools | P0/P1 — add multi-section sequences and external sync |
+| Tone/chord generator | Eight-octave calibrated reference keyboard, four synthetic voices, safe level control and chord roots | Keyboard/grid/chord/interval/exercise generator | P1 — add chord/sequence exercise builder and sampled voices |
+| Recording/analysis | Named multi-take browser capture/import, playback, loop, tempo control, rename, delete and download; waveform/spectrum remain live | Recording/playback/export plus waveform, pitch, spectrum, harmonics and staff tools | P1 — add markers, regions, A/B and harmonic/staff/interval views |
+| Practice history | Local day/type/note activity map, weekly goal, streak nudge, song progress and export | Practice activity and streak/goal support | Implemented locally; add reminders/calendar and cross-device transfer |
 | Professional I/O | No MIDI/external mic/Bluetooth routing validation | MIDI and external-device workflows | P1 |
 | Coach workflow | Notes/export only; no real teaching exchange | Not TE's primary focus, but table stakes for Bocal's stated coaching ambition | P1 |
 
@@ -41,31 +53,31 @@ The free price target is an advantage only if core measurement is reliable. “F
 - [Soundbrenner's manual](https://www.soundbrenner.com/pages/manual-the-metronome-app) shows the useful combination of metronome, tuner and practice tracker across phone/wearable contexts. Bocal needs reliable timing and device validation before it claims comparable utility.
 - [Yousician's guitar onboarding](https://support.yousician.com/hc/en-us/articles/204738362-Get-started-with-Yousician-guitar) illustrates a clear live-feedback learning path. Bocal's next-step wait is intentionally narrower: it listens for a monophonic root, rather than judging a strummed chord.
 
-## Coach mode: not yet sufficient
+## Coach mode: useful local foundation, not yet sufficient for a connected studio
 
-The current code can retain local notes and export local data, but it does **not** yet cover a coach’s operational needs.
+The current code can retain local notes, create a local assignment brief and export it, but it does **not** yet cover a connected coach’s operational needs.
 
 | Coach need | Current state | Needed before a coach-mode launch |
 |---|---|---|
 | Student roster, consent and roles | Missing | Explicit coach/student roles, age/consent model, access/revocation and privacy policy. |
-| Assignments | Missing | Versioned assignment with instrument, goal, tempo, tolerance, due date and source/right information. |
+| Assignments | Local brief only | Versioned assignment with instrument, goal, tempo, tolerance, due date and source/right information. |
 | Evidence | Partial local data only | Signed/immutable session evidence with device/test context, optional audio/video consent and clear confidence labels. |
 | Review and feedback | Missing | Timeline, passage markers, text/voice annotation, rubric and acknowledgement loop. |
 | Group / section visibility | Missing | Aggregated, privacy-aware view; no public rankings by default. |
-| Repertoire workflow | Missing | Coach-provided legal chart/PDF references or user imports; Bocal must never distribute unlicensed notation/tab/audio. |
+| Repertoire workflow | Title-only local wishlist plus one original flow | Coach-provided legal chart/PDF references or user imports; Bocal must never distribute unlicensed notation/tab/audio. |
 | Hardware reality | Untested | Device matrix for mic, Bluetooth, interruption, rotation, backgrounding, thermal and accessibility. |
 
 A credible first version can remain local-first: a coach creates an encrypted/signed assignment bundle; a learner deliberately imports it; evidence is exported only by the learner; the coach imports the response. Cloud accounts should follow only after the data model and consent flow are sound.
 
 ## Wishlist and repertoire status
 
-Before this pass, the “repertoire” section consisted of static example names. There was no persisted wishlist and no score/chart/player data model. It now has:
+The current repertoire surface has:
 
-1. A local title-only wishlist that a player can add to and export.
+1. A local title-only wishlist that a player can add to, mark as studying and move through with a 0–100% progress control.
 2. One original four-chord guitar exercise with a playable chord flow.
 3. Explicit labels showing that Bocal has no bundled licensed score, tab, backing-track or commercial-song playback catalogue.
 
-Therefore: user wishlist progress is now **tracked as titles only**; playable licensed-song progress is **0**. The next legal/content step is a repertoire schema with provenance (`user supplied`, `public domain`, `licensed`, `original`), a chart/score attachment reference, sections/bars, instrument arrangement and progress checkpoints. Rights must be checked before any song is bundled.
+Therefore: user wishlist progress is now **tracked as local titles and self-reported percentages**; playable licensed-song progress is **0** unless the user supplies or licenses content. The next legal/content step is a repertoire schema with provenance (`user supplied`, `public domain`, `licensed`, `original`), a chart/score attachment reference, sections/bars, instrument arrangement and progress checkpoints. Rights must be checked before any song is bundled.
 
 ## Recommended delivery order
 
