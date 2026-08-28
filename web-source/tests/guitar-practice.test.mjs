@@ -38,5 +38,6 @@ test("the visual system keeps the mobile-derived arc dock on wide screens", asyn
   assert.match(page, /className="mobile-dock"/);
   assert.match(css, /\.mobile-nav button\.is-active/);
     assert.match(css, /@media \(orientation: landscape\) and \(min-width: 681px\)/);
+  assert.match(css, /\.mobile-nav\.is-arc/);
   assert.match(css, /\.nav-right \.mobile-nav/);
 });
