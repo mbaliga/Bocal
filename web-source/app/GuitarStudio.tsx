@@ -11,6 +11,12 @@ export type GuitarPitchReading = {
   midi: number;
 };
 
+const GUITAR_NOTE_NAMES = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];
+
+function noteNameFromMidi(midi: number) {
+  return GUITAR_NOTE_NAMES[((Math.round(midi) % 12) + 12) % 12];
+}
+
 function centsFromTarget(hz: number, targetMidi: number) {
   return Math.round(1200 * Math.log2(hz / midiToFrequency(targetMidi)));
 }
@@ -91,11 +97,11 @@ export function GuitarStudio({ reading, listening, onListen }: { reading: Guitar
       rootFrames.current = 0;
       return;
     }
-    const heardRoot = reading.note.replace("♯", "#") === playerChord.root.replace("♯", "#") && Math.abs(reading.cents) <= 12;
+    const heardRoot = noteNameFromMidi(reading.midi).replace("♯", "#") === playerChord.root.replace("♯", "#") && Math.abs(reading.cents) <= 12;
     rootFrames.current = heardRoot ? rootFrames.current + 1 : 0;
     if (rootFrames.current < 3) return;
     rootFrames.current = 0;
-    recordPracticeActivity({ type: "chords", seconds: 12, instrumentId: "guitar", notes: [`${playerChord.root}${reading.octave}`], label: `${playerChord.name} root heard` });
+    recordPracticeActivity({ type: "chords", seconds: 12, instrumentId: "guitar", notes: [`${playerChord.root}${Math.floor(reading.midi / 12) - 1}`], label: `${playerChord.name} root heard` });
     setPlayerStep((current) => (current + 1) % progression.length);
   }, [playerChord.name, playerChord.root, playerPlaying, progression.length, reading, waitForRoot]);
 
