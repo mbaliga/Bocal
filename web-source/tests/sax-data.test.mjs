@@ -54,7 +54,31 @@ test("the keyed range is chromatic from written B-flat 3 through F-sharp 6", () 
   assert.deepEqual(data.ALTO_FINGERINGS.map((note) => note.midi), Array.from({ length: 33 }, (_, index) => 58 + index));
   assert.equal(data.ALTO_FINGERINGS[0].id, "bb3");
   assert.equal(data.ALTO_FINGERINGS.at(-1).id, "fs6");
-  for (const note of data.ALTO_FINGERINGS) assert.equal(data.writtenToConcert(note.midi), note.midi - 9);
+  // writtenToConcert no longer assumes alto: the caller must pass the
+  // instrument's writtenOffset (see the dedicated per-horn test below).
+  for (const note of data.ALTO_FINGERINGS) assert.equal(data.writtenToConcert(note.midi, 9), note.midi - 9);
+});
+
+test("SAXOPHONE_FINGERINGS is the map and ALTO_FINGERINGS is a back-compat alias for it", () => {
+  assert.equal(data.SAXOPHONE_FINGERINGS, data.ALTO_FINGERINGS);
+});
+
+test("written pitch transposes to the correct concert pitch on every saxophone", async () => {
+  const instrumentsSource = await readFile(new URL("../app/instruments.ts", import.meta.url), "utf8");
+  const { outputText } = ts.transpileModule(instrumentsSource, {
+    compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
+    fileName: "instruments.ts",
+    reportDiagnostics: true,
+  });
+  const { INSTRUMENTS } = await import(`data:text/javascript;base64,${Buffer.from(outputText).toString("base64")}`);
+
+  // Written B♭3 (midi 58) is the same grip on every saxophone; only the
+  // sounding (concert) pitch differs, by the instrument's writtenOffset.
+  const writtenBb3 = 58;
+  assert.equal(data.writtenToConcert(writtenBb3, INSTRUMENTS["alto-sax"].writtenOffset), 49); // concert D♭3
+  assert.equal(data.writtenToConcert(writtenBb3, INSTRUMENTS["soprano-sax"].writtenOffset), 56); // concert A♭3
+  assert.equal(data.writtenToConcert(writtenBb3, INSTRUMENTS["tenor-sax"].writtenOffset), 44); // concert A♭2
+  assert.equal(data.writtenToConcert(writtenBb3, INSTRUMENTS["bari-sax"].writtenOffset), 37); // concert D♭2
 });
 
 test("all fingering contacts resolve and route ids are unique", () => {

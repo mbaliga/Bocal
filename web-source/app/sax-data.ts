@@ -153,7 +153,19 @@ export const SAX_MECHANICS: Record<SaxKeyId, SaxMechanic> = {
 const baseSix: SaxKeyId[] = ["lh1", "lh2", "lh3", "rh1", "rh2", "rh3"];
 const oct = (keys: SaxKeyId[]) => ["octave", ...keys] as SaxKeyId[];
 
-export const ALTO_FINGERINGS: Fingering[] = [
+/**
+ * Written fingerings for the modern saxophone. Soprano, alto, tenor and
+ * baritone share one fingering system -- a written C is the same grip on
+ * every horn, only the sounding pitch differs (see `writtenOffset` in
+ * `instruments.ts`). So this map, despite its name's history, is not
+ * alto-specific: it is keyed on written pitch and applies across the family.
+ *
+ * Two real gaps: this covers the standard written range (B♭3 through F♯6)
+ * only, not altissimo or horn-specific alternates; and it has no entry for
+ * baritone's low A (written A3), a key many baritones have that the other
+ * three saxes lack.
+ */
+export const SAXOPHONE_FINGERINGS: Fingering[] = [
   { id: "bb3", note: "B♭", octave: 3, midi: 58, keys: [...baseSix, "lowBb"], level: "Low", hint: "All six main fingers, then roll the left pinky to low B♭." },
   { id: "b3", note: "B", octave: 3, midi: 59, keys: [...baseSix, "lowB"], level: "Low", hint: "All six main fingers with the left-pinky low B key." },
   { id: "c4", note: "C", octave: 4, midi: 60, keys: [...baseSix, "lowC"], level: "Low", hint: "All six main fingers with the right-pinky low C key." },
@@ -270,8 +282,18 @@ export const ALTO_FINGERINGS: Fingering[] = [
   },
 ];
 
-export function writtenToConcert(midi: number) {
-  return midi - 9;
+/** Back-compat name; new code should import {@link SAXOPHONE_FINGERINGS}. */
+export const ALTO_FINGERINGS = SAXOPHONE_FINGERINGS;
+
+/**
+ * Concert (sounding) MIDI note for a written MIDI note, given the
+ * instrument's `writtenOffset` (semitones from sounding to written pitch --
+ * see `instruments.ts`). This used to be hardcoded to the alto's offset of
+ * 9; every caller must now pass the offset for the instrument actually
+ * being displayed.
+ */
+export function writtenToConcert(midi: number, writtenOffset: number) {
+  return midi - writtenOffset;
 }
 
 export function midiToFrequency(midi: number) {
