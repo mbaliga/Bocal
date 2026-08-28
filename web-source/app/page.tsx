@@ -1077,7 +1077,7 @@ function TunerView({
         <div className="live-badge"><span className={trackerReading.state === "locked" ? "pulse-dot" : "quiet-dot"} /> {trackerLabel}</div>
       </section>
 
-          <div className="tuner-grid">
+      <div className="tuner-grid">
         <section className={`tuner-card ${inTune ? "is-centered" : ""} ${reading ? "has-reading" : "is-waiting"}`} aria-live="polite">
           <div className="tuner-card-top">
             <span className="status-label"><CircleDot size={15} /> {trackerReading.state === "locked" ? direction : trackerLabel}</span>
@@ -1182,7 +1182,7 @@ function TunerView({
             </article>
           )}
         </aside>
-          </div>
+      </div>
 
       <ToneGenerator
         referenceHz={referenceHz}

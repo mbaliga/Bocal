@@ -61,7 +61,7 @@ The two user-supplied motion references were treated as interaction references, 
 | The instrument itself must remain the primary canvas | Model toolbar, view selector and legend moved into a separate dock above the viewport; focus mode removes surrounding panels | Fingertips and keywork are no longer obscured by UI |
 | Body contact is part of playing, not merely a diagram label | Bocal keeps the learning surface free of rendered hands; active keys glow directly on the reference mesh | Keeps the instrument readable and avoids implying biometric posture accuracy |
 
-The hand rig is an educational XR-style aid, not photoreal anatomy, live hand tracking or a substitute for a teacher. Future instruments can add instrument-specific contact rigs—thumbs, chin, jaw, shoulder, embouchure or support points—but those contact anchors must be validated per instrument before publication. Violin chin/shoulder contact is therefore an architectural requirement, not a currently shipped woodwind claim.
+Key glow is an educational placement aid, not live hand tracking or a substitute for a teacher. Future instruments can add instrument-specific contact rigs—thumbs, chin, jaw, shoulder, embouchure or support points—but those contact anchors must be validated per instrument before publication. Violin chin/shoulder contact is therefore an architectural requirement, not a currently shipped woodwind claim.
 
 ## 2. Research basis
 
