@@ -24,7 +24,8 @@ import {
   Waves,
   Zap,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from "react";
+import { addSongWish, parsePracticeActivities, parseSongWishlist, PRACTICE_ACTIVITY_STORAGE_KEY, recordPracticeActivity, SONG_WISHLIST_STORAGE_KEY, type PracticeActivity, type PracticeActivityType, type SongWish } from "./practice-data";
 import {
   calculateSkillRating,
   emptySkillEvidence,
@@ -40,6 +41,27 @@ const DRONES = [
   { label: "Concert E♭", hz: 311.13 },
   { label: "Concert F", hz: 349.23 },
 ];
+
+const ACTIVITY_LABELS: Record<PracticeActivityType, string> = {
+  tuning: "Tune",
+  fingering: "Fingering",
+  rhythm: "Pulse",
+  chords: "Chords",
+  analysis: "Analysis",
+  repertoire: "Repertoire",
+  session: "General",
+};
+
+const ACTIVITY_COLORS: Record<PracticeActivityType, string> = {
+  tuning: "#08fed5",
+  fingering: "#a28fff",
+  rhythm: "#ffbf62",
+  chords: "#ff7d91",
+  analysis: "#82a8ff",
+  repertoire: "#8fd48d",
+  session: "#8f8f93",
+};
+
 
 function audioClick(context: AudioContext, accent: boolean, subdivision: boolean, when: number) {
   const oscillator = context.createOscillator();
@@ -201,6 +223,7 @@ export function PulseView() {
       localStorage.setItem(SKILL_EVIDENCE_STORAGE_KEY, JSON.stringify(next));
       window.dispatchEvent(new Event("bocal-skill-evidence"));
       setRhythmFeedback(`Saved 16 attacks · ${Math.round(medianError)} ms median timing error.`);
+      recordPracticeActivity({ type: "rhythm", seconds: (60 / bpm) * 16, label: "Pulse accuracy" });
     } catch {
       setRhythmFeedback(`Measured ${Math.round(medianError)} ms median timing error; device storage is unavailable.`);
     }
@@ -289,22 +312,31 @@ export function PracticeView({
   const [savedNote, setSavedNote] = useState("");
   const [shareMessage, setShareMessage] = useState("");
   const [sessions, setSessions] = useState<SessionRecord[]>([]);
+  const [activities, setActivities] = useState<PracticeActivity[]>([]);
+  const [songWishes, setSongWishes] = useState<SongWish[]>([]);
+  const [songTitle, setSongTitle] = useState("");
   const [skillEvidence, setSkillEvidence] = useState<SkillEvidenceBundle>(() => emptySkillEvidence());
 
   useEffect(() => {
     const restore = () => {
       try {
         setSessions(JSON.parse(localStorage.getItem("bocal-sessions") ?? "[]"));
+        setActivities(parsePracticeActivities(localStorage.getItem(PRACTICE_ACTIVITY_STORAGE_KEY)));
+        setSongWishes(parseSongWishlist(localStorage.getItem(SONG_WISHLIST_STORAGE_KEY)));
         setSavedNote(localStorage.getItem("bocal-lesson-note") ?? "");
         setSkillEvidence(parseSkillEvidence(localStorage.getItem(SKILL_EVIDENCE_STORAGE_KEY)));
       } catch { /* Local storage can be unavailable in private browsing. */ }
     };
     const restoreTimer = window.setTimeout(restore, 0);
     window.addEventListener("bocal-skill-evidence", restore);
+    window.addEventListener("bocal-practice-activity", restore);
+    window.addEventListener("bocal-song-wishlist", restore);
     window.addEventListener("storage", restore);
     return () => {
       window.clearTimeout(restoreTimer);
       window.removeEventListener("bocal-skill-evidence", restore);
+      window.removeEventListener("bocal-practice-activity", restore);
+      window.removeEventListener("bocal-song-wishlist", restore);
       window.removeEventListener("storage", restore);
     };
   }, []);
@@ -313,6 +345,18 @@ export function PracticeView({
   const totalMinutes = useMemo(() => week.reduce((sum, day) => sum + day.minutes, 0), [week]);
   const daysPlayed = useMemo(() => week.filter((day) => day.minutes > 0).length, [week]);
   const skillRating = useMemo(() => calculateSkillRating(skillEvidence), [skillEvidence]);
+  const activityWeek = useMemo(() => week.map((day) => ({
+    ...day,
+    seconds: activities.filter((activity) => activityDayKey(activity) === day.key).reduce((sum, activity) => sum + activity.seconds, 0),
+  })), [activities, week]);
+  const activitiesByType = useMemo(() => (Object.keys(ACTIVITY_LABELS) as PracticeActivityType[])
+    .map((type) => ({ type, seconds: activities.filter((activity) => activity.type === type).reduce((sum, activity) => sum + activity.seconds, 0) }))
+    .filter((item) => item.seconds > 0), [activities]);
+  const notes = useMemo(() => Object.entries(activities.flatMap((activity) => activity.notes ?? []).reduce<Record<string, number>>((counts, noteName) => {
+    counts[noteName] = (counts[noteName] ?? 0) + 1;
+    return counts;
+  }, {})).sort((left, right) => right[1] - left[1]).slice(0, 6), [activities]);
+  const activeDays = useMemo(() => activityWeek.filter((day) => day.seconds > 0).length, [activityWeek]);
   const saveNote = () => {
     const clean = note.trim();
     if (!clean) return;
@@ -321,7 +365,7 @@ export function PracticeView({
     try { localStorage.setItem("bocal-lesson-note", clean); } catch { /* Non-critical local enhancement. */ }
   };
   const exportData = () => {
-    const payload = { schemaVersion: 1, exportedAt: new Date().toISOString(), sessions, lessonNote: savedNote, completed, skillEvidence, skillRating };
+    const payload = { schemaVersion: 2, exportedAt: new Date().toISOString(), sessions, activities, songWishes, lessonNote: savedNote, completed, skillEvidence, skillRating };
     const json = JSON.stringify(payload, null, 2);
     const file = new File([json], "bocal-practice-data.json", { type: "application/json" });
     // A short human-readable line rides along with the file. What the player
@@ -360,6 +404,13 @@ export function PracticeView({
     }
     download();
   };
+  const addWish = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!songTitle.trim()) return;
+    addSongWish(songTitle);
+    setSongTitle("");
+  };
+  const chordFlowProgress = Math.min(100, activities.filter((activity) => activity.type === "chords").length * 25);
   const toggleComplete = (id: string) => setCompleted((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
 
   return (
@@ -386,7 +437,7 @@ export function PracticeView({
           <div className="practice-card-head"><div><span className="card-kicker"><Sparkles size={14} /> Today · 15 minutes</span><h2>Your next focused set</h2></div><span className="plan-progress">{completed.length}/3</span></div>
           <PracticeItem id="tone" title="Long-tone center" detail="A4 · 60 seconds × 3" time="4 min" active done={completed.includes("tone")} onToggle={toggleComplete} />
           <PracticeItem id="scale" title="G major, full range" detail="Tongued → slurred · 72 BPM" time="5 min" done={completed.includes("scale")} onToggle={toggleComplete} />
-          <PracticeItem id="piece" title="Autumn Leaves" detail="Bars 9–16 · intonation pass" time="6 min" done={completed.includes("piece")} onToggle={toggleComplete} />
+          <PracticeItem id="piece" title="Phrase craft" detail="Your own chart · a clean, small section" time="6 min" done={completed.includes("piece")} onToggle={toggleComplete} />
         </section>
 
         <section className="week-card">
@@ -396,12 +447,26 @@ export function PracticeView({
         </section>
       </div>
 
+      <section className="practice-visualizer" aria-labelledby="practice-map-title">
+        <header className="practice-visualizer-head"><div><span className="card-kicker"><Activity size={14} /> Practice map</span><h2 id="practice-map-title">See the shape of your work.</h2><p>Every completed Bocal tool records locally. The circles show days, the bars show practice type, and the notes show what the tuner or chord player heard.</p></div><span className="local-chip"><Archive size={12} /> Device data</span></header>
+        <div className="practice-map-grid">
+          <article className="day-orbit-card"><span>Days</span><div className="day-orbit">{activityWeek.map((day) => <div key={day.key} className={day.seconds ? "is-active" : ""} style={{ "--day-size": `${Math.max(30, Math.min(100, 28 + Math.sqrt(day.seconds) * 5))}%` } as CSSProperties}><i /><strong>{day.day}</strong><small>{minuteLabel(day.seconds)}</small></div>)}</div><p>{activeDays ? `${activeDays} active ${activeDays === 1 ? "day" : "days"} recorded this week.` : "Your first completed tool will light up this week."}</p></article>
+          <article className="type-distribution-card"><span>Types</span>{activitiesByType.length ? <div className="type-distribution">{activitiesByType.map((item) => <div key={item.type}><span>{ACTIVITY_LABELS[item.type]}</span><i><b style={{ width: `${Math.max(7, item.seconds / Math.max(...activitiesByType.map((entry) => entry.seconds)) * 100)}%`, background: ACTIVITY_COLORS[item.type] }} /></i><strong>{minuteLabel(item.seconds)}</strong></div>)}</div> : <EmptyInsight text="Finish a tuning, pulse or chord flow to build this picture." />}</article>
+          <article className="note-distribution-card"><span>Notes</span>{notes.length ? <div className="note-cloud">{notes.map(([noteName, count], index) => <span key={noteName} style={{ "--note-weight": `${Math.max(0.78, 1.28 - index * 0.09)}` } as CSSProperties}><b>{noteName}</b><small>{count}x</small></span>)}</div> : <EmptyInsight text="Clear tuner frames and chord roots appear here after you play." />}</article>
+          <article className="gentle-win-card"><Sparkles size={17} /><span>Small win</span><strong>{activeDays ? "You made room for music this week." : "Your next two minutes count."}</strong><p>{activeDays ? "Keep the next session tiny and specific. Consistency is more useful than a streak counter." : "Start a tuner, pulse or chord flow. Bocal will remember the work, not guilt you into it."}</p></article>
+        </div>
+      </section>
+
       <div className="practice-lower-grid">
         <section className="repertoire-card">
-          <div className="list-card-head"><div><span className="card-kicker"><Music2 size={14} /> Repertoire</span><h2>In the shed</h2></div><button aria-label="Add piece"><Plus size={17} /></button></div>
-          <RepertoireRow title="Autumn Leaves" meta="Joseph Kosma · E minor" progress={72} status="Working" />
-          <RepertoireRow title="Blue Monk" meta="Thelonious Monk · B♭ blues" progress={44} status="Learning" />
-          <RepertoireRow title="Ain't No Sunshine" meta="Bill Withers · transcription" progress={18} status="Queued" />
+          <div className="list-card-head"><div><span className="card-kicker"><Music2 size={14} /> Repertoire</span><h2>In the shed</h2></div><span className="local-chip"><Archive size={12} /> Local</span></div>
+          <RepertoireRow title="Four-chord flow" meta="Original Bocal practice pattern · guitar" progress={chordFlowProgress} status="Playable" />
+          {songWishes.slice(0, 3).map((wish) => <RepertoireRow key={wish.id} title={wish.title} meta="Your local song wishlist · score or chart not included" progress={0} status={wish.status === "studying" ? "Studying" : "Wishlist"} />)}
+          {!songWishes.length && <RepertoireRow title="No songs saved yet" meta="Add a title you want to work on. Bocal does not include unlicensed scores, tabs or audio." progress={0} status="Wishlist" />}
+          <form className="song-wishlist-form" onSubmit={addWish}>
+            <input value={songTitle} onChange={(event) => setSongTitle(event.target.value)} placeholder="Add a song to your wishlist" aria-label="Song title to add to wishlist" maxLength={100} />
+            <button type="submit" aria-label="Add song to wishlist" disabled={!songTitle.trim()}><Plus size={16} /></button>
+          </form>
         </section>
 
         <section className="lesson-card">
@@ -489,4 +554,9 @@ function PracticeItem({ id, title, detail, time, done, active, onToggle }: { id:
 
 function RepertoireRow({ title, meta, progress, status }: { title: string; meta: string; progress: number; status: string }) {
   return <div className="repertoire-row"><span className="album-tile"><Music2 size={17} /></span><div><strong>{title}</strong><small>{meta}</small><span className="repertoire-progress"><i style={{ width: `${progress}%` }} /></span></div><em>{status}</em></div>;
+}
+
+
+function EmptyInsight({ text }: { text: string }) {
+  return <p className="practice-empty-insight"><CircleDot size={14} /> {text}</p>;
 }
