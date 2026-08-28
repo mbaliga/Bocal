@@ -18,6 +18,7 @@ import {
   Pause,
   Play,
   Rotate3D,
+  SlidersHorizontal,
   Settings2,
   Smartphone,
   Sparkles,
@@ -54,6 +55,18 @@ import {
   summarizeTunerSession,
   withTunerSession,
 } from "./skill-rating";
+import {
+  readingFor,
+  targetHzFor,
+  REFERENCE_HZ_DEFAULT,
+  REFERENCE_HZ_MAX,
+  REFERENCE_HZ_MIN,
+  REFERENCE_HZ_STEP,
+  TEMPERAMENT_ORDER,
+  TEMPERAMENT_PROFILES,
+  type TemperamentId,
+  type TuningOptions,
+} from "./tuning";
 
 const SaxophoneLab = dynamic(
   () => import("./SaxophoneLab").then((module) => module.SaxophoneLab),
@@ -77,15 +90,25 @@ const INSTRUMENT_STORAGE_KEY = "bocal-instrument";
 const PARTNER_INSTRUMENT_STORAGE_KEY = "bocal-instrument-partner";
 const NOTATION_STORAGE_KEY = "bocal-notation";
 const TONIC_STORAGE_KEY = "bocal-sa-tonic";
+const REFERENCE_HZ_STORAGE_KEY = "bocal-reference-hz";
+const TEMPERAMENT_STORAGE_KEY = "bocal-temperament";
+const TEMPERAMENT_KEY_STORAGE_KEY = "bocal-temperament-key";
 
-function pitchFromFrequency(hz: number, writtenOffset: number): PitchReading {
-  const concertMidi = Math.round(69 + 12 * Math.log2(hz / 440));
-  const targetHz = 440 * 2 ** ((concertMidi - 69) / 12);
+const REFERENCE_PRESETS: { hz: number; label: string }[] = [
+  { hz: 415, label: "Baroque" },
+  { hz: 430, label: "Classical" },
+  { hz: 440, label: "Standard" },
+  { hz: 442, label: "" },
+  { hz: 443, label: "" },
+];
+
+function pitchFromFrequency(hz: number, writtenOffset: number, tuning: TuningOptions): PitchReading {
+  const { concertMidi, cents } = readingFor(hz, tuning);
   return {
     hz,
     writtenMidi: concertMidi + writtenOffset,
     concertMidi,
-    cents: Math.round(1200 * Math.log2(hz / targetHz)),
+    cents,
   };
 }
 
@@ -149,6 +172,9 @@ export default function Home() {
   const [railSide, setRailSide] = useState<RailSide>("left");
   const [notation, setNotation] = useState<NotationSystem>("western");
   const [saTonic, setSaTonic] = useState(0);
+  const [referenceHz, setReferenceHz] = useState(REFERENCE_HZ_DEFAULT);
+  const [temperament, setTemperament] = useState<TemperamentId>("equal");
+  const [temperamentKeyPc, setTemperamentKeyPc] = useState(0);
   const [reading, setReading] = useState<PitchReading | null>(null);
   const [trackerReading, setTrackerReading] = useState<PitchTrackerReading>({
     state: "silence",
@@ -171,6 +197,18 @@ export default function Home() {
   const trackerRef = useRef(new StablePitchTracker());
   const tunerEvidenceRef = useRef<{ startedAt: number; cents: number[]; midiNotes: number[] } | null>(null);
   const instrument = INSTRUMENTS[instrumentId];
+  const tuningOptions = useMemo<TuningOptions>(
+    () => ({ referenceHz, temperament, keyPc: temperamentKeyPc }),
+    [referenceHz, temperament, temperamentKeyPc],
+  );
+  // Read from a ref inside the sampling loop below, rather than closing over
+  // tuningOptions at the moment the loop started, so changing the reference
+  // pitch or temperament mid-session takes effect on the very next frame
+  // instead of only on the next "Start live tuner" press.
+  const tuningOptionsRef = useRef(tuningOptions);
+  useEffect(() => {
+    tuningOptionsRef.current = tuningOptions;
+  }, [tuningOptions]);
   // Seated left to right along the pill arc, current instrument first.
   const pillInstruments = useMemo<InstrumentId[]>(
     () => (partnerInstrumentId === instrumentId ? [instrumentId] : [instrumentId, partnerInstrumentId]),
@@ -229,6 +267,26 @@ export default function Home() {
     return () => window.clearTimeout(timer);
   }, []);
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      try {
+        const savedHz = Number(localStorage.getItem(REFERENCE_HZ_STORAGE_KEY));
+        if (Number.isFinite(savedHz) && savedHz >= REFERENCE_HZ_MIN && savedHz <= REFERENCE_HZ_MAX) {
+          setReferenceHz(savedHz);
+        }
+        const savedTemperament = localStorage.getItem(TEMPERAMENT_STORAGE_KEY);
+        if (savedTemperament && savedTemperament in TEMPERAMENT_PROFILES) {
+          setTemperament(savedTemperament as TemperamentId);
+        }
+        const savedKeyPc = Number(localStorage.getItem(TEMPERAMENT_KEY_STORAGE_KEY));
+        if (Number.isInteger(savedKeyPc) && savedKeyPc >= 0 && savedKeyPc < 12) setTemperamentKeyPc(savedKeyPc);
+      } catch {
+        // A=440 equal temperament is the fallback when device storage is unavailable.
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   const chooseNotation = useCallback((next: NotationSystem) => {
     setNotation(next);
     try {
@@ -242,6 +300,33 @@ export default function Home() {
     setSaTonic(next);
     try {
       localStorage.setItem(TONIC_STORAGE_KEY, String(next));
+    } catch {
+      // The choice still applies for this session.
+    }
+  }, []);
+
+  const chooseReferenceHz = useCallback((next: number) => {
+    setReferenceHz(next);
+    try {
+      localStorage.setItem(REFERENCE_HZ_STORAGE_KEY, String(next));
+    } catch {
+      // The choice still applies for this session.
+    }
+  }, []);
+
+  const chooseTemperament = useCallback((next: TemperamentId) => {
+    setTemperament(next);
+    try {
+      localStorage.setItem(TEMPERAMENT_STORAGE_KEY, next);
+    } catch {
+      // The choice still applies for this session.
+    }
+  }, []);
+
+  const chooseTemperamentKeyPc = useCallback((next: number) => {
+    setTemperamentKeyPc(next);
+    try {
+      localStorage.setItem(TEMPERAMENT_KEY_STORAGE_KEY, String(next));
     } catch {
       // The choice still applies for this session.
     }
@@ -334,11 +419,11 @@ export default function Home() {
           const nextTrackerReading = trackerRef.current.process(data, audioContext.sampleRate, now);
           setTrackerReading(nextTrackerReading);
           if (nextTrackerReading.hz !== null) {
-            const nextReading = pitchFromFrequency(nextTrackerReading.hz, instrument.writtenOffset);
+            const nextReading = pitchFromFrequency(nextTrackerReading.hz, instrument.writtenOffset, tuningOptionsRef.current);
             setReading(nextReading);
             if (nextTrackerReading.accepted && tunerEvidenceRef.current) {
               tunerEvidenceRef.current.cents.push(nextReading.cents);
-              tunerEvidenceRef.current.midiNotes.push(Math.round(69 + 12 * Math.log2(nextReading.hz / 440)));
+              tunerEvidenceRef.current.midiNotes.push(nextReading.concertMidi);
               setAcceptedFrames(tunerEvidenceRef.current.cents.length);
               setPitchTrace((current) => [...current, nextReading.cents].slice(-18));
             }
@@ -360,7 +445,10 @@ export default function Home() {
     const oscillator = audioContext.createOscillator();
     const gain = audioContext.createGain();
     oscillator.type = "sine";
-    oscillator.frequency.value = 261.63;
+    // Concert A4 (MIDI 69) at the chosen reference pitch and temperament, so
+    // the tone itself demonstrates the calibration rather than always being
+    // a fixed 261.63 Hz regardless of what the player set it to.
+    oscillator.frequency.value = targetHzFor(69, tuningOptionsRef.current);
     gain.gain.setValueAtTime(0.0001, audioContext.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.14, audioContext.currentTime + 0.04);
     gain.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 1.45);
@@ -529,6 +617,12 @@ export default function Home() {
             saTonic={saTonic}
             onNotationChange={chooseNotation}
             onSaTonicChange={chooseSaTonic}
+            referenceHz={referenceHz}
+            temperament={temperament}
+            temperamentKeyPc={temperamentKeyPc}
+            onReferenceHzChange={chooseReferenceHz}
+            onTemperamentChange={chooseTemperament}
+            onTemperamentKeyPcChange={chooseTemperamentKeyPc}
           />
         )}
         {mode === "sax" && <SaxophoneLab onBack={() => selectMode("tune")} instrumentId={instrumentId} />}
@@ -764,6 +858,109 @@ function NotationPicker({
   );
 }
 
+// Calibration is set-once-then-forget, unlike the notation switch a player
+// might flip between mid-session, so it lives behind a disclosure instead of
+// sitting open in the readout. Same crater/keycap vocabulary as
+// NotationPicker above -- recessed track for what you choose from, raised
+// keycap for what you chose.
+function CalibrationPicker({
+  referenceHz,
+  temperament,
+  temperamentKeyPc,
+  onReferenceHzChange,
+  onTemperamentChange,
+  onTemperamentKeyPcChange,
+}: {
+  referenceHz: number;
+  temperament: TemperamentId;
+  temperamentKeyPc: number;
+  onReferenceHzChange: (next: number) => void;
+  onTemperamentChange: (next: TemperamentId) => void;
+  onTemperamentKeyPcChange: (next: number) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const profile = TEMPERAMENT_PROFILES[temperament];
+  const hzLabel = Number.isInteger(referenceHz) ? String(referenceHz) : referenceHz.toFixed(1);
+  return (
+    <div className="calibration-picker">
+      <button
+        type="button"
+        className="calibration-toggle"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+      >
+        <SlidersHorizontal size={13} />
+        <span>Calibration</span>
+        <span className="calibration-summary">{hzLabel} Hz · {profile.label}</span>
+        <ChevronDown size={14} className={open ? "is-open" : ""} />
+      </button>
+      {open && (
+        <div className="calibration-body">
+          <div className="calibration-row">
+            <div className="calibration-row-head">
+              <label htmlFor="calibration-reference-hz">Reference pitch (A4)</label>
+              <span className="calibration-value">{hzLabel} Hz</span>
+            </div>
+            <input
+              id="calibration-reference-hz"
+              type="range"
+              min={REFERENCE_HZ_MIN}
+              max={REFERENCE_HZ_MAX}
+              step={REFERENCE_HZ_STEP}
+              value={referenceHz}
+              onChange={(event) => onReferenceHzChange(Number(event.target.value))}
+            />
+            <div className="calibration-presets" role="group" aria-label="Reference pitch presets">
+              {REFERENCE_PRESETS.map((preset) => (
+                <button
+                  key={preset.hz}
+                  type="button"
+                  className={referenceHz === preset.hz ? "is-active" : ""}
+                  onClick={() => onReferenceHzChange(preset.hz)}
+                >
+                  {preset.hz}
+                  {preset.label && <small>{preset.label}</small>}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="calibration-row">
+            <label>Temperament</label>
+            <div className="notation-switch" role="radiogroup" aria-label="Temperament">
+              {TEMPERAMENT_ORDER.map((id) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="radio"
+                  aria-checked={temperament === id}
+                  className={temperament === id ? "is-active" : ""}
+                  onClick={() => onTemperamentChange(id)}
+                >
+                  {TEMPERAMENT_PROFILES[id].label}
+                </button>
+              ))}
+            </div>
+            <p className="notation-hint">{profile.description}</p>
+            {profile.needsKeyCentre && (
+              <label className="notation-tonic">
+                <span>Key centre</span>
+                <select value={temperamentKeyPc} onChange={(event) => onTemperamentKeyPcChange(Number(event.target.value))}>
+                  {TONIC_CHOICES.map((choice) => (
+                    <option key={choice.pc} value={choice.pc}>
+                      {choice.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function TunerView({
   reading,
   listening,
@@ -780,6 +977,12 @@ function TunerView({
   saTonic,
   onNotationChange,
   onSaTonicChange,
+  referenceHz,
+  temperament,
+  temperamentKeyPc,
+  onReferenceHzChange,
+  onTemperamentChange,
+  onTemperamentKeyPcChange,
 }: {
   reading: PitchReading | null;
   listening: boolean;
@@ -796,6 +999,12 @@ function TunerView({
   saTonic: number;
   onNotationChange: (next: NotationSystem) => void;
   onSaTonicChange: (next: number) => void;
+  referenceHz: number;
+  temperament: TemperamentId;
+  temperamentKeyPc: number;
+  onReferenceHzChange: (next: number) => void;
+  onTemperamentChange: (next: TemperamentId) => void;
+  onTemperamentKeyPcChange: (next: number) => void;
 }) {
   const inTune = trackerReading.state === "locked" && reading !== null && Math.abs(reading.cents) <= 5;
   const direction = reading === null ? "Waiting" : reading.cents > 5 ? "Sharp" : reading.cents < -5 ? "Flat" : "Centered";
@@ -857,7 +1066,7 @@ function TunerView({
         <section className={`tuner-card ${inTune ? "is-centered" : ""} ${reading ? "has-reading" : "is-waiting"}`} aria-live="polite">
           <div className="tuner-card-top">
             <span className="status-label"><CircleDot size={15} /> {trackerReading.state === "locked" ? direction : trackerLabel}</span>
-            <button className="small-action" onClick={onReference}><Volume2 size={16} /> Hear concert C</button>
+            <button className="small-action" onClick={onReference}><Volume2 size={16} /> Hear reference A</button>
           </div>
 
           <div className="note-readout">
@@ -890,6 +1099,15 @@ function TunerView({
             saTonic={saTonic}
             onNotationChange={onNotationChange}
             onSaTonicChange={onSaTonicChange}
+          />
+
+          <CalibrationPicker
+            referenceHz={referenceHz}
+            temperament={temperament}
+            temperamentKeyPc={temperamentKeyPc}
+            onReferenceHzChange={onReferenceHzChange}
+            onTemperamentChange={onTemperamentChange}
+            onTemperamentKeyPcChange={onTemperamentKeyPcChange}
           />
 
           <div className="tune-scale" role="meter" aria-valuemin={-50} aria-valuemax={50} aria-valuenow={reading?.cents} aria-label="Pitch deviation in cents">
