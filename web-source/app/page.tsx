@@ -38,6 +38,7 @@ import {
   OnboardingGuide,
 } from "./InstrumentExperience";
 import { GuitarStudio } from "./GuitarStudio";
+import { ToneGenerator } from "./ToneGenerator";
 import { StablePitchTracker, type PitchTrackerReading } from "./pitch-engine";
 import { INSTRUMENTS, isInstrumentId, type InstrumentId } from "./instruments";
 import StaffNote from "./StaffNote";
@@ -69,6 +70,7 @@ import {
   type TemperamentId,
   type TuningOptions,
 } from "./tuning";
+import { recordPracticeActivity } from "./practice-data";
 
 const SaxophoneLab = dynamic(
   () => import("./SaxophoneLab").then((module) => module.SaxophoneLab),
@@ -363,10 +365,17 @@ export default function Home() {
       const current = parseSkillEvidence(localStorage.getItem(SKILL_EVIDENCE_STORAGE_KEY));
       localStorage.setItem(SKILL_EVIDENCE_STORAGE_KEY, JSON.stringify(withTunerSession(current, summary)));
       window.dispatchEvent(new Event("bocal-skill-evidence"));
+      recordPracticeActivity({
+        type: "tuning",
+        seconds: summary.durationMs / 1000,
+        instrumentId: instrument.id,
+        notes: summary.midiNotes.map((midi) => fullNoteLabel(midi, "western")),
+        label: `${instrument.shortName} tuner session`,
+      });
     } catch {
       // The tuner remains fully functional when device storage is unavailable.
     }
-  }, []);
+  }, [instrument.id, instrument.shortName]);
 
   const stopListening = useCallback(() => {
     if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
@@ -1010,8 +1019,10 @@ function TunerView({
   onTemperamentChange: (next: TemperamentId) => void;
   onTemperamentKeyPcChange: (next: number) => void;
 }) {
-  const inTune = trackerReading.state === "locked" && reading !== null && Math.abs(reading.cents) <= 5;
-  const direction = reading === null ? "Waiting" : reading.cents > 5 ? "Sharp" : reading.cents < -5 ? "Flat" : "Centered";
+  const [precision, setPrecision] = useState<"standard" | "fine" | "ultra">("fine");
+  const tolerance = precision === "standard" ? 10 : precision === "ultra" ? 2 : 5;
+  const inTune = trackerReading.state === "locked" && reading !== null && Math.abs(reading.cents) <= tolerance;
+  const direction = reading === null ? "Waiting" : reading.cents > tolerance ? "Sharp" : reading.cents < -tolerance ? "Flat" : "Centered";
   const markerPosition = reading === null ? 50 : Math.max(4, Math.min(96, 50 + reading.cents * 0.8));
   // The concert name is always shown in letters. It exists so a player can
   // check themselves against a piano or another section, and that conversation
@@ -1051,7 +1062,7 @@ function TunerView({
           : trackerReading.state === "holding"
             ? { title: "The signal dipped.", copy: "Bocal holds the last note briefly instead of jumping. The display clears if the sound doesn’t return." }
             : inTune
-              ? { title: "Right in the middle.", copy: "You’re within five cents. Keep the air and embouchure where they are." }
+              ? { title: "Right in the middle.", copy: `You’re within ${tolerance} cents. Keep the air and embouchure where they are.` }
               : { title: `${direction} by ${Math.abs(reading?.cents ?? 0)} cents.`, copy: direction === "Sharp" ? "Ease the jaw pressure without losing the air." : "Support the air and bring the pitch up without biting." };
   const signalPercent = Math.min(100, Math.round((trackerReading.rms / Math.max(trackerReading.gate * 1.6, 0.0001)) * 100));
 
@@ -1066,11 +1077,11 @@ function TunerView({
         <div className="live-badge"><span className={trackerReading.state === "locked" ? "pulse-dot" : "quiet-dot"} /> {trackerLabel}</div>
       </section>
 
-      <div className="tuner-grid">
+          <div className="tuner-grid">
         <section className={`tuner-card ${inTune ? "is-centered" : ""} ${reading ? "has-reading" : "is-waiting"}`} aria-live="polite">
           <div className="tuner-card-top">
             <span className="status-label"><CircleDot size={15} /> {trackerReading.state === "locked" ? direction : trackerLabel}</span>
-            <button className="small-action" onClick={onReference}><Volume2 size={16} /> Hear reference A</button>
+            <div className="tuner-top-actions"><label className="precision-picker"><span>Precision</span><select value={precision} onChange={(event) => setPrecision(event.target.value as "standard" | "fine" | "ultra")} aria-label="Tuner precision"><option value="standard">Standard ±10¢</option><option value="fine">Fine ±5¢</option><option value="ultra">Ultra ±2¢</option></select></label><button className="small-action" onClick={onReference}><Volume2 size={16} /> Hear reference A</button></div>
           </div>
 
           <div className="note-readout">
@@ -1171,7 +1182,15 @@ function TunerView({
             </article>
           )}
         </aside>
-      </div>
+          </div>
+
+      <ToneGenerator
+        referenceHz={referenceHz}
+        temperament={temperament}
+        temperamentKeyPc={temperamentKeyPc}
+        notation={notation}
+        saTonic={saTonic}
+      />
 
       <section className="today-strip">
         <div className="today-title"><span>This session</span><strong>Your practice, as it happens.</strong></div>

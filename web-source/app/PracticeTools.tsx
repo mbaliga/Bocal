@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Award,
   Activity,
   Archive,
   BellRing,
@@ -8,6 +9,7 @@ import {
   Check,
   ChevronDown,
   CircleDot,
+  ClipboardCheck,
   Clock3,
   Gauge,
   Headphones,
@@ -20,12 +22,14 @@ import {
   Save,
   Share2,
   Sparkles,
+  Target,
+  UserRound,
   Volume2,
   Waves,
   Zap,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from "react";
-import { addSongWish, parsePracticeActivities, parseSongWishlist, PRACTICE_ACTIVITY_STORAGE_KEY, recordPracticeActivity, SONG_WISHLIST_STORAGE_KEY, type PracticeActivity, type PracticeActivityType, type SongWish } from "./practice-data";
+import { addSongWish, COMPLETED_PRACTICE_STORAGE_KEY, parsePracticeActivities, parseSongWishlist, PRACTICE_ACTIVITY_STORAGE_KEY, recordPracticeActivity, SONG_WISHLIST_STORAGE_KEY, updateSongWish, type PracticeActivity, type PracticeActivityType, type SongWish } from "./practice-data";
 import {
   calculateSkillRating,
   emptySkillEvidence,
@@ -62,14 +66,29 @@ const ACTIVITY_COLORS: Record<PracticeActivityType, string> = {
   session: "#8f8f93",
 };
 
+type ClickVoice = "pure" | "wood" | "beep" | "clave";
+type MetronomePreset = { id: string; name: string; bpm: number; beatsPerBar: number; subdivision: number; voice: ClickVoice; countInBars: number; muteEveryBars: number };
+const METRONOME_PRESETS_KEY = "bocal-metronome-presets-v1";
+const DEFAULT_METRONOME_PRESETS: MetronomePreset[] = [
+  { id: "straight-4", name: "Straight 4/4", bpm: 92, beatsPerBar: 4, subdivision: 1, voice: "pure", countInBars: 1, muteEveryBars: 0 },
+  { id: "slow-landing", name: "Slow landing", bpm: 56, beatsPerBar: 4, subdivision: 2, voice: "wood", countInBars: 2, muteEveryBars: 0 },
+  { id: "silent-bar", name: "Silent bar", bpm: 80, beatsPerBar: 4, subdivision: 1, voice: "clave", countInBars: 1, muteEveryBars: 4 },
+];
 
-function audioClick(context: AudioContext, accent: boolean, subdivision: boolean, when: number) {
+function audioClick(context: AudioContext, accent: boolean, subdivision: boolean, when: number, voice: ClickVoice) {
   const oscillator = context.createOscillator();
   const gain = context.createGain();
-  oscillator.type = "sine";
-  oscillator.frequency.value = accent ? 1320 : subdivision ? 560 : 880;
-  gain.gain.setValueAtTime(subdivision ? 0.045 : 0.1, when);
-  gain.gain.exponentialRampToValueAtTime(0.0001, when + (subdivision ? 0.035 : 0.055));
+  const settings: Record<ClickVoice, { type: OscillatorType; accent: number; beat: number; sub: number }> = {
+    pure: { type: "sine", accent: 1320, beat: 880, sub: 560 },
+    wood: { type: "triangle", accent: 980, beat: 700, sub: 430 },
+    beep: { type: "square", accent: 1480, beat: 920, sub: 620 },
+    clave: { type: "sawtooth", accent: 1180, beat: 820, sub: 500 },
+  };
+  const selected = settings[voice];
+  oscillator.type = selected.type;
+  oscillator.frequency.value = accent ? selected.accent : subdivision ? selected.sub : selected.beat;
+  gain.gain.setValueAtTime(subdivision ? 0.035 : 0.08, when);
+  gain.gain.exponentialRampToValueAtTime(0.0001, when + (subdivision ? 0.03 : 0.06));
   oscillator.connect(gain).connect(context.destination);
   oscillator.start(when);
   oscillator.stop(when + 0.07);
@@ -85,6 +104,17 @@ export function PulseView() {
   const [playing, setPlaying] = useState(false);
   const [beatsPerBar, setBeatsPerBar] = useState(4);
   const [subdivision, setSubdivision] = useState(1);
+  const [clickVoice, setClickVoice] = useState<ClickVoice>("pure");
+  const [countInBars, setCountInBars] = useState(1);
+  const [muteEveryBars, setMuteEveryBars] = useState(0);
+  const [presets, setPresets] = useState<MetronomePreset[]>(() => {
+    if (typeof window === "undefined") return DEFAULT_METRONOME_PRESETS;
+    try {
+      const saved = JSON.parse(localStorage.getItem(METRONOME_PRESETS_KEY) ?? "null");
+      return Array.isArray(saved) ? [...DEFAULT_METRONOME_PRESETS, ...saved].slice(0, 12) : DEFAULT_METRONOME_PRESETS;
+    } catch { return DEFAULT_METRONOME_PRESETS; }
+  });
+  const [presetName, setPresetName] = useState("");
   const [currentBeat, setCurrentBeat] = useState(0);
   const [haptics, setHaptics] = useState(false);
   const [droneOn, setDroneOn] = useState(false);
@@ -125,14 +155,17 @@ export function PulseView() {
         const when = startTime + index * secondsPerTick;
         const subTick = index % subdivision;
         const beat = Math.floor(index / subdivision) % beatsPerBar;
+        const bar = Math.floor(index / (subdivision * beatsPerBar));
         const accent = beat === 0 && subTick === 0;
-        audioClick(context, accent, subTick !== 0, when);
+        const inCountIn = bar < countInBars;
+        const mutedBar = muteEveryBars > 0 && !inCountIn && (bar - countInBars + 1) % muteEveryBars === 0;
+        if (!mutedBar) audioClick(context, accent, subTick !== 0, when, clickVoice);
         if (subTick === 0) {
           visualTimers.push(
             window.setTimeout(
               () => {
                 setCurrentBeat(beat);
-                if (hapticsRef.current && navigator.vibrate) navigator.vibrate(accent ? 28 : 14);
+                if (hapticsRef.current && navigator.vibrate && !mutedBar) navigator.vibrate(accent ? 28 : 14);
               },
               Math.max(0, (when - context.currentTime) * 1000),
             ),
@@ -149,7 +182,7 @@ export function PulseView() {
       visualTimers.forEach(window.clearTimeout);
       startAudioTimeRef.current = null;
     };
-  }, [beatsPerBar, bpm, playing, subdivision]);
+  }, [beatsPerBar, bpm, clickVoice, countInBars, muteEveryBars, playing, subdivision]);
 
   useEffect(() => {
     if (!droneOn) return;
@@ -244,6 +277,20 @@ export function PulseView() {
   };
 
   const tempoName = bpm < 60 ? "Largo" : bpm < 76 ? "Adagio" : bpm < 108 ? "Andante" : bpm < 120 ? "Moderato" : bpm < 168 ? "Allegro" : "Presto";
+  const resetMetronome = () => { setBpm(92); setSubdivision(1); setBeatsPerBar(4); setClickVoice("pure"); setCountInBars(1); setMuteEveryBars(0); };
+  const applyPreset = (preset: MetronomePreset) => {
+    setBpm(preset.bpm); setBeatsPerBar(preset.beatsPerBar); setSubdivision(preset.subdivision);
+    setClickVoice(preset.voice); setCountInBars(preset.countInBars); setMuteEveryBars(preset.muteEveryBars);
+  };
+  const savePreset = () => {
+    const name = presetName.trim().replace(/\s+/g, " ").slice(0, 36);
+    if (!name) return;
+    const preset: MetronomePreset = { id: `preset-${Date.now()}`, name, bpm, beatsPerBar, subdivision, voice: clickVoice, countInBars, muteEveryBars };
+    const custom = [...presets.filter((item) => !DEFAULT_METRONOME_PRESETS.some((defaultPreset) => defaultPreset.id === item.id)), preset].slice(-9);
+    setPresets([...DEFAULT_METRONOME_PRESETS, ...custom]);
+    setPresetName("");
+    try { localStorage.setItem(METRONOME_PRESETS_KEY, JSON.stringify(custom)); } catch { /* Optional local preset storage. */ }
+  };
 
   return (
     <div className="content-wrap pulse-view">
@@ -254,7 +301,7 @@ export function PulseView() {
 
       <div className="pulse-grid">
         <section className="metronome-card">
-          <div className="metronome-top"><span><Waves size={15} /> {tempoName}</span><button onClick={() => { setBpm(92); setSubdivision(1); setBeatsPerBar(4); }}><RotateCcw size={14} /> Reset</button></div>
+          <div className="metronome-top"><span><Waves size={15} /> {tempoName}</span><button onClick={resetMetronome}><RotateCcw size={14} /> Reset</button></div>
           <div className="tempo-readout"><button onClick={() => setBpm((value) => Math.max(35, value - 1))}><Minus size={21} /></button><div><strong>{bpm}</strong><span>BPM</span></div><button onClick={() => setBpm((value) => Math.min(260, value + 1))}><Plus size={21} /></button></div>
           <input className="tempo-slider" type="range" min="35" max="220" value={bpm} onChange={(event) => setBpm(Number(event.target.value))} aria-label="Tempo" />
           <div className="beat-lights" aria-label={`Beat ${currentBeat + 1} of ${beatsPerBar}`}>
@@ -267,9 +314,18 @@ export function PulseView() {
         <aside className="pulse-controls">
           <article className="control-card"><div className="control-head"><span><Activity size={15} /> Meter</span><button>4/4 <ChevronDown size={13} /></button></div><div className="choice-row meter-choices">{[3,4,5,6].map((count) => <button key={count} className={beatsPerBar === count ? "is-active" : ""} onClick={() => setBeatsPerBar(count)}>{count}<small>/4</small></button>)}</div></article>
           <article className="control-card"><div className="control-head"><span><Zap size={15} /> Subdivision</span><small>{subdivision === 1 ? "Quarter" : subdivision === 2 ? "Eighth" : "Sixteenth"}</small></div><div className="choice-row subdivision-choices">{[{v:1,l:"♩"},{v:2,l:"♫"},{v:4,l:"♬"}].map((item) => <button key={item.v} className={subdivision === item.v ? "is-active" : ""} onClick={() => setSubdivision(item.v)}>{item.l}</button>)}</div></article>
+          <article className="control-card"><div className="control-head"><span><Volume2 size={15} /> Click voice</span><small>Built-in synth</small></div><div className="choice-row voice-choices">{([{ id: "pure", label: "Pure" }, { id: "wood", label: "Wood" }, { id: "beep", label: "Beep" }, { id: "clave", label: "Clave" }] as { id: ClickVoice; label: string }[]).map((voice) => <button key={voice.id} className={clickVoice === voice.id ? "is-active" : ""} onClick={() => setClickVoice(voice.id)}>{voice.label}</button>)}</div></article>
+          <article className="control-card"><div className="control-head"><span><Clock3 size={15} /> Count-in</span><small>{countInBars ? `${countInBars} ${countInBars === 1 ? "bar" : "bars"}` : "Off"}</small></div><div className="choice-row"><button className={countInBars === 0 ? "is-active" : ""} onClick={() => setCountInBars(0)}>Off</button>{[1, 2, 4].map((count) => <button key={count} className={countInBars === count ? "is-active" : ""} onClick={() => setCountInBars(count)}>{count}</button>)}</div></article>
+          <article className="control-card"><div className="control-head"><span><Zap size={15} /> Silent-bar drill</span><small>{muteEveryBars ? `Every ${muteEveryBars} bars` : "Off"}</small></div><div className="choice-row"><button className={muteEveryBars === 0 ? "is-active" : ""} onClick={() => setMuteEveryBars(0)}>Off</button>{[2, 4, 8].map((count) => <button key={count} className={muteEveryBars === count ? "is-active" : ""} onClick={() => setMuteEveryBars(count)}>{count}</button>)}</div></article>
           <article className="control-card haptic-control"><div><span><BellRing size={15} /> Feel the beat</span><p>A tactile pulse keeps your eyes on the music.</p></div><button className={`toggle ${haptics ? "is-on" : ""}`} onClick={() => setHaptics((value) => !value)} aria-pressed={haptics}><i /></button></article>
         </aside>
       </div>
+
+      <section className="metronome-presets" aria-labelledby="metronome-presets-title">
+        <div><span className="card-kicker"><Save size={14} /> Presets</span><h2 id="metronome-presets-title">Save the feel you’re working on.</h2><p>Count-ins and silent bars stay with each preset on this device.</p></div>
+        <div className="preset-list">{presets.map((preset) => <button key={preset.id} className="preset-chip" onClick={() => applyPreset(preset)}><strong>{preset.name}</strong><small>{preset.bpm} BPM · {preset.beatsPerBar}/4{preset.muteEveryBars ? " · silent bar" : ""}</small></button>)}</div>
+        <form className="preset-save" onSubmit={(event) => { event.preventDefault(); savePreset(); }}><input value={presetName} onChange={(event) => setPresetName(event.target.value)} placeholder="Name this preset" maxLength={36} aria-label="Preset name" /><button type="submit" disabled={!presetName.trim()}><Plus size={14} /> Save</button></form>
+      </section>
 
       <section className="drone-strip">
         <div><span className="drone-icon"><Headphones size={18} /></span><div><strong>Harmony drone</strong><small>Hear the tonal center beneath the click.</small></div></div>
@@ -315,6 +371,7 @@ export function PracticeView({
   const [activities, setActivities] = useState<PracticeActivity[]>([]);
   const [songWishes, setSongWishes] = useState<SongWish[]>([]);
   const [songTitle, setSongTitle] = useState("");
+  const [weeklyGoal, setWeeklyGoal] = useState(60);
   const [skillEvidence, setSkillEvidence] = useState<SkillEvidenceBundle>(() => emptySkillEvidence());
 
   useEffect(() => {
@@ -323,6 +380,8 @@ export function PracticeView({
         setSessions(JSON.parse(localStorage.getItem("bocal-sessions") ?? "[]"));
         setActivities(parsePracticeActivities(localStorage.getItem(PRACTICE_ACTIVITY_STORAGE_KEY)));
         setSongWishes(parseSongWishlist(localStorage.getItem(SONG_WISHLIST_STORAGE_KEY)));
+        setCompleted(JSON.parse(localStorage.getItem(COMPLETED_PRACTICE_STORAGE_KEY) ?? "[]"));
+        setWeeklyGoal(Number(localStorage.getItem("bocal-weekly-goal-minutes") ?? 60));
         setSavedNote(localStorage.getItem("bocal-lesson-note") ?? "");
         setSkillEvidence(parseSkillEvidence(localStorage.getItem(SKILL_EVIDENCE_STORAGE_KEY)));
       } catch { /* Local storage can be unavailable in private browsing. */ }
@@ -357,6 +416,16 @@ export function PracticeView({
     return counts;
   }, {})).sort((left, right) => right[1] - left[1]).slice(0, 6), [activities]);
   const activeDays = useMemo(() => activityWeek.filter((day) => day.seconds > 0).length, [activityWeek]);
+  const activityMinutes = useMemo(() => Math.round(activityWeek.reduce((sum, day) => sum + day.seconds, 0) / 60), [activityWeek]);
+  const goalProgress = Math.min(100, Math.round((activityMinutes / Math.max(1, weeklyGoal)) * 100));
+  const currentStreak = useMemo(() => {
+    let streak = 0;
+    for (let index = activityWeek.length - 1; index >= 0; index -= 1) {
+      if (activityWeek[index].seconds <= 0) break;
+      streak += 1;
+    }
+    return streak;
+  }, [activityWeek]);
   const saveNote = () => {
     const clean = note.trim();
     if (!clean) return;
@@ -411,7 +480,15 @@ export function PracticeView({
     setSongTitle("");
   };
   const chordFlowProgress = Math.min(100, activities.filter((activity) => activity.type === "chords").length * 25);
-  const toggleComplete = (id: string) => setCompleted((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
+  const toggleComplete = (id: string) => setCompleted((current) => {
+    const next = current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
+    try { localStorage.setItem(COMPLETED_PRACTICE_STORAGE_KEY, JSON.stringify(next)); } catch { /* Optional local checklist persistence. */ }
+    return next;
+  });
+  const changeWeeklyGoal = (next: number) => {
+    setWeeklyGoal(next);
+    try { localStorage.setItem("bocal-weekly-goal-minutes", String(next)); } catch { /* Optional local goal persistence. */ }
+  };
 
   return (
     <div className="content-wrap practice-view">
@@ -447,6 +524,13 @@ export function PracticeView({
         </section>
       </div>
 
+      <section className="practice-goal-card" aria-labelledby="practice-goal-title">
+        <div className="practice-goal-copy"><span className="card-kicker"><Target size={14} /> Gentle goal</span><h2 id="practice-goal-title">A little structure, no guilt.</h2><p>{activityMinutes ? `${activityMinutes} focused minutes are logged this week.` : "Set a small weekly target and let the record build naturally."}</p></div>
+        <div className="goal-ring" style={{ "--goal-progress": `${goalProgress}%` } as CSSProperties}><strong>{goalProgress}%</strong><small>of {weeklyGoal} min</small></div>
+        <div className="goal-stats"><span><Award size={15} /><strong>{currentStreak}</strong><small>day streak</small></span><span><Activity size={15} /><strong>{activeDays}</strong><small>active days</small></span></div>
+        <label className="goal-picker"><span>Weekly target</span><select value={weeklyGoal} onChange={(event) => changeWeeklyGoal(Number(event.target.value))}>{[30, 60, 90, 120, 180].map((minutes) => <option key={minutes} value={minutes}>{minutes} minutes</option>)}</select></label>
+      </section>
+
       <section className="practice-visualizer" aria-labelledby="practice-map-title">
         <header className="practice-visualizer-head"><div><span className="card-kicker"><Activity size={14} /> Practice map</span><h2 id="practice-map-title">See the shape of your work.</h2><p>Every completed Bocal tool records locally. The circles show days, the bars show practice type, and the notes show what the tuner or chord player heard.</p></div><span className="local-chip"><Archive size={12} /> Device data</span></header>
         <div className="practice-map-grid">
@@ -457,11 +541,13 @@ export function PracticeView({
         </div>
       </section>
 
+      <CoachBoard />
+
       <div className="practice-lower-grid">
         <section className="repertoire-card">
           <div className="list-card-head"><div><span className="card-kicker"><Music2 size={14} /> Repertoire</span><h2>In the shed</h2></div><span className="local-chip"><Archive size={12} /> Local</span></div>
           <RepertoireRow title="Four-chord flow" meta="Original Bocal practice pattern · guitar" progress={chordFlowProgress} status="Playable" />
-          {songWishes.slice(0, 3).map((wish) => <RepertoireRow key={wish.id} title={wish.title} meta="Your local song wishlist · score or chart not included" progress={0} status={wish.status === "studying" ? "Studying" : "Wishlist"} />)}
+          {songWishes.slice(0, 3).map((wish) => <RepertoireRow key={wish.id} title={wish.title} meta="Local title only · add your own licensed chart or audio" progress={wish.progress ?? 0} status={wish.status === "studying" ? "Studying" : "Wishlist"} onProgress={(progress) => updateSongWish(wish.id, { progress, status: progress > 0 ? "studying" : wish.status })} onStatus={() => updateSongWish(wish.id, { status: wish.status === "studying" ? "wishlist" : "studying" })} />)}
           {!songWishes.length && <RepertoireRow title="No songs saved yet" meta="Add a title you want to work on. Bocal does not include unlicensed scores, tabs or audio." progress={0} status="Wishlist" />}
           <form className="song-wishlist-form" onSubmit={addWish}>
             <input value={songTitle} onChange={(event) => setSongTitle(event.target.value)} placeholder="Add a song to your wishlist" aria-label="Song title to add to wishlist" maxLength={100} />
@@ -484,6 +570,58 @@ export function PracticeView({
         </section>
       </div>
     </div>
+  );
+}
+
+type CoachPlan = {
+  coachName: string;
+  studentName: string;
+  focus: string;
+  assignment: string;
+  checkIn: string;
+  capabilities: string[];
+};
+
+const COACH_PLAN_KEY = "bocal-coach-plan-v1";
+const COACH_CAPABILITIES = ["Pitch and tuning", "Rhythm and pulse", "Technique and fingering", "Repertoire goals", "Reflection and next step"];
+const EMPTY_COACH_PLAN: CoachPlan = { coachName: "", studentName: "", focus: "", assignment: "", checkIn: "", capabilities: COACH_CAPABILITIES };
+
+function CoachBoard() {
+  const [plan, setPlan] = useState<CoachPlan>(() => {
+    if (typeof window === "undefined") return EMPTY_COACH_PLAN;
+    try {
+      const stored = JSON.parse(localStorage.getItem(COACH_PLAN_KEY) ?? "null");
+      return stored && typeof stored === "object" ? { ...EMPTY_COACH_PLAN, ...stored } : EMPTY_COACH_PLAN;
+    } catch { return EMPTY_COACH_PLAN; }
+  });
+  const [saved, setSaved] = useState(false);
+
+  const update = (field: keyof Omit<CoachPlan, "capabilities">, value: string) => setPlan((current) => ({ ...current, [field]: value }));
+  const toggleCapability = (capability: string) => setPlan((current) => ({ ...current, capabilities: current.capabilities.includes(capability) ? current.capabilities.filter((item) => item !== capability) : [...current.capabilities, capability] }));
+  const save = () => {
+    try { localStorage.setItem(COACH_PLAN_KEY, JSON.stringify(plan)); } catch { /* Optional local coach plan storage. */ }
+    setSaved(true);
+    window.setTimeout(() => setSaved(false), 1800);
+  };
+  const exportPlan = () => {
+    const payload = JSON.stringify({ schemaVersion: 1, exportedAt: new Date().toISOString(), ...plan }, null, 2);
+    const url = URL.createObjectURL(new Blob([payload], { type: "application/json" }));
+    const link = document.createElement("a"); link.href = url; link.download = "bocal-coach-brief.json"; link.click(); URL.revokeObjectURL(url);
+  };
+
+  return (
+    <section className="coach-board" aria-labelledby="coach-board-title">
+      <header className="coach-board-head"><div><span className="card-kicker"><UserRound size={14} /> Coach mode · local board</span><h2 id="coach-board-title">Keep the human thread.</h2><p>Plan an assignment, review evidence, and export a compact brief. Bocal does not pretend to sync student data until an account and consent model exist.</p></div><span className="local-chip"><ClipboardCheck size={12} /> Private on this device</span></header>
+      <div className="coach-form-grid">
+        <label><span>Coach</span><input value={plan.coachName} onChange={(event) => update("coachName", event.target.value)} placeholder="Name" /></label>
+        <label><span>Player</span><input value={plan.studentName} onChange={(event) => update("studentName", event.target.value)} placeholder="Name" /></label>
+        <label><span>Next check-in</span><input type="date" value={plan.checkIn} onChange={(event) => update("checkIn", event.target.value)} /></label>
+        <label><span>Current focus</span><input value={plan.focus} onChange={(event) => update("focus", event.target.value)} placeholder="e.g. steady attacks" /></label>
+        <label className="coach-assignment"><span>Assignment</span><textarea value={plan.assignment} onChange={(event) => update("assignment", event.target.value)} placeholder="What should the player do before the next check-in?" /></label>
+      </div>
+      <div className="coach-capabilities"><span>What the review covers</span>{COACH_CAPABILITIES.map((capability) => <button key={capability} className={plan.capabilities.includes(capability) ? "is-active" : ""} onClick={() => toggleCapability(capability)}>{plan.capabilities.includes(capability) ? <Check size={13} /> : <CircleDot size={13} />}{capability}</button>)}</div>
+      <div className="coach-actions"><button className="button secondary" onClick={save}><Save size={14} /> {saved ? "Saved" : "Save coach plan"}</button><button className="button secondary" onClick={exportPlan}><Share2 size={14} /> Export brief</button></div>
+    </section>
   );
 }
 
@@ -552,8 +690,8 @@ function PracticeItem({ id, title, detail, time, done, active, onToggle }: { id:
   return <button className={`practice-item ${active ? "is-active" : ""} ${done ? "is-done" : ""}`} onClick={() => onToggle(id)}><span className="complete-dot">{done ? <Check size={14} /> : active ? <Play size={12} fill="currentColor" /> : null}</span><div><strong>{title}</strong><span>{detail}</span></div><small><Clock3 size={12} /> {time}</small></button>;
 }
 
-function RepertoireRow({ title, meta, progress, status }: { title: string; meta: string; progress: number; status: string }) {
-  return <div className="repertoire-row"><span className="album-tile"><Music2 size={17} /></span><div><strong>{title}</strong><small>{meta}</small><span className="repertoire-progress"><i style={{ width: `${progress}%` }} /></span></div><em>{status}</em></div>;
+function RepertoireRow({ title, meta, progress, status, onProgress, onStatus }: { title: string; meta: string; progress: number; status: string; onProgress?: (progress: number) => void; onStatus?: () => void }) {
+  return <div className="repertoire-row"><span className="album-tile"><Music2 size={17} /></span><div><strong>{title}</strong><small>{meta}</small><span className="repertoire-progress"><i style={{ width: `${progress}%` }} /></span>{onProgress && <input className="repertoire-slider" type="range" min="0" max="100" step="5" value={progress} onChange={(event) => onProgress(Number(event.target.value))} aria-label={`${title} progress`} />}</div><button className="repertoire-status" onClick={onStatus} disabled={!onStatus}>{status}</button></div>;
 }
 
 

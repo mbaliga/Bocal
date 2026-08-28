@@ -8,7 +8,7 @@ This repository is the source of truth for the hosted web app, its licensed 3D a
 
 | Instrument | Tuner | 3D learning readiness |
 |---|---:|---|
-| E♭ alto saxophone | Yes | Interactive fingering contacts, linked-mechanism trace and XR-style phantom hands |
+| E♭ alto saxophone | Yes | Interactive fingering contacts, linked-mechanism trace and key-only glow |
 | C oboe | Yes | Single-instrument anatomy preview and component inspection; fingering intentionally withheld pending specialist validation |
 
 The instrument gallery also shows the planned woodwind sequence, but unavailable instruments cannot be selected.
@@ -16,8 +16,10 @@ The instrument gallery also shows the planned woodwind sequence, but unavailable
 ## Product surfaces
 
 - Confidence-gated chromatic tuner with explicit silence and local microphone processing.
-- Metronome, tap tempo, drone, practice planning and deterministic local skill evidence.
-- Local waveform/spectrum views and browser take recording.
+- Metronome, tap tempo, drone, count-ins, silent-bar drills, saved presets, practice planning and deterministic local skill evidence.
+- Tuner reference-tone keyboard with calibrated temperament, precision modes and safe synthetic voices; the guitar surface adds string tuning and colour-coded chord charts.
+- Local waveform/spectrum views with named multi-take recording, import, loop, tempo playback, rename, delete and download.
+- Practice distribution, weekly goals, gentle streak feedback, editable song progress and a local coach assignment/export board.
 - Detailed licensed alto GLB with 23 semantic touch targets, view presets and full-screen focus mode.
 - First-run expanding-panel instrument gallery and replayable four-step onboarding.
 - Visual setup-part coverflow for finishes, necks, mouthpieces, reeds and ligatures.
@@ -33,6 +35,8 @@ The instrument gallery also shows the planned woodwind sequence, but unavailable
 - `tests/` — product-truth, musical-data, asset and release checks.
 - `docs/` — supporting research and validation notes.
 - `BOCAL_HANDOFF.md` — consolidated product, persona, workflow, architecture and release handoff.
+
+The native Android project remains a separate parity track. This branch improves the web experience and shared product contracts; it does not claim physical-device microphone accuracy, latency, interruption, Bluetooth or rotation results without hardware.
 
 ## Local development
 

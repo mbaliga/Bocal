@@ -1,5 +1,6 @@
 export const PRACTICE_ACTIVITY_STORAGE_KEY = "bocal-practice-activity-v1";
 export const SONG_WISHLIST_STORAGE_KEY = "bocal-song-wishlist-v1";
+export const COMPLETED_PRACTICE_STORAGE_KEY = "bocal-completed-practice-v1";
 
 export type PracticeActivityType = "tuning" | "fingering" | "rhythm" | "chords" | "analysis" | "repertoire" | "session";
 
@@ -18,6 +19,9 @@ export type SongWish = {
   title: string;
   addedAt: string;
   status: "wishlist" | "studying";
+  instrumentId?: string;
+  progress?: number;
+  updatedAt?: string;
 };
 
 const ACTIVITY_TYPES = new Set<PracticeActivityType>(["tuning", "fingering", "rhythm", "chords", "analysis", "repertoire", "session"]);
@@ -92,6 +96,7 @@ export function addSongWish(title: string) {
     title: cleanTitle,
     addedAt,
     status: "wishlist",
+    progress: 0,
   };
   try {
     const current = parseSongWishlist(localStorage.getItem(SONG_WISHLIST_STORAGE_KEY));
@@ -99,5 +104,22 @@ export function addSongWish(title: string) {
     window.dispatchEvent(new Event("bocal-song-wishlist"));
   } catch {
     // A song title is a local convenience, not a condition of practice.
+  }
+}
+
+export function updateSongWish(id: string, patch: Partial<Pick<SongWish, "status" | "instrumentId" | "progress">>) {
+  if (typeof window === "undefined") return;
+  try {
+    const current = parseSongWishlist(localStorage.getItem(SONG_WISHLIST_STORAGE_KEY));
+    const next = current.map((wish) => wish.id === id ? {
+      ...wish,
+      ...patch,
+      progress: patch.progress === undefined ? wish.progress : Math.max(0, Math.min(100, Math.round(patch.progress))),
+      updatedAt: new Date().toISOString(),
+    } : wish);
+    localStorage.setItem(SONG_WISHLIST_STORAGE_KEY, JSON.stringify(next));
+    window.dispatchEvent(new Event("bocal-song-wishlist"));
+  } catch {
+    // A progress update is optional; the rest of practice remains available.
   }
 }
