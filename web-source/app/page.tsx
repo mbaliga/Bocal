@@ -11,6 +11,7 @@ import {
   Crosshair,
   Download,
   FileText,
+  Guitar,
   LockKeyhole,
   Mic,
   MoreHorizontal,
@@ -36,6 +37,7 @@ import {
   InstrumentPickerExperience,
   OnboardingGuide,
 } from "./InstrumentExperience";
+import { GuitarStudio } from "./GuitarStudio";
 import { StablePitchTracker, type PitchTrackerReading } from "./pitch-engine";
 import { INSTRUMENTS, isInstrumentId, type InstrumentId } from "./instruments";
 import StaffNote from "./StaffNote";
@@ -579,7 +581,7 @@ export default function Home() {
         <header className="top-bar">
           <div className="instrument-picker-wrap">
             <button className="instrument-picker" aria-label="Choose instrument" aria-expanded={instrumentPickerOpen} onClick={() => setInstrumentPickerOpen((value) => !value)}>
-              <span className="instrument-icon"><Wind size={18} /></span>
+              <span className="instrument-icon">{instrument.id === "guitar" ? <Guitar size={18} /> : <Wind size={18} />}</span>
               <span><small>Instrument</small>{instrument.shortName} · {instrument.pitchLabel}</span>
               <ChevronDown size={16} />
             </button>
@@ -625,7 +627,9 @@ export default function Home() {
             onTemperamentKeyPcChange={chooseTemperamentKeyPc}
           />
         )}
-        {mode === "sax" && <SaxophoneLab onBack={() => selectMode("tune")} instrumentId={instrumentId} />}
+        {mode === "sax" && (instrumentId === "guitar"
+          ? <GuitarStudio reading={reading ? { hz: reading.hz, cents: reading.cents, midi: reading.concertMidi } : null} listening={listening} onListen={startListening} />
+          : <SaxophoneLab onBack={() => selectMode("tune")} instrumentId={instrumentId} />)}
         {mode === "pulse" && <PulseView />}
         {mode === "analyze" && <AnalysisView instrument={instrument} notation={notation} saTonic={saTonic} />}
         {mode === "practice" && (
@@ -1147,15 +1151,25 @@ function TunerView({
             <p className="lock-policy"><LockKeyhole size={13} /> Noise gate · 3-frame lock · 550 ms dropout hold</p>
           </article>
 
-          <article className="sax-card" onClick={onOpenSax} role="button" tabIndex={0} onKeyDown={(event) => event.key === "Enter" && onOpenSax()}>
-            <div>
-              <span className="card-kicker"><Rotate3D size={15} /> {instrument.id === "alto-sax" ? "Fingering lab" : "Anatomy preview"}</span>
-              <h3>{instrument.id === "alto-sax" ? (reading ? `See ${writtenLabel} on the sax.` : "Open the interactive alto sax.") : "Explore the oboe up close."}</h3>
-              <p>{instrument.id === "alto-sax" ? "Open the sax and the keys for this note will light up." : "Turn the model and tap its rods, springs and keywork."}</p>
-            </div>
-            <div className={`sax-card-photo ${instrument.id === "oboe" ? "is-oboe" : ""}`} aria-hidden="true" />
-            <span className="round-arrow"><ArrowRight size={17} /></span>
-          </article>
+          {instrument.id === "guitar" ? (
+            <article className="guitar-launch-card" onClick={onOpenSax} role="button" tabIndex={0} onKeyDown={(event) => event.key === "Enter" && onOpenSax()}>
+              <span className="card-kicker"><Guitar size={15} /> String studio</span>
+              <h3>{reading ? `Put ${writtenLabel} in context.` : "Tune, then follow the chord shapes."}</h3>
+              <p>Six-string tuning, colour-coded finger placement and a patient chord player.</p>
+              <div className="guitar-launch-strings" aria-hidden="true"><i /><i /><i /><i /><i /><i /></div>
+              <span className="round-arrow"><ArrowRight size={17} /></span>
+            </article>
+          ) : (
+            <article className="sax-card" onClick={onOpenSax} role="button" tabIndex={0} onKeyDown={(event) => event.key === "Enter" && onOpenSax()}>
+              <div>
+                <span className="card-kicker"><Rotate3D size={15} /> {instrument.id === "alto-sax" ? "Fingering lab" : "Anatomy preview"}</span>
+                <h3>{instrument.id === "alto-sax" ? (reading ? `See ${writtenLabel} on the sax.` : "Open the interactive alto sax.") : "Explore the oboe up close."}</h3>
+                <p>{instrument.id === "alto-sax" ? "Open the sax and the keys for this note will light up." : "Turn the model and tap its rods, springs and keywork."}</p>
+              </div>
+              <div className={`sax-card-photo ${instrument.id === "oboe" ? "is-oboe" : ""}`} aria-hidden="true" />
+              <span className="round-arrow"><ArrowRight size={17} /></span>
+            </article>
+          )}
         </aside>
       </div>
 
