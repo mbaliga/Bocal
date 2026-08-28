@@ -50,8 +50,8 @@ export const INSTRUMENTS: Record<InstrumentId, InstrumentProfile> = {
     writtenOffset: 2,
     clef: "treble",
     tunerDescription: "Your written note is shown first. Bocal handles the B♭ transposition.",
-    labTier: "none",
-    labStatus: "Tuner and practice tools ready · 3D model not yet licensed",
+    labTier: "fingering",
+    labStatus: "Fingering trainer, shown on the alto 3D model · standard range only",
   },
   "alto-sax": {
     id: "alto-sax",
@@ -74,8 +74,8 @@ export const INSTRUMENTS: Record<InstrumentId, InstrumentProfile> = {
     writtenOffset: 14,
     clef: "treble",
     tunerDescription: "Your written note is shown first. Bocal handles the B♭ transposition.",
-    labTier: "none",
-    labStatus: "Tuner and practice tools ready · 3D model not yet licensed",
+    labTier: "fingering",
+    labStatus: "Fingering trainer, shown on the alto 3D model · standard range only",
   },
   "bari-sax": {
     id: "bari-sax",
@@ -86,8 +86,8 @@ export const INSTRUMENTS: Record<InstrumentId, InstrumentProfile> = {
     writtenOffset: 21,
     clef: "treble",
     tunerDescription: "Your written note is shown first. Bocal handles the E♭ transposition.",
-    labTier: "none",
-    labStatus: "Tuner and practice tools ready · 3D model not yet licensed",
+    labTier: "fingering",
+    labStatus: "Fingering trainer, shown on the alto 3D model · standard range only, no low A",
   },
   flute: {
     id: "flute",

@@ -265,6 +265,9 @@ button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--c
 .reference-model-strip span svg { color: var(--cyan); }
 .reference-model-strip a { color: #9a91c6; text-decoration: none; }
 .reference-model-strip a:hover { color: var(--cyan); }
+.lab-instrument-notice { margin-bottom: 14px; padding: 13px 16px; border: 1px solid #2f2a46; border-radius: 15px; background: #13121b; display: flex; align-items: flex-start; gap: 10px; }
+.lab-instrument-notice svg { color: var(--violet); flex: 0 0 auto; margin-top: 1px; }
+.lab-instrument-notice p { margin: 0; color: #a19bbc; font-size: 11px; line-height: 1.6; }
 .note-browser { height: 66px; border: 1px solid var(--line); border-radius: 16px; display: grid; grid-template-columns: 48px minmax(0, 1fr) 48px; align-items: center; background: var(--panel); margin-bottom: 14px; overflow: hidden; }
 .note-arrow { height: 100%; display: grid; place-items: center; border: 0; color: #77777a; background: #121214; cursor: pointer; }
 .note-arrow:first-child { border-right: 1px solid var(--line); }

@@ -36,7 +36,7 @@ import { OboeLab } from "./OboeLab";
 import { animateEducationalSaxKeys, buildEducationalAltoSaxophone } from "./alto-sax-model";
 import { INSTRUMENTS, type InstrumentId } from "./instruments";
 import {
-  ALTO_FINGERINGS,
+  SAXOPHONE_FINGERINGS,
   midiToFrequency,
   midiToName,
   SAX_KEYS,
@@ -346,7 +346,7 @@ export function SaxophoneLab({
   const tier = INSTRUMENTS[instrumentId].labTier;
   if (tier === "anatomy") return <OboeLab onBack={onBack} />;
   if (tier === "none") return <LabUnavailable onBack={onBack} instrumentId={instrumentId} />;
-  return <AltoSaxLab onBack={onBack} />;
+  return <SaxFingeringLab onBack={onBack} instrumentId={instrumentId} />;
 }
 
 /**
@@ -376,12 +376,21 @@ function LabUnavailable({ onBack, instrumentId }: { onBack: () => void; instrume
   );
 }
 
-function AltoSaxLab({ onBack }: { onBack: () => void }) {
-  const initialIndex = ALTO_FINGERINGS.findIndex((fingering) => fingering.id === "a4");
+/**
+ * The interactive lab for every saxophone. Soprano, alto, tenor and
+ * baritone read the same written note off the same grip, so one fingering
+ * map and one 3D model serve all four -- the model itself is an alto, so
+ * every screen for a non-alto horn says so plainly instead of letting a
+ * tenor or bari player think they are looking at their own instrument.
+ */
+function SaxFingeringLab({ onBack, instrumentId }: { onBack: () => void; instrumentId: InstrumentId }) {
+  const instrument = INSTRUMENTS[instrumentId];
+  const isAlto = instrumentId === "alto-sax";
+  const initialIndex = SAXOPHONE_FINGERINGS.findIndex((fingering) => fingering.id === "a4");
   const [selectedIndex, setSelectedIndex] = useState(initialIndex);
   const [choiceIndex, setChoiceIndex] = useState(0);
   const [trainerMode, setTrainerMode] = useState<TrainerMode>("learn");
-  const [activeKeys, setActiveKeys] = useState<Set<SaxKeyId>>(() => new Set(ALTO_FINGERINGS[initialIndex].keys));
+  const [activeKeys, setActiveKeys] = useState<Set<SaxKeyId>>(() => new Set(SAXOPHONE_FINGERINGS[initialIndex].keys));
   const [challenge, setChallenge] = useState<Fingering | null>(null);
   const [feedback, setFeedback] = useState<"idle" | "correct" | "retry">("idle");
   const [resetView, setResetView] = useState(0);
@@ -395,13 +404,13 @@ function AltoSaxLab({ onBack }: { onBack: () => void }) {
   const audioRef = useRef<AudioContext | null>(null);
   const challengeEvidenceRecordedRef = useRef(false);
 
-  const selected = ALTO_FINGERINGS[selectedIndex];
+  const selected = SAXOPHONE_FINGERINGS[selectedIndex];
   const choices = fingeringChoices(selected);
   const selectedChoice = choices[Math.min(choiceIndex, choices.length - 1)];
   const colorway = SAX_COLORWAYS.find((candidate) => candidate.id === colorwayId) ?? SAX_COLORWAYS[0];
   const setupPart = SAX_SETUP_PARTS.find((part) => part.id === setupPartId) ?? SAX_SETUP_PARTS[0];
   const activeKeyDetails = SAX_KEYS.filter((key) => activeKeys.has(key.id));
-  const concertMidi = writtenToConcert(selected.midi);
+  const concertMidi = writtenToConcert(selected.midi, instrument.writtenOffset);
   const soundingHz = midiToFrequency(concertMidi);
 
   const getAudioContext = useCallback(async () => {
@@ -433,8 +442,8 @@ function AltoSaxLab({ onBack }: { onBack: () => void }) {
   }, []);
 
   const chooseNote = useCallback((index: number) => {
-    const wrapped = (index + ALTO_FINGERINGS.length) % ALTO_FINGERINGS.length;
-    const next = ALTO_FINGERINGS[wrapped];
+    const wrapped = (index + SAXOPHONE_FINGERINGS.length) % SAXOPHONE_FINGERINGS.length;
+    const next = SAXOPHONE_FINGERINGS[wrapped];
     setSelectedIndex(wrapped);
     chooseChoice(next, 0);
   }, [chooseChoice]);
@@ -449,8 +458,8 @@ function AltoSaxLab({ onBack }: { onBack: () => void }) {
   }, [chooseNote, selectedIndex]);
 
   const findMatch = useCallback((next: Set<SaxKeyId>) => {
-    for (let fingeringIndex = 0; fingeringIndex < ALTO_FINGERINGS.length; fingeringIndex += 1) {
-      const options = fingeringChoices(ALTO_FINGERINGS[fingeringIndex]);
+    for (let fingeringIndex = 0; fingeringIndex < SAXOPHONE_FINGERINGS.length; fingeringIndex += 1) {
+      const options = fingeringChoices(SAXOPHONE_FINGERINGS[fingeringIndex]);
       const optionIndex = options.findIndex((option) => sameKeys(next, option.keys));
       if (optionIndex >= 0) return { fingeringIndex, optionIndex };
     }
@@ -532,10 +541,10 @@ function AltoSaxLab({ onBack }: { onBack: () => void }) {
   };
 
   const startChallenge = () => {
-    const next = ALTO_FINGERINGS[Math.floor(Math.random() * (ALTO_FINGERINGS.length - 4)) + 4];
+    const next = SAXOPHONE_FINGERINGS[Math.floor(Math.random() * (SAXOPHONE_FINGERINGS.length - 4)) + 4];
     setTrainerMode("challenge");
     setChallenge(next);
-    setSelectedIndex(ALTO_FINGERINGS.indexOf(next));
+    setSelectedIndex(SAXOPHONE_FINGERINGS.indexOf(next));
     setChoiceIndex(0);
     setActiveKeys(new Set());
     setFeedback("idle");
@@ -607,7 +616,7 @@ function AltoSaxLab({ onBack }: { onBack: () => void }) {
       <header className="lab-header">
         <div>
           <button className="back-link" onClick={onBack}><ArrowLeft size={15} /> Tuner</button>
-          <p className="eyebrow">Sax lab · Detailed interactive alto</p>
+          <p className="eyebrow">Sax lab · {isAlto ? "Detailed interactive alto" : `Fingerings for ${instrument.shortName.toLowerCase()}`}</p>
           <h1>See exactly which keys to press.</h1>
           <p>Pick a written note, or tap a key on the sax. The cyan glow marks each touch point; the panel explains what that key moves.</p>
         </div>
@@ -617,10 +626,26 @@ function AltoSaxLab({ onBack }: { onBack: () => void }) {
         </div>
       </header>
 
+      {!isAlto && (
+        <div className="lab-instrument-notice">
+          <Info size={15} />
+          <p>
+            Fingerings for your {instrument.shortName.toLowerCase()}, shown on an alto. Soprano, alto, tenor and
+            baritone read the same written note off the same grip, so the fingerings below are correct for your horn
+            — but the 3D model, photos and sound you see and hear here are an alto&apos;s, because that is the only
+            saxophone Bocal has a licensed model for. This chart covers the standard written range only (B♭3 to
+            F♯6), not altissimo, and the alternate fingerings are checked on alto — they can feel or respond
+            differently on {instrument.shortName.toLowerCase()}.
+            {instrumentId === "bari-sax" &&
+              " Many baritones also have a low A key (written A3) below this chart's lowest note; it isn't included here."}
+          </p>
+        </div>
+      )}
+
       <div className="note-browser" aria-label="Written note selector">
         <button className="note-arrow" aria-label="Previous note" onClick={() => chooseNote(selectedIndex - 1)}><ChevronLeft size={18} /></button>
         <div className="note-scroll">
-          {ALTO_FINGERINGS.map((fingering, index) => (
+          {SAXOPHONE_FINGERINGS.map((fingering, index) => (
             <button
               key={fingering.id}
               className={index === selectedIndex ? "is-active" : ""}
@@ -658,7 +683,11 @@ function AltoSaxLab({ onBack }: { onBack: () => void }) {
           <section className="model-stage sax-model-stage">
             <ImportedInstrumentCanvas
               src="/models/saxophone-alto.glb"
-              label="Detailed interactive three-dimensional alto saxophone with illuminated fingering targets"
+              label={
+                isAlto
+                  ? "Detailed interactive three-dimensional alto saxophone with illuminated fingering targets"
+                  : `Detailed interactive three-dimensional alto saxophone with illuminated fingering targets, shown as a stand-in for ${instrument.shortName.toLowerCase()}`
+              }
               viewPreset={referenceViewPreset}
               resetView={resetView}
               fingeringMarkers={SAX_KEYS}
