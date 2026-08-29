@@ -91,6 +91,21 @@ test("landscape navigation can sit on either side and persists locally", async (
   assert.match(styles, /\.mobile-nav button\.is-active/);
 });
 
+test("phone navigation follows the supplied light two-tier reference", async () => {
+  const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  assert.match(page, /two light layers/);
+  assert.match(page, /className="dock-top"/);
+  assert.match(page, /className="dock-pill"/);
+  assert.match(page, /className="mobile-nav is-arc"/);
+  assert.doesNotMatch(page, /active && <span>\{item\.label\}<\/span>/);
+  assert.match(styles, /flat segmented instrument switch/);
+  assert.match(styles, /--hy-srf: #f9f8fb/);
+  assert.match(styles, /\.dock-pill button\.is-active \{ color: #27282a; background: #dedde2/);
+  assert.match(styles, /\.mobile-nav\.is-arc button \{[^}]*width: 18%/s);
+  assert.match(styles, /background: linear-gradient\(180deg, var\(--hy-cap-hi\), var\(--hy-cap\)\)/);
+});
+
 test("analysis exposes local waveform, spectrum, and take recording without fake grading", async () => {
   const source = await readFile(new URL("../app/AnalysisView.tsx", import.meta.url), "utf8");
   assert.match(source, /Waveform/);

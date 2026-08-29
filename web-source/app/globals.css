@@ -1156,48 +1156,34 @@ button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--c
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
 /* ============================================================
-   Arc-shaped mobile nav + Hyle tactile overlay.
-   Dock composition mirrors the curved-keyboard reference (circles +
-   segmented pill above an arced bar; active items are raised keycaps).
-   Shading recipes adapted from the Hyle design system's tactile kit
-   (mbaliga/hyle-design-system, src/kit/kit-css.ts, "gunmetal" token
-   set): raised elements use a 40%/32% radial keycap gradient with an
-   inset top highlight and inset bottom shade; recessed tracks use the
-   crater stack (deep top inset shadows + a lit bottom lip + a 1px rim
-   light under the bottom edge). No outline borders — shape is carried
-   by light. The 4:1 arc box keeps height:0/padding-bottom:25% (the
+   Light two-tier mobile nav matching the supplied phone reference.
+   Circular side controls and a flat segmented instrument switch sit over
+   a shallow white arc. The selected destination is a wide grey capsule;
+   the five-item row is icon-only. The 4:1 arc box keeps
+   height:0/padding-bottom:25% (the
    aspect-ratio property collapsed on Android WebViews).
    ============================================================ */
 @media (width<=680px), (orientation: landscape) and (max-height: 520px) {
   .mobile-dock { display: block; position: fixed; left: 6px; right: 6px; bottom: 4px; z-index: 50; max-width: 480px; margin-inline: auto;
-    --hy-srf: #1f2129; --hy-srf2: #282d37; --hy-srf3: #323844; --hy-groove: #0c0e13;
-    --hy-rim: rgba(255,255,255,.14); --hy-rim2: rgba(255,255,255,.07); --hy-lip: rgba(255,255,255,.1);
-    --hy-drk: rgba(0,0,0,.78); --hy-drk2: rgba(0,0,0,.42);
-    --hy-cap-hi: #fffef9; --hy-cap: #edebe2; --hy-cap-lo: #c9c6b9; --hy-cap-ink: #16171c;
+    --hy-srf: #f9f8fb; --hy-srf2: #f2f1f5; --hy-srf3: #fff; --hy-groove: #d5d4da;
+    --hy-rim: rgba(255,255,255,.9); --hy-rim2: rgba(255,255,255,.7); --hy-lip: rgba(50,50,56,.1);
+    --hy-drk: rgba(0,0,0,.22); --hy-drk2: rgba(0,0,0,.12);
+    --hy-cap-hi: #ababaf; --hy-cap: #9e9ea3; --hy-cap-lo: #929297; --hy-cap-ink: #f9f8fb;
   }
   .mobile-dock::before { content: ""; position: absolute; left: -6px; right: -6px; top: -64px; bottom: -8px; background: linear-gradient(180deg, rgba(6,6,7,0) 0%, rgba(6,6,7,.72) 20%, rgba(6,6,7,.97) 38%, var(--black) 55%); pointer-events: none; z-index: -1; }
 
   .dock-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: -8px; padding: 0 2px; position: relative; z-index: 2; }
-  /* Side circles: raised mounds. */
-  .dock-side-button { flex: 0 0 auto; width: 46px; height: 46px; border-radius: 50%; border: 0; color: #a8acb6; display: grid; place-items: center; font-size: 10px; font-weight: 700; cursor: pointer;
-    background: radial-gradient(circle at 40% 32%, var(--hy-srf3), var(--hy-srf2) 55%, var(--hy-groove));
-    box-shadow: inset 0 2px 2px var(--hy-rim2), inset 0 -4px 8px var(--hy-drk2), 0 2px 5px var(--hy-drk), 0 0 0 1px rgba(0,0,0,.2);
+  .dock-side-button { flex: 0 0 auto; width: 46px; height: 46px; border-radius: 50%; border: 1px solid rgba(39,40,43,.1); color: #303135; display: grid; place-items: center; font-size: 10px; font-weight: 700; cursor: pointer;
+    background: radial-gradient(circle at 40% 28%, #fff 0%, #f9f8fb 60%, #ecebf0 100%);
+    box-shadow: inset 0 1px 1px rgba(255,255,255,.95), 0 4px 12px rgba(0,0,0,.18);
     transition: transform .1s ease, box-shadow .1s ease; }
   .dock-side-button:active { transform: translateY(2px); box-shadow: inset 0 2px 4px rgba(0,0,0,.5), 0 1px 3px var(--hy-drk); }
-  /* Instrument switch: recessed crater track, raised keycap segment. */
-  /* Arced instrument switch: a fixed 200x48-proportioned box so the SVG
-     curve stays undistorted, with buttons seated on the same Bezier. */
-  .dock-pill { position: relative; flex: 0 0 auto; width: 216px; height: 52px; border: 0; background: none; box-shadow: none; padding: 0; }
-  .pill-track { position: absolute; inset: 0; width: 100%; height: 100%;
-    filter: drop-shadow(0 2px 5px rgba(0,0,0,.5)); }
-  .dock-pill button { position: absolute; transform: translate(-50%, -50%) rotate(var(--tilt, 0deg));
-    border: 0; border-radius: 999px; padding: 7px 14px; font-size: 12.5px; font-weight: 650;
-    color: #8e929c; background: transparent; cursor: pointer; white-space: nowrap;
-    transition: color .2s ease, box-shadow .15s ease; }
-  .dock-pill button.is-active { color: var(--hy-cap-ink);
-    background: radial-gradient(circle at 40% 32%, var(--hy-cap-hi) 0%, var(--hy-cap) 60%, var(--hy-cap-lo) 100%);
-    box-shadow: inset 0 1px 1px rgba(255,255,255,.9), inset 0 -2px 4px rgba(0,0,0,.18), 0 2px 5px rgba(0,0,0,.55), 0 0 0 1px rgba(0,0,0,.3); }
-  .dock-pill button.is-active:active { transform: translate(-50%, calc(-50% + 1px)) rotate(var(--tilt, 0deg)); }
+  .dock-pill { position: relative; flex: 0 0 auto; width: 216px; height: 48px; padding: 4px; border: 1px solid rgba(39,40,43,.1); border-radius: 999px; background: rgba(249,248,251,.98); box-shadow: 0 4px 12px rgba(0,0,0,.17), inset 0 1px rgba(255,255,255,.9); display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0,1fr); }
+  .dock-pill button { min-width: 0; border: 0; border-radius: 999px; padding: 0 10px; font-size: 12.5px; font-weight: 650; overflow: hidden; text-overflow: ellipsis;
+    color: #4d4e53; background: transparent; cursor: pointer; white-space: nowrap;
+    transition: color .18s ease, background .18s ease; }
+  .dock-pill button.is-active { color: #27282a; background: #dedde2; box-shadow: inset 0 1px rgba(255,255,255,.7); }
+  .dock-pill button.is-active:active { transform: translateY(1px); }
 
   /* The adopted landscape side-dock pins .mobile-nav with inset:50% and a
      translateY(-50%); position:relative alone leaves those in force and
@@ -1207,20 +1193,14 @@ button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--c
     background: none; border: 0; border-radius: 0; box-shadow: none; backdrop-filter: none; }
   .mobile-nav.is-arc::before { content: none; }
   .arc-inner { position: absolute; inset: 0; }
-  .arc-shape { position: absolute; inset: 0; width: 100%; height: 100%; filter: drop-shadow(0 20px 32px rgba(0,0,0,.72)) drop-shadow(0 5px 10px rgba(0,0,0,.55)); }
+  .arc-shape { position: absolute; inset: 0; width: 100%; height: 100%; filter: drop-shadow(0 12px 22px rgba(0,0,0,.28)) drop-shadow(0 3px 7px rgba(0,0,0,.18)); }
 
-  .mobile-nav.is-arc button { position: absolute; transform: translate(-50%, -50%) rotate(var(--tilt, 0deg)); width: auto; min-width: 44px; height: 42%; padding: 0 12px; border: 0; background: transparent; color: #83878f; border-radius: 999px; display: flex; align-items: center; justify-content: center; gap: 7px; font-size: 11px; font-weight: 650; cursor: pointer; transition: color 160ms ease; white-space: nowrap; }
-  /* Active tab: a raised keycap riding the curve. */
+  .mobile-nav.is-arc button { position: absolute; transform: translate(-50%, -50%) rotate(var(--tilt, 0deg)); width: 18%; min-width: 52px; height: 42%; padding: 0; border: 0; background: transparent; color: #343539; border-radius: 999px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 650; cursor: pointer; transition: color 160ms ease, background 160ms ease; white-space: nowrap; }
   .mobile-nav.is-arc button.is-active { color: var(--hy-cap-ink);
-    background: radial-gradient(circle at 40% 32%, var(--hy-cap-hi) 0%, var(--hy-cap) 60%, var(--hy-cap-lo) 100%);
-    box-shadow: inset 0 1px 1px rgba(255,255,255,.9), inset 0 -2px 5px rgba(0,0,0,.2), 0 3px 7px rgba(0,0,0,.6), 0 0 0 1px rgba(0,0,0,.32);
+    background: linear-gradient(180deg, var(--hy-cap-hi), var(--hy-cap));
+    box-shadow: inset 0 1px 1px rgba(255,255,255,.45), 0 2px 5px rgba(0,0,0,.16);
     animation: arc-pill-in 220ms cubic-bezier(.2,.8,.25,1); }
   .mobile-nav.is-arc button.is-active:active { transform: translate(-50%, calc(-50% + 1px)) rotate(var(--tilt, 0deg)); box-shadow: inset 0 1px 2px rgba(0,0,0,.3), 0 1px 3px rgba(0,0,0,.5); }
-  /* The adopted landscape side-dock styles .mobile-nav button span as a
-     hidden hover tooltip (opacity:0, absolutely placed). In the arc dock the
-     label is part of the keycap, so reset it explicitly. */
-  .mobile-nav.is-arc button span { display: block; position: static; opacity: 1;
-    background: none; border: 0; padding: 0; transform: none; color: inherit; white-space: nowrap; }
   @keyframes arc-pill-in { from { transform: translate(-50%, -50%) rotate(var(--tilt, 0deg)) scale(.85); opacity: .5; } to { transform: translate(-50%, -50%) rotate(var(--tilt, 0deg)) scale(1); opacity: 1; } }
   @media (prefers-reduced-motion: reduce) { .mobile-nav.is-arc button.is-active { animation: none; } }
 }
@@ -1271,7 +1251,7 @@ button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--c
 /* IA fix: the dock's left lock circle is a privacy badge, not a control —
    flatten it (inset, subdued) so only real buttons look raised/tappable. */
 @media (width<=680px) {
-  .dock-side-button.is-badge { background: #17191f; box-shadow: inset 0 2px 5px rgba(0,0,0,.55), inset 0 -1px 1px rgba(255,255,255,.05); color: #565b66; }
+  .dock-side-button.is-badge { background: rgba(249,248,251,.98); box-shadow: inset 0 1px rgba(255,255,255,.9), 0 4px 12px rgba(0,0,0,.15); color: #616267; }
 }
 
 /* ============================================================

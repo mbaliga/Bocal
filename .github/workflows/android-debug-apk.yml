@@ -9,11 +9,15 @@ on:
     branches:
       - main
       - "claude/**"
+      - "codex/**"
     paths:
       - "android/**"
       - "web-source/**"
       - ".github/workflows/android-debug-apk.yml"
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -48,12 +52,43 @@ jobs:
           mkdir -p ../android/app/src/main/assets/www
           cp preview-dist/index.html ../android/app/src/main/assets/www/app.html
 
-      - name: Build debug APK
+      - name: Test and build debug APKs
         working-directory: android
-        run: ./gradlew assembleDebug --console=plain
+        run: ./gradlew testDebugUnitTest lintDebug assembleDebug assembleDebugAndroidTest --console=plain
+
+      - name: Stage versioned debug APKs
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          version="$(sed -n 's/^[[:space:]]*versionName = "\([^"]*\)"/\1/p' android/app/build.gradle.kts | head -n 1)"
+          test -n "$version"
+          short_sha="${GITHUB_SHA::7}"
+
+          mkdir -p debug-apks
+          install -m 0644 \
+            android/app/build/outputs/apk/debug/app-debug.apk \
+            "debug-apks/Bocal-debug-${version}-${short_sha}.apk"
+          install -m 0644 \
+            android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk \
+            "debug-apks/Bocal-debug-androidTest-${version}-${short_sha}.apk"
+
+      # APK commits do not retrigger this workflow because debug-apks/** is
+      # deliberately absent from the push path filter above.
+      - name: Commit debug APKs to the source branch
+        if: startsWith(github.ref, 'refs/heads/codex/')
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add debug-apks/
+          git diff --cached --quiet && exit 0
+          git commit -m "Add debug APKs for ${GITHUB_SHA::7}"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: bocal-debug-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: bocal-debug-apks-${{ github.sha }}
+          path: debug-apks/*.apk
           if-no-files-found: error

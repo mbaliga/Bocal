@@ -145,27 +145,6 @@ const ARC_SEATS = [
 ];
 const ARC_TILTS = ["-9.6deg", "-4.83deg", "0deg", "4.83deg", "9.6deg"];
 
-// The instrument switch rides its own shallower arc so the dock reads as two
-// stacked curves, as in the reference. Seats are computed at runtime rather
-// than baked in like ARC_SEATS, because the instrument list grows as models
-// clear licensing and expert review.
-const PILL_VIEWBOX = { w: 200, h: 48 };
-const PILL_PATH = "M16 32 Q100 16 184 32";
-const PILL_POINTS: [number, number][] = [[16, 32], [100, 16], [184, 32]];
-
-function pillSeat(index: number, count: number) {
-  const t = (index + 0.5) / count;
-  const [p0, p1, p2] = PILL_POINTS;
-  const at = (a: number, b: number, c: number) => (1 - t) ** 2 * a + 2 * (1 - t) * t * b + t ** 2 * c;
-  const slope = (a: number, b: number, c: number) => 2 * (1 - t) * (b - a) + 2 * t * (c - b);
-  return {
-    left: `${(at(p0[0], p1[0], p2[0]) / PILL_VIEWBOX.w) * 100}%`,
-    top: `${(at(p0[1], p1[1], p2[1]) / PILL_VIEWBOX.h) * 100}%`,
-    tilt: `${(Math.atan2(slope(p0[1], p1[1], p2[1]), slope(p0[0], p1[0], p2[0])) * 180) / Math.PI}deg`,
-  };
-}
-
-
 export default function Home() {
   const [mode, setMode] = useState<Mode>("tune");
   const [instrumentId, setInstrumentId] = useState<InstrumentId>("alto-sax");
@@ -213,7 +192,8 @@ export default function Home() {
   useEffect(() => {
     tuningOptionsRef.current = tuningOptions;
   }, [tuningOptions]);
-  // Seated left to right along the pill arc, current instrument first.
+  // Current instrument first; the outgoing instrument remains beside it so
+  // doublers can switch without opening the full picker.
   const pillInstruments = useMemo<InstrumentId[]>(
     () => (partnerInstrumentId === instrumentId ? [instrumentId] : [instrumentId, partnerInstrumentId]),
     [instrumentId, partnerInstrumentId],
@@ -650,46 +630,28 @@ export default function Home() {
         )}
       </main>
 
-<div className="mobile-dock">
-        {/* Composition mirrors the curved-keyboard reference: two circular
-            side buttons flanking a centered segmented pill (here the real
-            instrument switch), floating above an arced bar whose active tab
-            is a compact pill hugging its glyph. Inverted for the dark theme:
-            the reference's dark-pill-on-light-bar becomes ink-on-dark. */}
+      <div className="mobile-dock">
+        {/* The phone reference is deliberately literal here: two light layers,
+            circular side controls around a flat segmented switch, then a
+            shallow arced icon rail with one wide grey selected capsule. */}
         <div className="dock-top">
           {/* Left circle is a privacy BADGE (mirrors the rail's "Local only"
               dot), deliberately styled flat so it doesn't read as a button. */}
           <div className="dock-side-button is-badge" aria-hidden="true"><LockKeyhole size={16} /></div>
           <div className="dock-pill" role="group" aria-label="Instrument">
-            <svg className="pill-track" viewBox={`0 0 ${PILL_VIEWBOX.w} ${PILL_VIEWBOX.h}`} aria-hidden="true" focusable="false">
-              <defs>
-                <linearGradient id="pillFill" x1="0" y1="6" x2="0" y2="44" gradientUnits="userSpaceOnUse">
-                  <stop offset="0" stopColor="#1a1c23" />
-                  <stop offset="1" stopColor="#23262f" />
-                </linearGradient>
-              </defs>
-              {/* Recessed track: dark seam, then a bottom-lit fill, so the
-                  groove reads as cut into the dock (Hyle crater logic). */}
-              <path d={PILL_PATH} fill="none" stroke="#0a0b0f" strokeWidth="36" strokeLinecap="round" />
-              <path d={PILL_PATH} fill="none" stroke="url(#pillFill)" strokeWidth="32" strokeLinecap="round" />
-            </svg>
-            {pillInstruments.map((id, index) => {
-              const seat = pillSeat(index, pillInstruments.length);
-              return (
-                <button
-                  key={id}
-                  className={instrumentId === id ? "is-active" : ""}
-                  aria-pressed={instrumentId === id}
-                  title={INSTRUMENTS[id].name}
-                  style={{ left: seat.left, top: seat.top, "--tilt": seat.tilt } as React.CSSProperties}
-                  onClick={() => chooseInstrument(id)}
-                >
-                  {INSTRUMENTS[id].shortName}
-                </button>
-              );
-            })}
+            {pillInstruments.map((id) => (
+              <button
+                key={id}
+                className={instrumentId === id ? "is-active" : ""}
+                aria-pressed={instrumentId === id}
+                title={INSTRUMENTS[id].name}
+                onClick={() => chooseInstrument(id)}
+              >
+                {INSTRUMENTS[id].shortName}
+              </button>
+            ))}
           </div>
-          <button className="dock-side-button" aria-label="Open Bocal settings" onClick={() => setDownloadCenterOpen(true)}>TU</button>
+          <button className="dock-side-button" aria-label="Open Bocal settings" onClick={() => setDownloadCenterOpen(true)}><Settings2 size={18} /></button>
         </div>
         <nav className="mobile-nav is-arc" aria-label="Primary navigation">
           {/* The 4:1 box uses height:0/padding-bottom:25% (NOT the aspect-ratio
@@ -698,28 +660,25 @@ export default function Home() {
               box the SVG and seats position against. */}
           <div className="arc-inner">
             <svg className="arc-shape" viewBox="0 0 400 100" aria-hidden="true" focusable="false">
-              {/* Molded-bar shading per the Hyle tactile kit (gunmetal set):
-                  no outline ring — the shape is carried by light. A dark seam
-                  underlay, a vertical srf gradient fill, a top-lip sheen, and
-                  a faint bottom rim-light where the bar catches bounce. */}
+              {/* A light shell matching the supplied phone reference. */}
               <defs>
                 <linearGradient id="arcFill" x1="0" y1="8" x2="0" y2="94" gradientUnits="userSpaceOnUse">
-                  <stop offset="0" stopColor="#282d37" />
-                  <stop offset="0.55" stopColor="#1f2129" />
-                  <stop offset="1" stopColor="#171922" />
+                  <stop offset="0" stopColor="#fffefe" />
+                  <stop offset="0.58" stopColor="#f7f6f9" />
+                  <stop offset="1" stopColor="#ebeaf0" />
                 </linearGradient>
                 <linearGradient id="arcSheen" x1="0" y1="10" x2="0" y2="92" gradientUnits="userSpaceOnUse">
-                  <stop offset="0" stopColor="rgba(255,255,255,0.12)" />
-                  <stop offset="0.4" stopColor="rgba(255,255,255,0.02)" />
+                  <stop offset="0" stopColor="rgba(255,255,255,0.9)" />
+                  <stop offset="0.4" stopColor="rgba(255,255,255,0.18)" />
                   <stop offset="1" stopColor="rgba(255,255,255,0)" />
                 </linearGradient>
                 <linearGradient id="arcRim" x1="0" y1="10" x2="0" y2="94" gradientUnits="userSpaceOnUse">
                   <stop offset="0" stopColor="rgba(255,255,255,0)" />
                   <stop offset="0.8" stopColor="rgba(255,255,255,0)" />
-                  <stop offset="1" stopColor="rgba(255,255,255,0.07)" />
+                  <stop offset="1" stopColor="rgba(74,75,82,0.12)" />
                 </linearGradient>
               </defs>
-              <path d="M22 62 Q200 27 378 62" fill="none" stroke="#0c0e13" strokeWidth="61" strokeLinecap="round" />
+              <path d="M22 62 Q200 27 378 62" fill="none" stroke="#d5d4da" strokeWidth="61" strokeLinecap="round" />
               <path d="M22 62 Q200 27 378 62" fill="none" stroke="url(#arcFill)" strokeWidth="58" strokeLinecap="round" />
               <path d="M22 62 Q200 27 378 62" fill="none" stroke="url(#arcSheen)" strokeWidth="56" strokeLinecap="round" />
               <path d="M22 62 Q200 27 378 62" fill="none" stroke="url(#arcRim)" strokeWidth="58" strokeLinecap="round" />
@@ -736,7 +695,7 @@ export default function Home() {
                   style={{ left: ARC_SEATS[index].left, top: ARC_SEATS[index].top, "--tilt": ARC_TILTS[index] } as React.CSSProperties}
                   onClick={() => selectMode(item.id)}
                 >
-                  <Icon size={19} />{active && <span>{item.label}</span>}
+                  <Icon size={20} />
                 </button>
               );
             })}
