@@ -98,11 +98,15 @@ test("phone navigation follows the supplied light two-tier reference", async () 
   assert.match(page, /className="dock-top"/);
   assert.match(page, /className="dock-pill"/);
   assert.match(page, /className="mobile-nav is-arc"/);
+  assert.match(page, /M24 30 Q210 -18 396 30/);
+  assert.match(page, /Q210 99 29 86/);
+  assert.match(page, /\{ left: "50%", top: "46%" \}/);
   assert.doesNotMatch(page, /active && <span>\{item\.label\}<\/span>/);
   assert.match(styles, /flat segmented instrument switch/);
   assert.match(styles, /--hy-srf: #f9f8fb/);
   assert.match(styles, /\.dock-pill button\.is-active \{ color: #27282a; background: #dedde2/);
   assert.match(styles, /\.mobile-nav\.is-arc button \{[^}]*width: 18%/s);
+  assert.match(styles, /padding: 0 0 22\.86%/);
   assert.match(styles, /background: linear-gradient\(180deg, var\(--hy-cap-hi\), var\(--hy-cap\)\)/);
 });
 

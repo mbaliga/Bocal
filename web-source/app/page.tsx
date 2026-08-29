@@ -130,20 +130,17 @@ const navItems: { id: Mode; label: string; icon: typeof Crosshair }[] = [
   { id: "practice", label: "Practice", icon: Music2 },
 ];
 
-// Everything below derives from the one bar curve "M22 62 Q200 27 378 62"
-// (viewBox 400×100; x linear in t, evenly spaced control x's). Seats at
-// t = .07/.285/.5/.715/.93 — spread to fill the bar like the reference.
-//
-// ARC_SEATS: button centers, taken from the Bézier at each t — the row rides the curve.
-// ARC_TILTS: the curve's tangent angle at each seat, so icons/labels lie along the arc.
+// The five controls are independently seated on the shell's pronounced upper
+// curve. A flat grid here was the visual regression the supplied reference
+// exposed: the bar can only read as arced when its controls rise with it.
 const ARC_SEATS = [
-  { left: "11.7%", top: "57.4%" },
-  { left: "30.9%", top: "47.7%" },
-  { left: "50.0%", top: "44.5%" },
-  { left: "69.1%", top: "47.7%" },
-  { left: "88.3%", top: "57.4%" },
+  { left: "10%", top: "62%" },
+  { left: "30%", top: "53%" },
+  { left: "50%", top: "46%" },
+  { left: "70%", top: "53%" },
+  { left: "90%", top: "62%" },
 ];
-const ARC_TILTS = ["-9.6deg", "-4.83deg", "0deg", "4.83deg", "9.6deg"];
+const ARC_TILTS = ["-13deg", "-6deg", "0deg", "6deg", "13deg"];
 
 export default function Home() {
   const [mode, setMode] = useState<Mode>("tune");
@@ -659,29 +656,17 @@ export default function Home() {
               renderers and scrambled every percentage seat); .arc-inner is the
               box the SVG and seats position against. */}
           <div className="arc-inner">
-            <svg className="arc-shape" viewBox="0 0 400 100" aria-hidden="true" focusable="false">
-              {/* A light shell matching the supplied phone reference. */}
+            <svg className="arc-shape" viewBox="0 0 420 96" aria-hidden="true" focusable="false" preserveAspectRatio="none">
+              {/* A genuinely curved shell: its upper edge rises through the
+                  centre and its lower edge carries a quieter matching bow. */}
               <defs>
-                <linearGradient id="arcFill" x1="0" y1="8" x2="0" y2="94" gradientUnits="userSpaceOnUse">
+                <linearGradient id="arcFill" x1="0" y1="5" x2="0" y2="94" gradientUnits="userSpaceOnUse">
                   <stop offset="0" stopColor="#fffefe" />
                   <stop offset="0.58" stopColor="#f7f6f9" />
                   <stop offset="1" stopColor="#ebeaf0" />
                 </linearGradient>
-                <linearGradient id="arcSheen" x1="0" y1="10" x2="0" y2="92" gradientUnits="userSpaceOnUse">
-                  <stop offset="0" stopColor="rgba(255,255,255,0.9)" />
-                  <stop offset="0.4" stopColor="rgba(255,255,255,0.18)" />
-                  <stop offset="1" stopColor="rgba(255,255,255,0)" />
-                </linearGradient>
-                <linearGradient id="arcRim" x1="0" y1="10" x2="0" y2="94" gradientUnits="userSpaceOnUse">
-                  <stop offset="0" stopColor="rgba(255,255,255,0)" />
-                  <stop offset="0.8" stopColor="rgba(255,255,255,0)" />
-                  <stop offset="1" stopColor="rgba(74,75,82,0.12)" />
-                </linearGradient>
               </defs>
-              <path d="M22 62 Q200 27 378 62" fill="none" stroke="#d5d4da" strokeWidth="61" strokeLinecap="round" />
-              <path d="M22 62 Q200 27 378 62" fill="none" stroke="url(#arcFill)" strokeWidth="58" strokeLinecap="round" />
-              <path d="M22 62 Q200 27 378 62" fill="none" stroke="url(#arcSheen)" strokeWidth="56" strokeLinecap="round" />
-              <path d="M22 62 Q200 27 378 62" fill="none" stroke="url(#arcRim)" strokeWidth="58" strokeLinecap="round" />
+              <path d="M24 30 Q210 -18 396 30 Q418 34 418 54 V59 Q418 82 391 86 Q210 99 29 86 Q2 82 2 59 V54 Q2 34 24 30 Z" fill="url(#arcFill)" stroke="#d5d4da" strokeWidth="1.25" />
             </svg>
             {navItems.map((item, index) => {
               const Icon = item.icon;
