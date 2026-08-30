@@ -753,12 +753,6 @@ function DownloadCenter({
       copy: "Research, user journeys, feature scope, saxophone notes, architecture, Android status and release checks in one file.",
       icon: FileText,
     },
-    {
-      href: "/downloads/Bocal-native-debug.apk",
-      title: "Android debug APK",
-      copy: "Bocal 0.2.0 for Android 8+: tuner, bronze sax lab, key glows, onboarding, curved navigation and local practice history. Debug-signed for direct testing.",
-      icon: Smartphone,
-    },
   ];
   const modelSources: Array<{ instrument: string; status: string; tone: "ready" | "review" | "blocked"; href?: string }> = [
     { instrument: "Alto saxophone", status: "In Bocal", tone: "ready", href: "https://sketchfab.com/3d-models/saxophone-alto-08448f4bfbca474b80ba35a571648a27" },
@@ -805,7 +799,7 @@ function DownloadCenter({
         </div>
         <div className="apk-blocker">
           <Smartphone size={18} />
-          <div><strong>Verified debug build.</strong><p>Built and signature-checked. Physical-phone checks for microphone accuracy, latency, interruptions and rotation are still open.</p></div>
+          <div><strong>Android release promotion is pending.</strong><p>A current artifact will appear here only after release signing, installation, cold launch, and physical-device audio checks pass.</p></div>
         </div>
         <button className="replay-onboarding" onClick={onOpenOnboarding}><Sparkles size={15} /> Replay the onboarding guide</button>
       </section>
