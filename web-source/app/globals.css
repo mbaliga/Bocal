@@ -3,7 +3,7 @@
 :root {
   --ink: #f5f3eb;
   --muted: #9c9b98;
-  --subtle: #71716f;
+  --subtle: #a3a39f;
   --black: #060607;
   --panel: #101011;
   --panel-2: #151517;
@@ -20,7 +20,7 @@ html { background: var(--black); color-scheme: dark; }
 body { margin: 0; background: var(--black); color: var(--ink); font-family: var(--font-geist-sans), Arial, sans-serif; }
 button { font: inherit; }
 button, [role="button"] { -webkit-tap-highlight-color: transparent; }
-button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+button:focus-visible, [role="button"]:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 3px solid var(--cyan); outline-offset: 3px; }
 
 .app-shell { min-height: 100dvh; display: grid; grid-template-columns: 228px 1fr; background: var(--black); }
 .side-rail { position: sticky; top: 0; height: 100dvh; overflow: hidden; border-right: 1px solid var(--line-soft); padding: 28px 18px 22px; display: flex; flex-direction: column; background: radial-gradient(circle at 118% 48%, rgba(8,254,213,.055), transparent 40%), #09090a; z-index: 20; }
@@ -69,7 +69,7 @@ button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--c
 .download-dialog > header { display: flex; justify-content: space-between; gap: 24px; }
 .download-dialog > header h2 { margin: 8px 0 7px; font-size: 34px; letter-spacing: -.05em; }
 .download-dialog > header p:last-child { margin: 0; color: #8b8b8e; font-size: 11px; }
-.download-dialog > header > button { flex: 0 0 auto; width: 37px; height: 37px; border: 1px solid #37373d; border-radius: 11px; background: #171719; color: #858589; display: grid; place-items: center; cursor: pointer; }
+.download-dialog > header > button { flex: 0 0 auto; width: 44px; height: 44px; border: 1px solid #37373d; border-radius: 11px; background: #171719; color: #858589; display: grid; place-items: center; cursor: pointer; }
 .download-dialog > header > button:hover { color: var(--ink); }
 .download-grid { margin-top: 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .download-grid > a { min-height: 145px; padding: 18px; border: 1px solid #29292e; border-radius: 16px; background: #141416; color: inherit; display: grid; grid-template-columns: 42px 1fr; gap: 13px; text-decoration: none; }
@@ -77,11 +77,11 @@ button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--c
 .download-grid > a > i { width: 40px; height: 40px; border-radius: 12px; background: #211d46; color: #b4a9ff; display: grid; place-items: center; font-style: normal; }
 .download-grid > a > div { display: flex; flex-direction: column; }
 .download-grid strong { font-size: 12px; }
-.download-grid p { margin: 7px 0 13px; color: #747478; font-size: 9px; line-height: 1.55; }
+.download-grid p { margin: 7px 0 13px; color: var(--muted); font-size: 12px; line-height: 1.55; }
 .download-grid span { margin-top: auto; color: var(--cyan); display: inline-flex; align-items: center; gap: 6px; font-size: 9px; }
 .apk-blocker { margin-top: 12px; padding: 15px 17px; border: 1px solid #4d4226; border-radius: 14px; background: #211c0e; color: #e6b94c; display: grid; grid-template-columns: 24px 1fr; gap: 10px; }
 .apk-blocker strong { color: #d4c28c; font-size: 10px; }
-.apk-blocker p { margin: 4px 0 0; color: #8f8468; font-size: 8px; line-height: 1.5; }
+.apk-blocker p { margin: 4px 0 0; color: #d7c99d; font-size: 12px; line-height: 1.5; }
 .checksum-link { width: fit-content; margin: 16px auto 0; color: #757579; display: flex; align-items: center; gap: 6px; font-size: 8px; text-decoration: none; }
 .checksum-link:hover { color: var(--cyan); }
 .settings-panel { margin-top: 24px; padding: 14px 15px; border: 1px solid #303036; border-radius: 16px; background: linear-gradient(135deg, #16161a, #101013); display: flex; align-items: center; justify-content: space-between; gap: 18px; }
@@ -89,31 +89,31 @@ button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--c
 .settings-panel > div:first-child > svg { flex: 0 0 auto; color: var(--cyan); }
 .settings-panel > div:first-child span { display: grid; gap: 4px; }
 .settings-panel strong { font-size: 10px; }
-.settings-panel p { margin: 0; color: #747478; font-size: 8px; line-height: 1.4; }
+.settings-panel p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.4; }
 .side-choice { flex: 0 0 auto; padding: 3px; border: 1px solid #323238; border-radius: 11px; background: #0b0b0d; display: grid; grid-template-columns: 1fr 1fr; }
-.side-choice button { min-width: 68px; height: 31px; border: 0; border-radius: 8px; background: transparent; color: #747478; font-size: 8px; cursor: pointer; }
+.side-choice button { min-width: 68px; min-height: 44px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font-size: 12px; cursor: pointer; }
 .side-choice button.is-active { background: var(--cyan); color: #051b17; font-weight: 760; }
 .model-source-panel { margin-top: 12px; padding: 17px; border: 1px solid #2d2d33; border-radius: 16px; background: #121214; }
 .model-source-panel > header { display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; }
 .model-source-panel > header div { display: grid; gap: 5px; }
 .model-source-panel > header strong { font-size: 11px; }
-.model-source-panel > header p { max-width: 540px; margin: 0; color: #747478; font-size: 8px; line-height: 1.5; }
+.model-source-panel > header p { max-width: 540px; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
 .model-source-panel > header > span { flex: 0 0 auto; padding: 5px 8px; border-radius: 100px; background: #123029; color: var(--cyan); font-size: 7px; text-transform: uppercase; letter-spacing: .08em; }
 .model-source-list { margin-top: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 1px 14px; }
 .model-source-list > a, .model-source-list > div { min-width: 0; min-height: 38px; border-top: 1px solid #29292e; color: inherit; display: grid; grid-template-columns: minmax(105px, .72fr) minmax(0, 1fr) 14px; align-items: center; gap: 8px; text-decoration: none; }
 .model-source-list > a:hover span { color: var(--cyan); }
 .model-source-list span { font-size: 8px; font-weight: 650; transition: color .16s ease; }
-.model-source-list em { min-width: 0; overflow: hidden; color: #77777b; font-size: 7px; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
+.model-source-list em { min-width: 0; overflow: hidden; color: #b8b7b2; font-size: 11px; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
 .model-source-list em.is-ready { color: var(--cyan); }
 .model-source-list em.is-review { color: #d4b467; }
 .model-source-list em.is-blocked { color: #a47f83; }
 .model-source-list svg { color: #5f5f64; }
 .session-clock { height: 38px; display: flex; gap: 7px; align-items: center; color: #747473; font-family: var(--font-geist-mono); font-size: 12px; padding: 0 5px; }
 .session-clock.is-running { color: var(--cyan); }
-.button { height: 40px; padding: 0 16px; border-radius: 11px; border: 1px solid var(--line); display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; transition: 160ms ease; }
+.button { min-height: 44px; padding: 0 16px; border-radius: 11px; border: 1px solid var(--line); display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; transition: 160ms ease; }
 .button.secondary { background: var(--panel-2); color: var(--ink); }
 .button:hover { transform: translateY(-1px); border-color: #45454b; }
-.icon-button { width: 40px; height: 40px; display: grid; place-items: center; color: #888; background: transparent; border: 1px solid var(--line); border-radius: 11px; cursor: pointer; }
+.icon-button { width: 44px; height: 44px; display: grid; place-items: center; color: #888; background: transparent; border: 1px solid var(--line); border-radius: 11px; cursor: pointer; }
 .content-wrap { width: min(1240px, calc(100% - 48px)); margin: 0 auto; padding: 44px 0 52px; }
 .section-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 27px; }
 .eyebrow { color: var(--cyan) !important; text-transform: uppercase; letter-spacing: .16em; font-size: 10px !important; font-weight: 700; margin: 0 0 12px !important; }
@@ -621,8 +621,8 @@ button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--c
 .repertoire-progress { width: 100%; height: 2px; background: #29292d; }
 .repertoire-progress i { display: block; height: 100%; background: var(--violet); }
 .lesson-card blockquote { border-left: 2px solid var(--violet); color: #aaa6bb; background: #17151f; margin: 0 0 10px; padding: 10px 12px; font-size: 9px; line-height: 1.5; }
-.lesson-card textarea { width: 100%; min-height: 110px; resize: vertical; border: 1px solid #303035; border-radius: 12px; background: #141416; color: var(--ink); padding: 12px; font: 10px/1.5 var(--font-geist-sans); outline: none; }
-.lesson-card textarea:focus { border-color: #5b5286; }
+.lesson-card textarea { width: 100%; min-height: 110px; resize: vertical; border: 1px solid #303035; border-radius: 12px; background: #141416; color: var(--ink); padding: 12px; font: 14px/1.5 var(--font-geist-sans); }
+.lesson-card textarea:focus { border-color: var(--cyan); }
 .lesson-card textarea::placeholder { color: #555559; }
 .save-note { width: 100%; height: 38px; border: 0; border-radius: 10px; color: #071a17; background: var(--cyan); display: flex; align-items: center; justify-content: center; gap: 7px; margin-top: 9px; font-size: 10px; font-weight: 700; cursor: pointer; }
 .save-note:disabled { background: #25252a; color: #5f5f63; cursor: default; }
