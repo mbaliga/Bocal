@@ -4,20 +4,24 @@ import {
   Activity,
   AudioLines,
   Download,
+  FileAudio,
   LockKeyhole,
   Mic,
   Pause,
   Play,
   Radio,
   Square,
+  Trash2,
+  Upload,
   Waves,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
 import type { InstrumentProfile } from "./instruments";
 import type { NotationSystem } from "./notation";
 import { TranscribePanel } from "./TranscribePanel";
 
 type AnalysisMode = "waveform" | "spectrum";
+type RecordingTake = { id: string; name: string; url: string; createdAt: string; seconds: number };
 
 function formatTime(seconds: number) {
   return `${Math.floor(seconds / 60).toString().padStart(2, "0")}:${(seconds % 60).toString().padStart(2, "0")}`;
@@ -39,14 +43,19 @@ export function AnalysisView({
   const frameRef = useRef<number | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
-  const takeUrlRef = useRef<string | null>(null);
+  const takeUrlsRef = useRef<string[]>([]);
+  const recordingStartedAtRef = useRef<number | null>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
   const modeRef = useRef<AnalysisMode>("waveform");
   const lastMetricAtRef = useRef(0);
   const [mode, setMode] = useState<AnalysisMode>("waveform");
   const [active, setActive] = useState(false);
   const [recording, setRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
-  const [takeUrl, setTakeUrl] = useState<string | null>(null);
+  const [takes, setTakes] = useState<RecordingTake[]>([]);
+  const [selectedTakeId, setSelectedTakeId] = useState<string | null>(null);
+  const [playbackRate, setPlaybackRate] = useState(1);
+  const [loopTake, setLoopTake] = useState(false);
   const [message, setMessage] = useState("");
   const [metrics, setMetrics] = useState({ level: 0, peakHz: 0 });
 
@@ -152,7 +161,7 @@ export function AnalysisView({
     if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
     streamRef.current?.getTracks().forEach((track) => track.stop());
     void audioContextRef.current?.close();
-    if (takeUrlRef.current) URL.revokeObjectURL(takeUrlRef.current);
+    takeUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
   }, []);
 
   const startCapture = async () => {
@@ -202,18 +211,40 @@ export function AnalysisView({
     recorder.ondataavailable = (event) => { if (event.data.size) chunksRef.current.push(event.data); };
     recorder.onstop = () => {
       const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
-      setTakeUrl((current) => {
-        if (current) URL.revokeObjectURL(current);
-        const next = URL.createObjectURL(blob);
-        takeUrlRef.current = next;
-        return next;
-      });
+      const url = URL.createObjectURL(blob);
+      takeUrlsRef.current.push(url);
+      const duration = Math.max(1, Math.round((performance.now() - (recordingStartedAtRef.current ?? performance.now())) / 1000));
+      const take: RecordingTake = { id: `take-${Date.now()}`, name: `Take ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`, url, createdAt: new Date().toISOString(), seconds: duration };
+      setTakes((current) => [take, ...current].slice(0, 12));
+      setSelectedTakeId(take.id);
+      setRecordingSeconds(duration);
+      recordPracticeActivity({ type: "analysis", seconds: duration, instrumentId: instrument.id, label: "Recorded analysis take" });
     };
     recorder.start(250);
     recorderRef.current = recorder;
+    recordingStartedAtRef.current = performance.now();
     setRecordingSeconds(0);
     setRecording(true);
   };
+
+  const selectedTake = takes.find((take) => take.id === selectedTakeId) ?? takes[0] ?? null;
+  const importTake = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    takeUrlsRef.current.push(url);
+    const take: RecordingTake = { id: `take-${Date.now()}`, name: file.name.replace(/\.[^.]+$/, "").slice(0, 60) || "Imported take", url, createdAt: new Date().toISOString(), seconds: 0 };
+    setTakes((current) => [take, ...current].slice(0, 12));
+    setSelectedTakeId(take.id);
+    event.target.value = "";
+  };
+  const removeTake = (id: string) => {
+    const take = takes.find((item) => item.id === id);
+    if (take) URL.revokeObjectURL(take.url);
+    setTakes((current) => current.filter((item) => item.id !== id));
+    setSelectedTakeId((current) => current === id ? null : current);
+  };
+  const renameTake = (id: string, name: string) => setTakes((current) => current.map((take) => take.id === id ? { ...take, name: name.slice(0, 60) } : take));
 
   return (
     <div className="content-wrap analysis-layout">
@@ -253,7 +284,14 @@ export function AnalysisView({
           </article>
           <article className="take-card">
             <span className="card-kicker"><Radio size={15} /> Latest take</span>
-            {takeUrl ? <><audio controls src={takeUrl} /><a href={takeUrl} download={`bocal-take-${new Date().toISOString().slice(0, 10)}.webm`}><Download size={15} /> Download take</a></> : <div className="no-take"><Play size={21} /><p>Your latest recording will appear here.</p></div>}
+            <input ref={importInputRef} className="visually-hidden" type="file" accept="audio/*" onChange={importTake} />
+            {selectedTake ? <>
+              <input className="take-name-input" value={selectedTake.name} onChange={(event) => renameTake(selectedTake.id, event.target.value)} aria-label="Take name" />
+              <audio controls loop={loopTake} src={selectedTake.url} onLoadedMetadata={(event) => { event.currentTarget.playbackRate = playbackRate; }} onPlay={(event) => { event.currentTarget.playbackRate = playbackRate; }} />
+              <div className="take-tools"><label><span>Tempo</span><input type="range" min="0.75" max="1.25" step="0.05" value={playbackRate} onChange={(event) => setPlaybackRate(Number(event.target.value))} /></label><label className="take-loop"><input type="checkbox" checked={loopTake} onChange={(event) => setLoopTake(event.target.checked)} /> Loop</label></div>
+              <div className="take-actions"><a href={selectedTake.url} download={`${selectedTake.name || "bocal-take"}.webm`}><Download size={15} /> Download</a><button onClick={() => importInputRef.current?.click()}><Upload size={15} /> Import</button><button onClick={() => removeTake(selectedTake.id)}><Trash2 size={15} /> Delete</button></div>
+              <div className="take-list">{takes.map((take) => <button key={take.id} className={take.id === selectedTake.id ? "is-active" : ""} onClick={() => setSelectedTakeId(take.id)}><FileAudio size={13} /><span>{take.name}</span><small>{take.seconds ? formatTime(take.seconds) : "Imported"}</small></button>)}</div>
+            </> : <div className="no-take"><Play size={21} /><p>Your latest recording will appear here. Import a take or record one above.</p><button onClick={() => importInputRef.current?.click()}><Upload size={14} /> Import audio</button></div>}
           </article>
         </aside>
       </div>

@@ -1,8 +1,8 @@
 # Bocal product and engineering handoff
 
-**Version:** 1.3
-**Date:** 11 August 2026  
-**Status:** Active prototype; not yet TonalEnergy feature parity  
+**Version:** 1.6 parity-foundation branch
+**Date:** 28 August 2026
+**Status:** Active prototype; substantial web parity foundation, not yet full TonalEnergy parity
 **Current public instruments:** E♭ alto saxophone learning lab; C oboe anatomy preview  
 **Product principle:** local-first, educationally honest, usable in one or two taps during real practice
 
@@ -13,12 +13,15 @@ Bocal is a local-first practice companion for music learners, teachers and worki
 The public web implementation currently contains:
 
 - a confidence-gated chromatic tuner with E♭ alto and concert-pitch oboe modes;
-- a metronome, tap tempo and drone workspace;
-- live waveform and spectral-energy views plus local take recording/download;
-- local practice planning, lesson/equipment notes and deterministic skill evidence;
+- a calibrated chromatic tuner, reference-tone keyboard, selectable precision and drone workspace;
+- a metronome with tap tempo, click voices, count-ins, silent-bar drills and local presets;
+- live waveform and spectral-energy views plus named multi-take recording, import, loop, tempo playback, rename, delete and download;
+- local practice planning, activity distribution, weekly goals, a gentle streak nudge, lesson/equipment notes and deterministic skill evidence;
+- a local coach board covering pitch, rhythm, technique, repertoire and reflection, with an exportable brief;
+- a song wishlist with studying state and player-controlled progress, while keeping unlicensed scores/audio out of the product;
 - a complete keyed-range alto fingering dataset from written B♭3 through F♯6;
 - a licensed detailed alto reference mesh with 23 interactive educational touch targets aligned directly over the instrument;
-- one unified fingering experience: selected contacts remain visible at all times, optional available targets can be revealed, an XR-style phantom-hand rig establishes player contact, and the side panel explains linked pad motion;
+- one unified fingering experience: selected contacts remain visible at all times, optional available targets can be revealed, key-only glows identify the route, and the side panel explains linked pad motion;
 - an unobstructed model viewport with controls in an external experience dock and a full-screen focus mode;
 - cinematic alto-saxophone and oboe card/gallery images, with optimized web assets and both generated masters retained in the repository;
 - a first-run four-step onboarding journey led by an expanding-panel instrument gallery and replayable from the handoff menu;
@@ -26,7 +29,7 @@ The public web implementation currently contains:
 - an oboe anatomy preview that isolates the standard silver-key instrument from the source GLB’s second finish variant and preserves the orbit camera across inspection updates;
 - explicit source, licence, readiness and validation boundaries.
 
-It does **not** yet have instrument-grade device validation, a complete take editor, harmonic/staff analysis, professional MIDI/Link workflows, native Android packaging, or validated learning systems for the remaining woodwinds.
+It does **not** yet have instrument-grade device validation, true harmonic/staff/interval analysis, region editing or A/B take comparison, professional MIDI/Link workflows, cloud coach exchange, native Android parity with these web additions, or validated learning systems for the remaining woodwinds.
 
 ### Repository and delivery map for this checkpoint
 
@@ -56,9 +59,9 @@ The two user-supplied motion references were treated as interaction references, 
 | Instrument families appear as full-height, cinematic panels; the focused item expands while neighbours remain visible | First-run and anytime instrument selector uses an expanding horizontal panel deck with photographic alto/oboe heroes and clearly labelled validation-state placeholders | Selection feels like entering an instrument-specific world while unsupported tools remain honest |
 | A central item owns attention while adjacent items remain partially visible and spatially receded | Setup variants use scroll-snap coverflow, perspective, featured-card scaling, neighbour peeking and explicit previous/next controls | Swiping remains discoverable without hiding comparison detail or accessibility controls |
 | The instrument itself must remain the primary canvas | Model toolbar, view selector and legend moved into a separate dock above the viewport; focus mode removes surrounding panels | Fingertips and keywork are no longer obscured by UI |
-| Body contact is part of playing, not merely a diagram label | Alto adds a translucent, data-driven phantom-hand rig; active fingertips intensify while inactive fingers remain ghosted | Gives spatial context without pretending to be biometric tracking or expert-validated posture analysis |
+| Body contact is part of playing, not merely a diagram label | Bocal keeps the learning surface free of rendered hands; active keys glow directly on the reference mesh | Keeps the instrument readable and avoids implying biometric posture accuracy |
 
-The hand rig is an educational XR-style aid, not photoreal anatomy, live hand tracking or a substitute for a teacher. Future instruments can add instrument-specific contact rigs—thumbs, chin, jaw, shoulder, embouchure or support points—but those contact anchors must be validated per instrument before publication. Violin chin/shoulder contact is therefore an architectural requirement, not a currently shipped woodwind claim.
+Key glow is an educational placement aid, not live hand tracking or a substitute for a teacher. Future instruments can add instrument-specific contact rigs—thumbs, chin, jaw, shoulder, embouchure or support points—but those contact anchors must be validated per instrument before publication. Violin chin/shoulder contact is therefore an architectural requirement, not a currently shipped woodwind claim.
 
 ## 2. Research basis
 
@@ -207,12 +210,14 @@ The following seven personas cover the credible v1/v2 market. Accessibility need
 
 | Capability | Bocal now | TonalEnergy benchmark | Required action |
 |---|---|---|---|
-| Basic tuner | Functional confidence-gated web tuner | Multiple mature tuner views and controls | Device/golden validation; more views and settings |
-| Metronome | Basic tempo, tap, meter, subdivision, drone | Deep presets, sequencing, looping, assistant, Link | Replace timer authority; add complete sequence model |
-| Tone generator | Reference tone and basic drone | Wheel, keyboard, grid and exercise creator | Add full range, chords, sequences, temperament |
+| Basic tuner | Functional confidence-gated web tuner with calibrated reference, temperament, notation, concert/written readout and standard/fine/ultra tolerance | Multiple mature tuner views, target/range controls and instrument modes | Device/golden validation; add explicit range lock and saved tuner presets |
+| Guitar tuner | Six-string Standard/Drop D/Open G tuner plus colour-coded chord charts and root-gated flow | String layouts, instrument voices and broad tuning library | Add more tunings/voices and hardware validation |
+| Metronome | Audio-clock tempo, tap, meter, subdivision, click voices, count-in, silent-bar drill, drone and saved presets | Deep custom sequences, looping, random beat/bar silencing, voice count-ins and Link | Add multi-section sequence editor, loop regions and external sync |
+| Tone generator | Calibrated reference-tone keyboard across eight octaves with waveform, level and temperament | Wheel, keyboard, sound library, pitch grid and exercise creator | Add chord/sequence exercise builder and sampled instrument voices |
 | Analysis | Pitch trace, live waveform and spectral-energy preview | Waveform, spectrum, harmonic, staff, interval | Validate current views; add harmonic/staff/interval |
-| Recording | Local browser take capture, playback and download | Recording/playback integrated with analysis | Add markers, regions, A/B and structured export |
-| Practice data | Local sessions and deterministic evidence | Activity, timed events, goals and streaks | Add robust longitudinal model and honest goals |
+| Recording | Local named multi-take capture/import, playback, loop, tempo control, rename, delete and download | Recording/playback integrated with analysis, trim, folders and export/import | Add region markers, A/B comparison and structured audio bundle |
+| Practice data | Local sessions, activity distribution, weekly goals, gentle streak feedback, deterministic evidence and song progress | Activity, timed events, goals, streaks and progress tracker | Add reminders, calendar history and cross-device export/import |
+| Coach mode | Local assignment brief, review-capability checklist, check-in date and export | Educator workflows and shareable progress/lesson context | Add consented bundle import, comments and multi-student roster |
 | Professional control | Minimal | MIDI, Link, remote/custom layouts | P3 after audio foundation |
 | Instrument learning | Alto trainer + oboe anatomy preview | Not incumbent’s central workflow | Validate and expand carefully |
 | Native Android | Source foundation only | Shipping native app | Build/test/sign with Android SDK and real devices |
@@ -262,7 +267,7 @@ Optimized public sizes are approximately 1.7 MB for alto and 2.1 MB for oboe. Op
 - Web Audio for input, synthesis and current timing prototypes.
 - Three.js for imported GLB viewing and pedagogical mechanism rendering.
 - The alto GLB is normalized into a shared scene coordinate system. `SAX_KEYS` supplies semantic touch IDs, hand/finger/side metadata and anchor coordinates; `ImportedInstrumentCanvas` always renders the active cyan contacts and reveals quieter available-touch rings only on request.
-- `ImportedInstrumentCanvas` creates an optional translucent hand-contact rig from the same semantic anchors. One route per finger is shown, the current route intensifies, and the UI explicitly identifies it as educational rather than biometric.
+- `ImportedInstrumentCanvas` renders key-only glow markers from semantic anchors. There are no rendered hands or body parts; the UI identifies the anchors as educational rather than mechanically rigged controls.
 - Player, left-control, right-control and thumb/back presets filter side-specific targets to avoid implying that left- and right-hand controls occupy the same face.
 - Touch targets are interactive and update the shared fingering state. The source GLB itself is not key-rigged, so pad travel remains an explained data trace rather than a fabricated mesh animation.
 - The oboe source includes two top-level finish variants. `isolateRootName="Oboe"` publishes only the standard silver-key tree. A stable empty-marker constant and callback refs prevent inspection state from recreating the renderer, while a pointer travel threshold separates orbit gestures from taps.
@@ -312,7 +317,7 @@ Rendering code must consume these contracts; it must not become the source of mu
 - Imported visual fidelity and interactive pedagogical logic are layered: the licensed mesh remains visually intact while semantic, tappable touch targets render directly over it.
 - The source oboe’s duplicate finish trees are no longer rendered together, and orbit gestures no longer cause renderer resets through incidental inspection state.
 - First-run instrument selection, guided onboarding, full-screen model focus and visual setup coverflow convert a functional dashboard into a more experiential product without hiding validation status.
-- Optional phantom hands make player contact legible while preserving the distinction between educational placement and biometric/body-tracking accuracy.
+- Hand silhouettes were removed from the learning surface; direct key glows keep the instrument readable and avoid implying biometric/body-tracking accuracy.
 - Model licences and readiness tiers are release gates.
 - Seven personas and 35 concrete workflows translate strategy into acceptance behavior.
 - TonalEnergy parity is ordered by measurement/timing integrity before visible feature count.

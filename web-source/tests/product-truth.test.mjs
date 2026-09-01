@@ -99,3 +99,36 @@ test("analysis exposes local waveform, spectrum, and take recording without fake
   assert.match(source, /doesn’t grade your tone/i);
   assert.match(source, /stay in this browser/i);
 });
+
+test("tuner exposes a calibrated tone generator and precision choices", async () => {
+  const source = await readFile(new URL("../app/ToneGenerator.tsx", import.meta.url), "utf8");
+  const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  assert.match(source, /targetHzFor/);
+  assert.match(source, /Array\.from\(\{ length: 8/);
+  assert.match(source, /Waveform|waveform/);
+  assert.match(source, /Synthetic reference voice/);
+  assert.match(page, /Ultra ±2¢/);
+});
+
+test("practice tools include measured metronome drills, goals, coach mode and song progress", async () => {
+  const source = await readFile(new URL("../app/PracticeTools.tsx", import.meta.url), "utf8");
+  const data = await readFile(new URL("../app/practice-data.ts", import.meta.url), "utf8");
+  assert.match(source, /Silent-bar drill/);
+  assert.match(source, /Count-in/);
+  assert.match(source, /Save the feel/);
+  assert.match(source, /Gentle goal/);
+  assert.match(source, /Coach mode/);
+  assert.match(source, /Export brief/);
+  assert.match(source, /onProgress/);
+  assert.match(data, /updateSongWish/);
+});
+
+test("analysis keeps more than one take and supports local take management", async () => {
+  const source = await readFile(new URL("../app/AnalysisView.tsx", import.meta.url), "utf8");
+  assert.match(source, /type RecordingTake/);
+  assert.match(source, /Import audio/);
+  assert.match(source, /Delete/);
+  assert.match(source, /Loop/);
+  assert.match(source, /playbackRate/);
+  assert.match(source, /takes\.map/);
+});

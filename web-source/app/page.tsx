@@ -11,6 +11,7 @@ import {
   Crosshair,
   Download,
   FileText,
+  Guitar,
   LockKeyhole,
   Mic,
   MoreHorizontal,
@@ -36,6 +37,8 @@ import {
   InstrumentPickerExperience,
   OnboardingGuide,
 } from "./InstrumentExperience";
+import { GuitarStudio } from "./GuitarStudio";
+import { ToneGenerator } from "./ToneGenerator";
 import { StablePitchTracker, type PitchTrackerReading } from "./pitch-engine";
 import { INSTRUMENTS, isInstrumentId, type InstrumentId } from "./instruments";
 import StaffNote from "./StaffNote";
@@ -67,6 +70,7 @@ import {
   type TemperamentId,
   type TuningOptions,
 } from "./tuning";
+import { recordPracticeActivity } from "./practice-data";
 
 const SaxophoneLab = dynamic(
   () => import("./SaxophoneLab").then((module) => module.SaxophoneLab),
@@ -361,10 +365,17 @@ export default function Home() {
       const current = parseSkillEvidence(localStorage.getItem(SKILL_EVIDENCE_STORAGE_KEY));
       localStorage.setItem(SKILL_EVIDENCE_STORAGE_KEY, JSON.stringify(withTunerSession(current, summary)));
       window.dispatchEvent(new Event("bocal-skill-evidence"));
+      recordPracticeActivity({
+        type: "tuning",
+        seconds: summary.durationMs / 1000,
+        instrumentId: instrument.id,
+        notes: summary.midiNotes.map((midi) => fullNoteLabel(midi, "western")),
+        label: `${instrument.shortName} tuner session`,
+      });
     } catch {
       // The tuner remains fully functional when device storage is unavailable.
     }
-  }, []);
+  }, [instrument.id, instrument.shortName]);
 
   const stopListening = useCallback(() => {
     if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
@@ -579,7 +590,7 @@ export default function Home() {
         <header className="top-bar">
           <div className="instrument-picker-wrap">
             <button className="instrument-picker" aria-label="Choose instrument" aria-expanded={instrumentPickerOpen} onClick={() => setInstrumentPickerOpen((value) => !value)}>
-              <span className="instrument-icon"><Wind size={18} /></span>
+              <span className="instrument-icon">{instrument.id === "guitar" ? <Guitar size={18} /> : <Wind size={18} />}</span>
               <span><small>Instrument</small>{instrument.shortName} · {instrument.pitchLabel}</span>
               <ChevronDown size={16} />
             </button>
@@ -625,7 +636,9 @@ export default function Home() {
             onTemperamentKeyPcChange={chooseTemperamentKeyPc}
           />
         )}
-        {mode === "sax" && <SaxophoneLab onBack={() => selectMode("tune")} instrumentId={instrumentId} />}
+        {mode === "sax" && (instrumentId === "guitar"
+          ? <GuitarStudio reading={reading ? { hz: reading.hz, cents: reading.cents, midi: reading.concertMidi } : null} listening={listening} onListen={startListening} />
+          : <SaxophoneLab onBack={() => selectMode("tune")} instrumentId={instrumentId} />)}
         {mode === "pulse" && <PulseView />}
         {mode === "analyze" && <AnalysisView instrument={instrument} notation={notation} saTonic={saTonic} />}
         {mode === "practice" && (
@@ -1006,8 +1019,10 @@ function TunerView({
   onTemperamentChange: (next: TemperamentId) => void;
   onTemperamentKeyPcChange: (next: number) => void;
 }) {
-  const inTune = trackerReading.state === "locked" && reading !== null && Math.abs(reading.cents) <= 5;
-  const direction = reading === null ? "Waiting" : reading.cents > 5 ? "Sharp" : reading.cents < -5 ? "Flat" : "Centered";
+  const [precision, setPrecision] = useState<"standard" | "fine" | "ultra">("fine");
+  const tolerance = precision === "standard" ? 10 : precision === "ultra" ? 2 : 5;
+  const inTune = trackerReading.state === "locked" && reading !== null && Math.abs(reading.cents) <= tolerance;
+  const direction = reading === null ? "Waiting" : reading.cents > tolerance ? "Sharp" : reading.cents < -tolerance ? "Flat" : "Centered";
   const markerPosition = reading === null ? 50 : Math.max(4, Math.min(96, 50 + reading.cents * 0.8));
   // The concert name is always shown in letters. It exists so a player can
   // check themselves against a piano or another section, and that conversation
@@ -1047,7 +1062,7 @@ function TunerView({
           : trackerReading.state === "holding"
             ? { title: "The signal dipped.", copy: "Bocal holds the last note briefly instead of jumping. The display clears if the sound doesn’t return." }
             : inTune
-              ? { title: "Right in the middle.", copy: "You’re within five cents. Keep the air and embouchure where they are." }
+              ? { title: "Right in the middle.", copy: `You’re within ${tolerance} cents. Keep the air and embouchure where they are.` }
               : { title: `${direction} by ${Math.abs(reading?.cents ?? 0)} cents.`, copy: direction === "Sharp" ? "Ease the jaw pressure without losing the air." : "Support the air and bring the pitch up without biting." };
   const signalPercent = Math.min(100, Math.round((trackerReading.rms / Math.max(trackerReading.gate * 1.6, 0.0001)) * 100));
 
@@ -1066,7 +1081,7 @@ function TunerView({
         <section className={`tuner-card ${inTune ? "is-centered" : ""} ${reading ? "has-reading" : "is-waiting"}`} aria-live="polite">
           <div className="tuner-card-top">
             <span className="status-label"><CircleDot size={15} /> {trackerReading.state === "locked" ? direction : trackerLabel}</span>
-            <button className="small-action" onClick={onReference}><Volume2 size={16} /> Hear reference A</button>
+            <div className="tuner-top-actions"><label className="precision-picker"><span>Precision</span><select value={precision} onChange={(event) => setPrecision(event.target.value as "standard" | "fine" | "ultra")} aria-label="Tuner precision"><option value="standard">Standard ±10¢</option><option value="fine">Fine ±5¢</option><option value="ultra">Ultra ±2¢</option></select></label><button className="small-action" onClick={onReference}><Volume2 size={16} /> Hear reference A</button></div>
           </div>
 
           <div className="note-readout">
@@ -1147,17 +1162,35 @@ function TunerView({
             <p className="lock-policy"><LockKeyhole size={13} /> Noise gate · 3-frame lock · 550 ms dropout hold</p>
           </article>
 
-          <article className="sax-card" onClick={onOpenSax} role="button" tabIndex={0} onKeyDown={(event) => event.key === "Enter" && onOpenSax()}>
-            <div>
-              <span className="card-kicker"><Rotate3D size={15} /> {instrument.id === "alto-sax" ? "Fingering lab" : "Anatomy preview"}</span>
-              <h3>{instrument.id === "alto-sax" ? (reading ? `See ${writtenLabel} on the sax.` : "Open the interactive alto sax.") : "Explore the oboe up close."}</h3>
-              <p>{instrument.id === "alto-sax" ? "Open the sax and the keys for this note will light up." : "Turn the model and tap its rods, springs and keywork."}</p>
-            </div>
-            <div className={`sax-card-photo ${instrument.id === "oboe" ? "is-oboe" : ""}`} aria-hidden="true" />
-            <span className="round-arrow"><ArrowRight size={17} /></span>
-          </article>
+          {instrument.id === "guitar" ? (
+            <article className="guitar-launch-card" onClick={onOpenSax} role="button" tabIndex={0} onKeyDown={(event) => event.key === "Enter" && onOpenSax()}>
+              <span className="card-kicker"><Guitar size={15} /> String studio</span>
+              <h3>{reading ? `Put ${writtenLabel} in context.` : "Tune, then follow the chord shapes."}</h3>
+              <p>Six-string tuning, colour-coded finger placement and a patient chord player.</p>
+              <div className="guitar-launch-strings" aria-hidden="true"><i /><i /><i /><i /><i /><i /></div>
+              <span className="round-arrow"><ArrowRight size={17} /></span>
+            </article>
+          ) : (
+            <article className="sax-card" onClick={onOpenSax} role="button" tabIndex={0} onKeyDown={(event) => event.key === "Enter" && onOpenSax()}>
+              <div>
+                <span className="card-kicker"><Rotate3D size={15} /> {instrument.id === "alto-sax" ? "Fingering lab" : "Anatomy preview"}</span>
+                <h3>{instrument.id === "alto-sax" ? (reading ? `See ${writtenLabel} on the sax.` : "Open the interactive alto sax.") : "Explore the oboe up close."}</h3>
+                <p>{instrument.id === "alto-sax" ? "Open the sax and the keys for this note will light up." : "Turn the model and tap its rods, springs and keywork."}</p>
+              </div>
+              <div className={`sax-card-photo ${instrument.id === "oboe" ? "is-oboe" : ""}`} aria-hidden="true" />
+              <span className="round-arrow"><ArrowRight size={17} /></span>
+            </article>
+          )}
         </aside>
       </div>
+
+      <ToneGenerator
+        referenceHz={referenceHz}
+        temperament={temperament}
+        temperamentKeyPc={temperamentKeyPc}
+        notation={notation}
+        saTonic={saTonic}
+      />
 
       <section className="today-strip">
         <div className="today-title"><span>This session</span><strong>Your practice, as it happens.</strong></div>

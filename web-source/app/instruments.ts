@@ -7,7 +7,8 @@ export type InstrumentId =
   | "bari-sax"
   | "flute"
   | "oboe"
-  | "bassoon";
+  | "bassoon"
+  | "guitar";
 
 /**
  * What Bocal can show for an instrument inside the 3D lab.
@@ -127,6 +128,18 @@ export const INSTRUMENTS: Record<InstrumentId, InstrumentProfile> = {
     labTier: "none",
     labStatus: "Tuner and practice tools ready · 3D model not yet licensed",
   },
+  guitar: {
+    id: "guitar",
+    name: "Guitar",
+    shortName: "Guitar",
+    family: "Strings",
+    pitchLabel: "C",
+    writtenOffset: 0,
+    clef: "treble",
+    tunerDescription: "Tune each open string, then move straight into a colour-coded chord and listening drill.",
+    labTier: "none",
+    labStatus: "String tuner + chord player",
+  },
 };
 
 export const INSTRUMENT_ORDER: InstrumentId[] = [
@@ -137,6 +150,7 @@ export const INSTRUMENT_ORDER: InstrumentId[] = [
   "oboe",
   "flute",
   "bassoon",
+  "guitar",
 ];
 
 export function isInstrumentId(value: unknown): value is InstrumentId {
