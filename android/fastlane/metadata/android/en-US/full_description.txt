@@ -1,0 +1,25 @@
+A practice companion for saxophone and other woodwinds. Tuning, tone and daily
+practice, built around an interactive 3D instrument you can turn and inspect.
+
+WHAT IT COVERS
+• Tuning, with the pitch read from your own playing through the microphone.
+• Tone work, so you can hear and see what your sound is actually doing.
+• Practice workflows organised as sessions rather than a pile of exercises.
+• A 3D instrument lab: rotate the horn, look at the mechanism, and see which keys
+  a fingering actually closes.
+
+WHY WOODWINDS SPECIFICALLY
+Intonation on a saxophone is a conversation between embouchure, air and the
+instrument, and a generic chromatic tuner tells you almost nothing about it. Bocal
+is built for the family rather than adapted to it.
+
+ON YOUR DEVICE
+• Pitch detection runs locally. Your audio is analysed in real time and is not
+  recorded or uploaded.
+• No account, no ads, no analytics, no tracking.
+• Your practice history stays on your device.
+
+A microphone is required, because listening to you play is how the app works.
+
+This is an early release built from a prototype. Expect rough edges, and expect the
+practice content to grow.

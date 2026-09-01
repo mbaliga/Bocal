@@ -1,0 +1,2 @@
+Early release. Six practice workspaces over three detailed 3D instruments,
+microphone-based tuning and tone analysis, all running on device.
