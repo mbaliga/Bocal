@@ -648,6 +648,78 @@ button:focus-visible, [role="button"]:focus-visible, a:focus-visible, input:focu
 .equipment-note { display: flex; align-items: center; gap: 6px; color: #77777b; font-size: 8px; line-height: 1.4; margin: 13px 0 0; }
 .equipment-note svg { color: var(--violet); flex: 0 0 auto; }
 
+/* Local practice room — the first shared-coaching surface. It is deliberately
+   a stage rather than another generic settings rectangle: roster, cue and
+   room state remain readable from across a music stand. */
+.coach-room-launch { align-self: flex-start; }
+.coach-room-overlay { position: fixed; z-index: 130; inset: 0; padding: 18px; background: rgba(3,3,5,.86); backdrop-filter: blur(22px); display: grid; place-items: center; }
+.coach-room { width: min(1040px, 100%); max-height: calc(100dvh - 36px); overflow: auto; overscroll-behavior: contain; padding: clamp(22px, 3.8vw, 42px); border: 1px solid #3a3941; border-radius: 28px; background: radial-gradient(circle at 85% 6%, rgba(8,254,213,.12), transparent 25%), radial-gradient(circle at 8% 93%, rgba(142,123,255,.14), transparent 31%), #090a0c; box-shadow: 0 44px 150px rgba(0,0,0,.84); scrollbar-color: #3b3b40 transparent; }
+.coach-room-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
+.coach-room-header > div { max-width: 720px; }
+.coach-room-header h2 { margin: 6px 0 11px; font-size: clamp(30px, 4.6vw, 54px); line-height: .98; letter-spacing: -.06em; }
+.coach-room-header p:last-child { margin: 0; color: #89898d; font-size: 12px; line-height: 1.55; }
+.coach-room-header > button { width: 40px; height: 40px; flex: 0 0 auto; border: 1px solid #39393e; border-radius: 50%; color: #aaa; background: #17171a; display: grid; place-items: center; cursor: pointer; }
+.coach-room-entry { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 29px; }
+.coach-room-entry > section { min-height: 350px; padding: 25px; border: 1px solid #33333a; border-radius: 20px; background: linear-gradient(145deg, rgba(28,27,37,.97), rgba(11,12,15,.98)); display: flex; flex-direction: column; align-items: flex-start; }
+.coach-room-entry > section:last-child { background: linear-gradient(145deg, rgba(12,29,27,.94), rgba(9,11,13,.98)); }
+.coach-room-mark { width: 47px; height: 47px; display: grid; place-items: center; border: 1px solid #5d4f91; border-radius: 15px; color: #b6aaf4; background: #231f37; box-shadow: 0 10px 30px rgba(142,123,255,.13); }
+.coach-room-mark.is-join { border-color: #2b7468; color: var(--cyan); background: #10312c; box-shadow: 0 10px 30px rgba(8,254,213,.1); }
+.coach-room-entry h3 { margin: 20px 0 8px; font-size: 25px; letter-spacing: -.04em; }
+.coach-room-entry p { min-height: 58px; margin: 0 0 19px; color: #85858a; font-size: 10px; line-height: 1.55; }
+.coach-room-entry label, .coach-cue-input { width: 100%; display: grid; gap: 6px; color: #89898e; font-size: 9px; }
+.coach-room-entry input { height: 43px; width: 100%; border: 1px solid #36363b; border-radius: 11px; outline: 0; color: var(--ink); background: rgba(8,8,10,.66); padding: 0 12px; font: 12px var(--font-geist-sans); }
+.coach-room-entry input:focus, .coach-cue-input textarea:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(8,254,213,.08); }
+.coach-room-entry label + label { margin-top: 10px; }
+.coach-primary, .coach-secondary, .ready-button { min-height: 43px; padding: 0 15px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-weight: 740; cursor: pointer; }
+.coach-primary { width: 100%; margin-top: auto; border: 0; color: #160f27; background: linear-gradient(180deg, #c1b2ff, #8774d9); box-shadow: inset 0 1px 1px rgba(255,255,255,.55), 0 9px 25px rgba(142,123,255,.18); }
+.coach-secondary { width: 100%; margin-top: 12px; border: 1px solid #2e7167; color: #061f1a; background: var(--cyan); box-shadow: inset 0 1px 1px rgba(255,255,255,.56), 0 9px 25px rgba(8,254,213,.12); }
+.coach-role-choice { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; width: 100%; margin-top: 11px; padding: 4px; border: 1px solid #2e3938; border-radius: 11px; background: #0b0d0e; }
+.coach-role-choice button { height: 28px; border: 0; border-radius: 7px; color: #747479; background: transparent; font-size: 8px; cursor: pointer; }
+.coach-role-choice button.is-active { color: #071d18; background: var(--cyan); font-weight: 750; }
+.coach-room-live { margin-top: 27px; }
+.room-status-card { min-height: 98px; padding: 18px 21px; border: 1px solid #2f3e3d; border-radius: 18px; background: linear-gradient(105deg, #102825, #0e1113 58%, #151127); display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.room-status-card > div { display: grid; grid-template-columns: auto 1fr; column-gap: 13px; align-items: center; }
+.room-phase { grid-row: span 2; min-width: 54px; padding: 6px 7px; border: 1px solid #3a3a40; border-radius: 100px; color: #89898e; background: #18181c; font: 7px var(--font-geist-mono); letter-spacing: .08em; text-align: center; text-transform: uppercase; }
+.room-phase.is-active { border-color: #2a796c; color: var(--cyan); background: #10332d; }
+.room-phase.is-paused { border-color: #65568c; color: #c2b6fa; background: #241f36; }
+.room-status-card strong { color: #edece7; font: 600 clamp(26px, 4vw, 38px)/.9 var(--font-geist-mono); letter-spacing: .08em; }
+.room-status-card small { color: #76767b; margin-top: 5px; font-size: 8px; }
+.room-status-card > button { min-height: 38px; padding: 0 12px; border: 1px solid #394443; border-radius: 999px; color: #b1b2ac; background: #15191a; display: inline-flex; align-items: center; gap: 7px; font-size: 9px; cursor: pointer; }
+.coach-room-grid { display: grid; grid-template-columns: minmax(270px, .75fr) minmax(360px, 1.25fr); gap: 14px; margin-top: 14px; }
+.room-roster, .room-coach-panel, .room-timeline { padding: 22px; border: 1px solid #303136; border-radius: 19px; background: rgba(17,17,20,.91); }
+.room-roster > header, .room-coach-panel > header, .room-timeline > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+.room-roster h3, .room-coach-panel h3 { margin: 9px 0 0; font-size: 20px; letter-spacing: -.035em; }
+.member-list { margin-top: 17px; border-top: 1px solid #28292d; }
+.member-list article { min-height: 58px; display: grid; grid-template-columns: 31px 1fr 23px; gap: 10px; align-items: center; border-bottom: 1px solid #28292d; }
+.member-list article > span { width: 28px; height: 28px; border-radius: 50%; color: #b7b1d3; background: #28243a; display: grid; place-items: center; font: 10px var(--font-geist-mono); }
+.member-list article.is-ready > span { color: #06231d; background: var(--cyan); }
+.member-list article div { min-width: 0; display: grid; gap: 3px; }
+.member-list article strong { overflow: hidden; color: #c8c7c2; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.member-list article small { overflow: hidden; color: #707075; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
+.member-list article i { width: 20px; height: 20px; border: 1px solid #3c3d42; border-radius: 50%; color: #06231d; background: transparent; display: grid; place-items: center; }
+.member-list article.is-ready i { border-color: var(--cyan); background: var(--cyan); }
+.ready-button { width: 100%; margin-top: 17px; border: 1px solid #424249; color: #a5a5a7; background: #18181b; }
+.ready-button.is-ready { border-color: #2d786b; color: #06221c; background: var(--cyan); }
+.room-phase-actions { display: grid; grid-template-columns: 1.2fr .8fr; gap: 8px; margin: 19px 0 10px; }
+.room-phase-actions button, .cue-presets button, .coach-cue-input button { min-height: 39px; border: 1px solid #3b3b41; border-radius: 11px; color: #a7a7aa; background: #17171a; display: inline-flex; align-items: center; justify-content: center; gap: 7px; cursor: pointer; font-size: 9px; }
+.room-phase-actions button:first-child { border: 0; color: #061e19; background: var(--cyan); font-weight: 760; }
+.room-phase-actions button:disabled, .cue-presets button:disabled, .coach-cue-input button:disabled { opacity: .4; cursor: not-allowed; }
+.cue-presets { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.cue-presets button { min-height: 55px; padding: 8px; color: #8e88ae; background: #1b1826; border-color: #383347; font-size: 8px; line-height: 1.35; text-align: left; justify-content: flex-start; }
+.coach-cue-input { margin-top: 13px; }
+.coach-cue-input textarea { min-height: 78px; resize: vertical; border: 1px solid #36363b; border-radius: 11px; outline: 0; color: var(--ink); background: #101114; padding: 11px; font: 12px/1.45 var(--font-geist-sans); }
+.coach-cue-input button { justify-self: end; min-height: 34px; padding: 0 12px; border-color: #296b60; color: #07221c; background: #a0f5e4; }
+.room-timeline { margin-top: 14px; }
+.room-timeline > header small { color: #6e6e73; font-size: 8px; }
+.room-timeline > div { display: grid; gap: 0; margin-top: 12px; border-top: 1px solid #29292e; }
+.room-timeline article { display: grid; grid-template-columns: 9px 1fr auto; gap: 10px; align-items: center; min-height: 40px; border-bottom: 1px solid #29292e; }
+.room-timeline article > i { width: 6px; height: 6px; border-radius: 50%; background: #6c6494; }
+.room-timeline article.is-cue > i { background: var(--cyan); box-shadow: 0 0 12px rgba(8,254,213,.45); }
+.room-timeline article.is-ready > i { background: #b8abf2; }
+.room-timeline article p { margin: 0; color: #a8a8a5; font-size: 9px; }
+.room-timeline article time { color: #66666b; font: 8px var(--font-geist-mono); }
+.coach-room-status { min-height: 18px; margin: 14px 0 0; color: #86868b; font-size: 9px; text-align: center; }
+
 /* Immersive instrument experiences */
 .model-experience-column { min-width: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 10px; }
 .model-experience-dock { min-height: 88px; padding: 10px; border: 1px solid #2c2c31; border-radius: 16px; background: linear-gradient(135deg, #111114, #0c0c0e); display: grid; grid-template-columns: minmax(190px, 1fr) auto auto; align-items: center; gap: 10px; }
@@ -961,6 +1033,17 @@ button:focus-visible, [role="button"]:focus-visible, a:focus-visible, input:focu
   .download-grid { grid-template-columns: 1fr; }
   .download-grid > a { min-height: 125px; }
   .settings-panel { align-items: stretch; flex-direction: column; }
+  .coach-room-overlay { padding: 9px; align-items: end; }
+  .coach-room { max-height: calc(100dvh - 18px); padding: 22px 15px; border-radius: 23px; }
+  .coach-room-header h2 { font-size: 33px; }
+  .coach-room-entry, .coach-room-grid { grid-template-columns: 1fr; }
+  .coach-room-entry > section { min-height: 0; padding: 20px; }
+  .coach-room-entry p { min-height: 0; }
+  .room-status-card { align-items: flex-start; flex-direction: column; }
+  .room-status-card > button { width: 100%; justify-content: center; }
+  .cue-presets { grid-template-columns: 1fr; }
+  .cue-presets button { min-height: 39px; }
+  .room-timeline article time { font-size: 7px; }
   .side-choice { width: 100%; }
   .model-source-panel > header { display: grid; }
   .model-source-panel > header > span { width: fit-content; }
@@ -1630,6 +1713,16 @@ html[data-theme="light"] .other-instruments::before { mix-blend-mode: multiply; 
 html[data-theme="light"] .other-instruments-heading > p { color: #645e59; }
 html[data-theme="light"] .other-instrument-card { box-shadow: inset 0 1px 0 rgba(255,255,255,.18), inset 0 -24px 38px rgba(0,0,0,.25), 0 10px 26px rgba(69,54,39,.18); }
 html[data-theme="light"] .button.secondary, html[data-theme="light"] .icon-button, html[data-theme="light"] .reveal-button { color: #3d3938; background: radial-gradient(circle at 40% 30%, #fffefa, #eee8df 58%, #d7cec3); box-shadow: inset 0 1px 1px rgba(255,255,255,.96), inset 0 -3px 6px rgba(92,72,52,.15), 0 2px 5px rgba(92,72,52,.18), 0 0 0 1px rgba(92,72,52,.12); }
+html[data-theme="light"] .coach-room { border-color: #d8cfc2; background: radial-gradient(circle at 85% 6%, rgba(0,137,119,.16), transparent 25%), radial-gradient(circle at 8% 93%, rgba(100,77,197,.14), transparent 31%), #f6f0e7; }
+html[data-theme="light"] .coach-room-header p:last-child, html[data-theme="light"] .coach-room-entry p, html[data-theme="light"] .coach-room-status { color: #716a63; }
+html[data-theme="light"] .coach-room-header > button, html[data-theme="light"] .coach-room-entry > section, html[data-theme="light"] .room-roster, html[data-theme="light"] .room-coach-panel, html[data-theme="light"] .room-timeline { border-color: #d7cec2; color: #3c3834; background: linear-gradient(145deg, #fffaf3, #eee6dc); }
+html[data-theme="light"] .coach-room-entry > section:last-child { background: linear-gradient(145deg, #edf5ef, #e7ddd2); }
+html[data-theme="light"] .coach-room-entry input, html[data-theme="light"] .coach-cue-input textarea, html[data-theme="light"] .coach-role-choice, html[data-theme="light"] .room-phase-actions button, html[data-theme="light"] .member-list article i, html[data-theme="light"] .ready-button { border-color: #d5ccc1; color: #4a443e; background: #fffaf3; }
+html[data-theme="light"] .room-status-card { border-color: #cad8d0; background: linear-gradient(105deg, #e5f3eb, #f7f1e8 58%, #ece5f4); }
+html[data-theme="light"] .room-status-card strong, html[data-theme="light"] .member-list article strong, html[data-theme="light"] .room-timeline article p { color: #38342f; }
+html[data-theme="light"] .member-list, html[data-theme="light"] .member-list article, html[data-theme="light"] .room-timeline > div, html[data-theme="light"] .room-timeline article { border-color: #ddd4c9; }
+html[data-theme="light"] .member-list article > span { color: #4c427d; background: #e6dcfa; }
+html[data-theme="light"] .cue-presets button { border-color: #d6cde6; color: #564e77; background: #f1ecfa; }
 html[data-theme="light"] .listen-button, html[data-theme="light"] .tone-button, html[data-theme="light"] .challenge-button, html[data-theme="light"] .play-pulse { color: #043c35; background: radial-gradient(circle at 40% 32%, #e3fff8 0%, #4fd9c1 55%, #008f7b 100%); box-shadow: inset 0 2px 2px rgba(255,255,255,.75), inset 0 -4px 8px rgba(0,58,47,.24), 0 3px 7px rgba(0,82,69,.2), 0 0 18px rgba(0,127,110,.16); }
 html[data-theme="light"] .lab-mode-switch, html[data-theme="light"] .notation-switch { background: linear-gradient(180deg, #d8d0c5, #e8e1d7 52%, #f8f4ed); box-shadow: inset 0 4px 8px rgba(89,69,49,.18), inset 0 -2px 2px rgba(255,255,255,.9); }
 html[data-theme="light"] .lab-mode-switch button.is-active, html[data-theme="light"] .notation-switch button.is-active { color: #282320; background: radial-gradient(circle at 40% 32%, #fffefa 0%, #f0eadf 60%, #d0c4b2 100%); box-shadow: inset 0 1px 1px rgba(255,255,255,.95), inset 0 -2px 4px rgba(87,67,50,.18), 0 2px 5px rgba(87,67,50,.2); }

@@ -20,6 +20,7 @@ import {
   Save,
   Share2,
   Sparkles,
+  UsersRound,
   Volume2,
   Waves,
   Zap,
@@ -33,6 +34,7 @@ import {
   type SkillEvidenceBundle,
   withRhythmAttempt,
 } from "./skill-rating";
+import { CoachRoom } from "./CoachRoom";
 
 const DRONES = [
   { label: "Concert B♭", hz: 233.08 },
@@ -288,6 +290,7 @@ export function PracticeView({
   const [note, setNote] = useState("");
   const [savedNote, setSavedNote] = useState("");
   const [shareMessage, setShareMessage] = useState("");
+  const [coachRoomOpen, setCoachRoomOpen] = useState(false);
   const [sessions, setSessions] = useState<SessionRecord[]>([]);
   const [skillEvidence, setSkillEvidence] = useState<SkillEvidenceBundle>(() => emptySkillEvidence());
 
@@ -367,6 +370,9 @@ export function PracticeView({
       <section className="section-heading practice-heading">
         <div><p className="eyebrow">Practice · Your studio</p><h1>Plan your next session.</h1><p>Pick a short set, keep the notes that matter, and see what you actually practised.</p></div>
         <div className="export-stack">
+          <button className="button secondary coach-room-launch" onClick={() => setCoachRoomOpen(true)}>
+            <UsersRound size={15} /> Practice together
+          </button>
           <button className="button secondary export-button" onClick={exportData}>
             <Share2 size={15} /> Share my progress
           </button>
@@ -418,6 +424,7 @@ export function PracticeView({
           <p className="equipment-note"><CircleDot size={12} /> Rotate Reed 3 out after two more sessions.</p>
         </section>
       </div>
+      {coachRoomOpen && <CoachRoom onClose={() => setCoachRoomOpen(false)} />}
     </div>
   );
 }
