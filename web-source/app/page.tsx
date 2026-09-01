@@ -23,11 +23,13 @@ import {
   Settings2,
   Smartphone,
   Sparkles,
+  Sun,
   TimerReset,
   Volume2,
   Waves,
   Wind,
   X,
+  Moon,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -79,6 +81,7 @@ const SaxophoneLab = dynamic(
 
 type Mode = "tune" | "sax" | "pulse" | "analyze" | "practice";
 type RailSide = "left" | "right";
+type Theme = "dark" | "light";
 
 type PitchReading = {
   hz: number;
@@ -97,6 +100,7 @@ const TONIC_STORAGE_KEY = "bocal-sa-tonic";
 const REFERENCE_HZ_STORAGE_KEY = "bocal-reference-hz";
 const TEMPERAMENT_STORAGE_KEY = "bocal-temperament";
 const TEMPERAMENT_KEY_STORAGE_KEY = "bocal-temperament-key";
+const THEME_STORAGE_KEY = "bocal-theme";
 
 const REFERENCE_PRESETS: { hz: number; label: string }[] = [
   { hz: 415, label: "Baroque" },
@@ -174,6 +178,7 @@ export default function Home() {
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [downloadCenterOpen, setDownloadCenterOpen] = useState(false);
   const [railSide, setRailSide] = useState<RailSide>("left");
+  const [theme, setTheme] = useState<Theme>("dark");
   const [notation, setNotation] = useState<NotationSystem>("western");
   const [saTonic, setSaTonic] = useState(0);
   const [referenceHz, setReferenceHz] = useState(REFERENCE_HZ_DEFAULT);
@@ -227,6 +232,25 @@ export default function Home() {
       shouldOpen = true;
     }
     const timer = window.setTimeout(() => setOnboardingOpen(shouldOpen), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      try {
+        const saved = localStorage.getItem(THEME_STORAGE_KEY);
+        const next: Theme = saved === "light" || saved === "dark"
+          ? saved
+          : document.documentElement.dataset.theme === "light"
+            ? "light"
+            : "dark";
+        setTheme(next);
+        document.documentElement.dataset.theme = next;
+        document.documentElement.style.colorScheme = next;
+      } catch {
+        // Dark remains the dependable default if browser storage is unavailable.
+      }
+    }, 0);
     return () => window.clearTimeout(timer);
   }, []);
 
@@ -554,6 +578,13 @@ export default function Home() {
     try { localStorage.setItem(NAVIGATION_SIDE_STORAGE_KEY, side); } catch { /* The preference still applies for this visit. */ }
   };
 
+  const chooseTheme = (next: Theme) => {
+    setTheme(next);
+    document.documentElement.dataset.theme = next;
+    document.documentElement.style.colorScheme = next;
+    try { localStorage.setItem(THEME_STORAGE_KEY, next); } catch { /* The preference still applies for this visit. */ }
+  };
+
   return (
     <div className={`app-shell nav-${railSide}`}>
       <a className="skip-to-content" href="#bocal-main">Skip to content</a>
@@ -603,13 +634,16 @@ export default function Home() {
               {sessionActive ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" />}
               {sessionActive ? "End session" : "Start practice"}
             </button>
+            <button className="icon-button theme-toggle" aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} appearance`} aria-pressed={theme === "light"} onClick={() => chooseTheme(theme === "dark" ? "light" : "dark")}>
+              {theme === "dark" ? <Sun size={19} /> : <Moon size={19} />}
+            </button>
             <button className="icon-button" aria-label="Open settings and handoff" aria-expanded={downloadCenterOpen} onClick={() => setDownloadCenterOpen(true)}><MoreHorizontal size={20} /></button>
           </div>
         </header>
 
         {instrumentPickerOpen && <InstrumentPickerExperience open selectedId={instrumentId} onSelect={chooseInstrument} onClose={() => setInstrumentPickerOpen(false)} />}
         {onboardingOpen && <OnboardingGuide open selectedId={instrumentId} onSelect={chooseInstrument} onComplete={completeOnboarding} />}
-        {downloadCenterOpen && <DownloadCenter railSide={railSide} onRailSideChange={chooseRailSide} onClose={() => setDownloadCenterOpen(false)} onOpenOnboarding={() => { setDownloadCenterOpen(false); setOnboardingOpen(true); }} />}
+        {downloadCenterOpen && <DownloadCenter railSide={railSide} onRailSideChange={chooseRailSide} theme={theme} onThemeChange={chooseTheme} onClose={() => setDownloadCenterOpen(false)} onOpenOnboarding={() => { setDownloadCenterOpen(false); setOnboardingOpen(true); }} />}
 
         {mode === "tune" && (
           <TunerView
@@ -751,11 +785,15 @@ export default function Home() {
 function DownloadCenter({
   railSide,
   onRailSideChange,
+  theme,
+  onThemeChange,
   onClose,
   onOpenOnboarding,
 }: {
   railSide: RailSide;
   onRailSideChange: (side: RailSide) => void;
+  theme: Theme;
+  onThemeChange: (theme: Theme) => void;
   onClose: () => void;
   onOpenOnboarding: () => void;
 }) {
@@ -765,12 +803,6 @@ function DownloadCenter({
       title: "Bocal handoff",
       copy: "Research, user journeys, feature scope, saxophone notes, architecture, Android status and release checks in one file.",
       icon: FileText,
-    },
-    {
-      href: "/downloads/Bocal-native-debug.apk",
-      title: "Android debug APK",
-      copy: "Bocal 0.2.0 for Android 8+: tuner, bronze sax lab, key glows, onboarding, curved navigation and local practice history. Debug-signed for direct testing.",
-      icon: Smartphone,
     },
   ];
   const modelSources: Array<{ instrument: string; status: string; tone: "ready" | "review" | "blocked"; href?: string }> = [
@@ -796,6 +828,13 @@ function DownloadCenter({
             <button role="radio" aria-checked={railSide === "right"} className={railSide === "right" ? "is-active" : ""} onClick={() => onRailSideChange("right")}>Right</button>
           </div>
         </section>
+        <section className="settings-panel" aria-labelledby="appearance-title">
+          <div><Sun size={18} /><span><strong id="appearance-title">Appearance</strong><p>Choose an illuminated light surface or Bocal’s deep studio finish.</p></span></div>
+          <div className="side-choice theme-choice" role="radiogroup" aria-label="Appearance">
+            <button role="radio" aria-checked={theme === "light"} className={theme === "light" ? "is-active" : ""} onClick={() => onThemeChange("light")}>Light</button>
+            <button role="radio" aria-checked={theme === "dark"} className={theme === "dark" ? "is-active" : ""} onClick={() => onThemeChange("dark")}>Dark</button>
+          </div>
+        </section>
         <section className="model-source-panel" aria-labelledby="model-source-title">
           <header><div><strong id="model-source-title">Educational model sourcing</strong><p>Only models with usable rights and player-checked keywork will enter the learning lab.</p></div><span>{modelSources.filter((item) => item.tone === "ready").length} integrated</span></header>
           <div className="model-source-list">
@@ -818,7 +857,7 @@ function DownloadCenter({
         </div>
         <div className="apk-blocker">
           <Smartphone size={18} />
-          <div><strong>Verified debug build.</strong><p>Built and signature-checked. Physical-phone checks for microphone accuracy, latency, interruptions and rotation are still open.</p></div>
+          <div><strong>Android release promotion is pending.</strong><p>A current artifact will appear here only after release signing, installation, cold launch, and physical-device audio checks pass.</p></div>
         </div>
         <button className="replay-onboarding" onClick={onOpenOnboarding}><Sparkles size={15} /> Replay the onboarding guide</button>
       </section>
