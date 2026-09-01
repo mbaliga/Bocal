@@ -42,7 +42,11 @@ export function frameRms(buffer: Float32Array) {
 export function detectPitchYin(
   buffer: Float32Array,
   sampleRate: number,
-  minHz = 120,
+  // B♭0 is about 29 Hz. Keeping the default just below that lets Bocal hear
+  // the ordinary low register of tuba, bassoon, baritone sax, bass guitar and
+  // double bass without pretending that this compact real-time detector covers
+  // a full C0–C8 laboratory range.
+  minHz = 28,
   maxHz = 1600,
   threshold = 0.13,
 ): PitchCandidate | null {
@@ -138,7 +142,7 @@ export class StablePitchTracker {
   private lastConfidence = 0;
 
   constructor(options: StablePitchTrackerOptions = {}) {
-    this.minHz = options.minHz ?? 120;
+    this.minHz = options.minHz ?? 28;
     this.maxHz = options.maxHz ?? 1600;
     this.yinThreshold = options.yinThreshold ?? 0.13;
     this.minimumConfidence = options.minimumConfidence ?? 0.88;

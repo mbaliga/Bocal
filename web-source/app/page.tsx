@@ -90,7 +90,6 @@ type PitchReading = {
 
 const NAVIGATION_SIDE_STORAGE_KEY = "bocal-navigation-side";
 const INSTRUMENT_STORAGE_KEY = "bocal-instrument";
-const PARTNER_INSTRUMENT_STORAGE_KEY = "bocal-instrument-partner";
 const NOTATION_STORAGE_KEY = "bocal-notation";
 const TONIC_STORAGE_KEY = "bocal-sa-tonic";
 const REFERENCE_HZ_STORAGE_KEY = "bocal-reference-hz";
@@ -130,46 +129,25 @@ const navItems: { id: Mode; label: string; icon: typeof Crosshair }[] = [
   { id: "practice", label: "Practice", icon: Music2 },
 ];
 
-// Everything below derives from the one bar curve "M22 62 Q200 27 378 62"
-// (viewBox 400×100; x linear in t, evenly spaced control x's). Seats at
-// t = .07/.285/.5/.715/.93 — spread to fill the bar like the reference.
+// Everything below derives from the one bar curve "M40 62 Q200 27 360 62"
+// (viewBox 400×100). The endpoint inset deliberately keeps the thick SVG
+// stroke and the outer two touch targets inside the safe visual frame.
 //
 // ARC_SEATS: button centers, taken from the Bézier at each t — the row rides the curve.
 // ARC_TILTS: the curve's tangent angle at each seat, so icons/labels lie along the arc.
 const ARC_SEATS = [
-  { left: "11.7%", top: "57.4%" },
-  { left: "30.9%", top: "47.7%" },
+  { left: "17.5%", top: "56.5%" },
+  { left: "33.8%", top: "47.2%" },
   { left: "50.0%", top: "44.5%" },
-  { left: "69.1%", top: "47.7%" },
-  { left: "88.3%", top: "57.4%" },
+  { left: "66.2%", top: "47.2%" },
+  { left: "82.5%", top: "56.5%" },
 ];
 const ARC_TILTS = ["-9.6deg", "-4.83deg", "0deg", "4.83deg", "9.6deg"];
-
-// The instrument switch rides its own shallower arc so the dock reads as two
-// stacked curves, as in the reference. Seats are computed at runtime rather
-// than baked in like ARC_SEATS, because the instrument list grows as models
-// clear licensing and expert review.
-const PILL_VIEWBOX = { w: 200, h: 48 };
-const PILL_PATH = "M16 32 Q100 16 184 32";
-const PILL_POINTS: [number, number][] = [[16, 32], [100, 16], [184, 32]];
-
-function pillSeat(index: number, count: number) {
-  const t = (index + 0.5) / count;
-  const [p0, p1, p2] = PILL_POINTS;
-  const at = (a: number, b: number, c: number) => (1 - t) ** 2 * a + 2 * (1 - t) * t * b + t ** 2 * c;
-  const slope = (a: number, b: number, c: number) => 2 * (1 - t) * (b - a) + 2 * t * (c - b);
-  return {
-    left: `${(at(p0[0], p1[0], p2[0]) / PILL_VIEWBOX.w) * 100}%`,
-    top: `${(at(p0[1], p1[1], p2[1]) / PILL_VIEWBOX.h) * 100}%`,
-    tilt: `${(Math.atan2(slope(p0[1], p1[1], p2[1]), slope(p0[0], p1[0], p2[0])) * 180) / Math.PI}deg`,
-  };
-}
 
 
 export default function Home() {
   const [mode, setMode] = useState<Mode>("tune");
   const [instrumentId, setInstrumentId] = useState<InstrumentId>("alto-sax");
-  const [partnerInstrumentId, setPartnerInstrumentId] = useState<InstrumentId>("oboe");
   const [instrumentPickerOpen, setInstrumentPickerOpen] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [downloadCenterOpen, setDownloadCenterOpen] = useState(false);
@@ -200,6 +178,10 @@ export default function Home() {
   const streamRef = useRef<MediaStream | null>(null);
   const frameRef = useRef<number | null>(null);
   const trackerRef = useRef(new StablePitchTracker());
+  // The stored instrument is restored just after first paint. A very fast
+  // picker choice must win over that deferred restore instead of being
+  // overwritten by the previous profile a moment later.
+  const instrumentBootstrapHandledRef = useRef(false);
   const tunerEvidenceRef = useRef<{ startedAt: number; cents: number[]; midiNotes: number[] } | null>(null);
   const instrument = INSTRUMENTS[instrumentId];
   const tuningOptions = useMemo<TuningOptions>(
@@ -214,12 +196,6 @@ export default function Home() {
   useEffect(() => {
     tuningOptionsRef.current = tuningOptions;
   }, [tuningOptions]);
-  // Seated left to right along the pill arc, current instrument first.
-  const pillInstruments = useMemo<InstrumentId[]>(
-    () => (partnerInstrumentId === instrumentId ? [instrumentId] : [instrumentId, partnerInstrumentId]),
-    [instrumentId, partnerInstrumentId],
-  );
-
   useEffect(() => {
     let shouldOpen = true;
     try {
@@ -265,13 +241,13 @@ export default function Home() {
   useEffect(() => {
     const timer = window.setTimeout(() => {
       try {
+        if (instrumentBootstrapHandledRef.current) return;
         const saved = localStorage.getItem(INSTRUMENT_STORAGE_KEY);
         if (isInstrumentId(saved)) setInstrumentId(saved);
-        const savedPartner = localStorage.getItem(PARTNER_INSTRUMENT_STORAGE_KEY);
-        if (isInstrumentId(savedPartner) && savedPartner !== saved) setPartnerInstrumentId(savedPartner);
-        else if (saved === "oboe") setPartnerInstrumentId("alto-sax");
       } catch {
         // Bocal opens on the alto when device storage is unavailable.
+      } finally {
+        instrumentBootstrapHandledRef.current = true;
       }
     }, 0);
     return () => window.clearTimeout(timer);
@@ -500,24 +476,20 @@ export default function Home() {
     setMode(nextMode);
   }, [listening, stopListening]);
 
-  // The dock pill is a doubling toggle, not a library. Bocal now carries seven
-  // instruments, and seven seats will not fit on an arc at phone width -- nor
-  // would a player want them there. The pill holds the instrument in your hands
-  // and the one you put down; the header picker reaches the whole library, and
-  // choosing from it demotes the outgoing instrument into the second seat.
+  // One profile owns the tuner at a time. The dock is therefore a clear
+  // instrument context control, not a mysterious two-instrument switch.
   const chooseInstrument = useCallback(
     (nextId: InstrumentId) => {
+      instrumentBootstrapHandledRef.current = true;
       if (nextId === instrumentId) {
         setInstrumentPickerOpen(false);
         return;
       }
       if (listening) stopListening();
-      setPartnerInstrumentId(instrumentId);
       setInstrumentId(nextId);
       setInstrumentPickerOpen(false);
       try {
         localStorage.setItem(INSTRUMENT_STORAGE_KEY, nextId);
-        localStorage.setItem(PARTNER_INSTRUMENT_STORAGE_KEY, instrumentId);
       } catch {
         // The choice still applies for this visit.
       }
@@ -670,46 +642,21 @@ export default function Home() {
           />
         )}
       </main>
-
-<div className="mobile-dock">
-        {/* Composition mirrors the curved-keyboard reference: two circular
-            side buttons flanking a centered segmented pill (here the real
-            instrument switch), floating above an arced bar whose active tab
-            is a compact pill hugging its glyph. Inverted for the dark theme:
-            the reference's dark-pill-on-light-bar becomes ink-on-dark. */}
+      <div className="mobile-dock">
+        {/* The dock has one clear contextual action above its navigation arc:
+            change the active instrument. It no longer presents two unrelated
+            profiles as a second navigation layer. */}
         <div className="dock-top">
-          {/* Left circle is a privacy BADGE (mirrors the rail's "Local only"
-              dot), deliberately styled flat so it doesn't read as a button. */}
           <div className="dock-side-button is-badge" aria-hidden="true"><LockKeyhole size={16} /></div>
-          <div className="dock-pill" role="group" aria-label="Instrument">
-            <svg className="pill-track" viewBox={`0 0 ${PILL_VIEWBOX.w} ${PILL_VIEWBOX.h}`} aria-hidden="true" focusable="false">
-              <defs>
-                <linearGradient id="pillFill" x1="0" y1="6" x2="0" y2="44" gradientUnits="userSpaceOnUse">
-                  <stop offset="0" stopColor="#1a1c23" />
-                  <stop offset="1" stopColor="#23262f" />
-                </linearGradient>
-              </defs>
-              {/* Recessed track: dark seam, then a bottom-lit fill, so the
-                  groove reads as cut into the dock (Hyle crater logic). */}
-              <path d={PILL_PATH} fill="none" stroke="#0a0b0f" strokeWidth="36" strokeLinecap="round" />
-              <path d={PILL_PATH} fill="none" stroke="url(#pillFill)" strokeWidth="32" strokeLinecap="round" />
-            </svg>
-            {pillInstruments.map((id, index) => {
-              const seat = pillSeat(index, pillInstruments.length);
-              return (
-                <button
-                  key={id}
-                  className={instrumentId === id ? "is-active" : ""}
-                  aria-pressed={instrumentId === id}
-                  title={INSTRUMENTS[id].name}
-                  style={{ left: seat.left, top: seat.top, "--tilt": seat.tilt } as React.CSSProperties}
-                  onClick={() => chooseInstrument(id)}
-                >
-                  {INSTRUMENTS[id].shortName}
-                </button>
-              );
-            })}
-          </div>
+          <button
+            className="dock-instrument-context"
+            onClick={() => setInstrumentPickerOpen(true)}
+            aria-label={`Change instrument. Current profile: ${instrument.name}`}
+          >
+            <span className="dock-instrument-icon"><Wind size={16} /></span>
+            <span><small>Instrument</small><strong>{instrument.shortName} · {instrument.pitchLabel}</strong></span>
+            <ChevronDown size={15} />
+          </button>
           <button className="dock-side-button" aria-label="Open Bocal settings" onClick={() => setDownloadCenterOpen(true)}>TU</button>
         </div>
         <nav className="mobile-nav is-arc" aria-label="Primary navigation">
@@ -740,10 +687,10 @@ export default function Home() {
                   <stop offset="1" stopColor="rgba(255,255,255,0.07)" />
                 </linearGradient>
               </defs>
-              <path d="M22 62 Q200 27 378 62" fill="none" stroke="#0c0e13" strokeWidth="61" strokeLinecap="round" />
-              <path d="M22 62 Q200 27 378 62" fill="none" stroke="url(#arcFill)" strokeWidth="58" strokeLinecap="round" />
-              <path d="M22 62 Q200 27 378 62" fill="none" stroke="url(#arcSheen)" strokeWidth="56" strokeLinecap="round" />
-              <path d="M22 62 Q200 27 378 62" fill="none" stroke="url(#arcRim)" strokeWidth="58" strokeLinecap="round" />
+              <path d="M40 62 Q200 27 360 62" fill="none" stroke="#0c0e13" strokeWidth="61" strokeLinecap="round" />
+              <path d="M40 62 Q200 27 360 62" fill="none" stroke="url(#arcFill)" strokeWidth="58" strokeLinecap="round" />
+              <path d="M40 62 Q200 27 360 62" fill="none" stroke="url(#arcSheen)" strokeWidth="56" strokeLinecap="round" />
+              <path d="M40 62 Q200 27 360 62" fill="none" stroke="url(#arcRim)" strokeWidth="58" strokeLinecap="round" />
             </svg>
             {navItems.map((item, index) => {
               const Icon = item.icon;
@@ -1089,6 +1036,30 @@ function TunerView({
               ? { title: "Right in the middle.", copy: "You’re within five cents. Keep the air and embouchure where they are." }
               : { title: `${direction} by ${Math.abs(reading?.cents ?? 0)} cents.`, copy: direction === "Sharp" ? "Ease the jaw pressure without losing the air." : "Support the air and bring the pitch up without biting." };
   const signalPercent = Math.min(100, Math.round((trackerReading.rms / Math.max(trackerReading.gate * 1.6, 0.0001)) * 100));
+  const labCard = instrument.labTier === "fingering"
+    ? {
+        kicker: "Fingering lab",
+        title: instrument.id === "alto-sax"
+          ? (reading ? `See ${writtenLabel} on the sax.` : "Open the interactive alto sax.")
+          : `Use the validated alto-sax reference for ${instrument.shortName}.`,
+        copy: instrument.id === "alto-sax"
+          ? "Open the sax and the keys for this note will light up."
+          : "The sax key map is shown on an alto body; extended or model-specific keywork is not implied.",
+        photoClass: "",
+      }
+    : instrument.labTier === "anatomy"
+      ? {
+          kicker: "Anatomy preview",
+          title: "Explore the oboe up close.",
+          copy: "Turn the model and tap its rods, springs and keywork.",
+          photoClass: "is-oboe",
+        }
+      : {
+          kicker: "3D lab status",
+          title: `${instrument.shortName} 3D guidance is not ready yet.`,
+          copy: "The tuner is live. Bocal will not substitute an unvalidated model or fingering map for this instrument.",
+          photoClass: "is-unavailable",
+        };
 
   return (
     <div className="content-wrap tuner-layout">
@@ -1188,11 +1159,11 @@ function TunerView({
 
           <article className="sax-card" onClick={onOpenSax} role="button" tabIndex={0} onKeyDown={(event) => event.key === "Enter" && onOpenSax()}>
             <div>
-              <span className="card-kicker"><Rotate3D size={15} /> {instrument.id === "alto-sax" ? "Fingering lab" : "Anatomy preview"}</span>
-              <h3>{instrument.id === "alto-sax" ? (reading ? `See ${writtenLabel} on the sax.` : "Open the interactive alto sax.") : "Explore the oboe up close."}</h3>
-              <p>{instrument.id === "alto-sax" ? "Open the sax and the keys for this note will light up." : "Turn the model and tap its rods, springs and keywork."}</p>
+              <span className="card-kicker"><Rotate3D size={15} /> {labCard.kicker}</span>
+              <h3>{labCard.title}</h3>
+              <p>{labCard.copy}</p>
             </div>
-            <div className={`sax-card-photo ${instrument.id === "oboe" ? "is-oboe" : ""}`} aria-hidden="true" />
+            <div className={`sax-card-photo ${labCard.photoClass}`} aria-hidden="true" />
             <span className="round-arrow"><ArrowRight size={17} /></span>
           </article>
         </aside>

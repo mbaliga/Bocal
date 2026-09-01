@@ -19,17 +19,18 @@ import { octaveOf, spellingFor } from "./notation";
  * rest of the app's line work.
  */
 
-export type Clef = "treble" | "bass";
+export type Clef = "treble" | "alto" | "bass";
 
 /** Staff line spacing. Lines sit at y = 0, 10, 20, 30, 40. */
 const S = 10;
 
 /**
- * Diatonic index of each clef's bottom line: E4 for treble, G2 for bass.
+ * Diatonic index of each clef's bottom line: E4 for treble, F3 for alto,
+ * G2 for bass.
  * Diatonic index counts letter-steps, so an octave is 7 and one staff step
  * (half a line spacing) is 1.
  */
-const BOTTOM_LINE: Record<Clef, number> = { treble: 30, bass: 18 };
+const BOTTOM_LINE: Record<Clef, number> = { treble: 30, alto: 24, bass: 18 };
 
 // Drawn from the bottom tail terminal, up the stem, round the top curl, down
 // into the big loop and spiralling in to the terminal on the G line -- the
@@ -43,6 +44,13 @@ const TREBLE_CLEF =
 
 // The F clef: a comma whose head sits on the F line, sweeping down and left.
 const BASS_CLEF = "M 12 17 C 12 9, 3 6, -2 12 M 12 17 C 12 29, 3 37, -9 43";
+
+// A compact C clef with its waist on the middle staff line (y=20). The two
+// vertical strokes deliberately leave that line visible, which makes the
+// alto placement legible at small tuner sizes without relying on a music font.
+const ALTO_CLEF =
+  "M 8 -4 C -5 2, -5 14, 2 20 C -5 26, -5 38, 8 44 M 8 -4 L 8 44 " +
+  "M 19 -4 C 32 2, 32 14, 25 20 C 32 26, 32 38, 19 44 M 19 -4 L 19 44";
 
 function SharpGlyph({ x, y }: { x: number; y: number }) {
   // Two upright strokes and two rising crossbars, the crossbars slanted so the
@@ -116,8 +124,8 @@ export default function StaffNote({
         ))}
       </g>
 
-      <g transform={clef === "treble" ? "translate(24 0)" : "translate(20 0)"}>
-        <path d={clef === "treble" ? TREBLE_CLEF : BASS_CLEF} fill="none" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" />
+      <g transform={clef === "treble" ? "translate(24 0)" : clef === "alto" ? "translate(18 0)" : "translate(20 0)"}>
+        <path d={clef === "treble" ? TREBLE_CLEF : clef === "alto" ? ALTO_CLEF : BASS_CLEF} fill="none" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" />
         {clef === "bass" ? (
           <g fill="currentColor">
             <circle cx={18} cy={5} r={1.9} />

@@ -57,6 +57,19 @@ test("a sustained A4 earns a stable lock instead of updating on every frame", ()
   assert.ok(reading.confidence > 0.9);
 });
 
+test("a sustained low B-flat remains inside the default live detector range", () => {
+  const tracker = new pitch.StablePitchTracker({ calibrationMs: 0 });
+  let reading;
+  // B♭0 is the low-register floor relevant to a concert tuba. The same
+  // detector path serves low bassoon, baritone sax, bass guitar and bass.
+  for (let index = 0; index < 8; index += 1) {
+    reading = tracker.process(sineFrame(29.1352, 0.18, index * 211), sampleRate, index * 52);
+  }
+  assert.equal(reading.state, "locked");
+  assert.equal(reading.accepted, true);
+  assert.ok(Math.abs(centsBetween(reading.hz, 29.1352)) < 4, `${reading.hz} Hz`);
+});
+
 test("a new note must persist before replacing the current lock", () => {
   const tracker = new pitch.StablePitchTracker({ calibrationMs: 0, acquireFrames: 3, switchFrames: 3 });
   for (let index = 0; index < 5; index += 1) {

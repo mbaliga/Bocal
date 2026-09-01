@@ -22,26 +22,28 @@ test("the public handoff and Android release gate point to repository-owned sour
 });
 
 test("native Android foundation stays local-first", async () => {
-  const manifest = await readFile(new URL("../android/app/src/main/AndroidManifest.xml", import.meta.url), "utf8");
-  const engine = await readFile(new URL("../android/app/src/main/java/com/bocal/music/audio/TunerEngine.kt", import.meta.url), "utf8");
-  const detector = await readFile(new URL("../android/app/src/main/java/com/bocal/music/audio/YinPitchDetector.kt", import.meta.url), "utf8");
+  // android/ at repository root is the release app. web-source/android is an
+  // older companion project and must never be used as build evidence.
+  const manifest = await readFile(new URL("../../android/app/src/main/AndroidManifest.xml", import.meta.url), "utf8");
+  const engine = await readFile(new URL("../../android/app/src/main/java/com/bocal/music/audio/TunerEngine.kt", import.meta.url), "utf8");
+  const detector = await readFile(new URL("../../android/app/src/main/java/com/bocal/music/audio/YinPitchDetector.kt", import.meta.url), "utf8");
   assert.match(manifest, /RECORD_AUDIO/);
+  assert.match(manifest, /android:icon="@mipmap\/ic_bocal"/);
   assert.doesNotMatch(manifest, /uses-permission[^>]+INTERNET/);
+  for (const density of ["mdpi", "hdpi", "xhdpi", "xxhdpi", "xxxhdpi"]) {
+    const icon = await stat(new URL(`../../android/app/src/main/res/mipmap-${density}/ic_bocal.png`, import.meta.url));
+    assert.ok(icon.size > 1_000, `${density} Bocal launcher icon is present`);
+  }
   assert.match(engine, /AudioRecord/);
-  assert.match(engine, /AUDIOFOCUS_LOSS/);
+  assert.match(engine, /AudioRecord\.ERROR_DEAD_OBJECT/);
   assert.match(detector, /class YinPitchDetector/);
 });
 
-test("native learning parity slice is implemented rather than described as a placeholder", async () => {
-  const app = await readFile(new URL("../android/app/src/main/java/com/bocal/music/ui/BocalApp.kt", import.meta.url), "utf8");
-  const lab = await readFile(new URL("../android/app/src/main/java/com/bocal/music/ui/SaxophoneLabScreen.kt", import.meta.url), "utf8");
-  const navigation = await readFile(new URL("../android/app/src/main/java/com/bocal/music/ui/BocalNavigation.kt", import.meta.url), "utf8");
-  const practice = await readFile(new URL("../android/app/src/main/java/com/bocal/music/data/PracticeRepository.kt", import.meta.url), "utf8");
-  assert.match(app, /OnboardingGuide/);
-  assert.match(app, /SaxophoneLabScreen/);
-  assert.match(lab, /BronzeSaxModel/);
-  assert.doesNotMatch(lab, /phantom|hand shape|fake hand/i);
-  assert.match(navigation, /NavigationSide\.LEFT/);
-  assert.match(app, /NavigationSide\.RIGHT/);
-  assert.match(practice, /SharedPreferences|getSharedPreferences/);
+test("release Android shell loads the bundled Bocal web application", async () => {
+  const shell = await readFile(new URL("../../android/app/src/main/java/com/bocal/music/ui/WebAppScreen.kt", import.meta.url), "utf8");
+  const bundle = await stat(new URL("../../android/app/src/main/assets/www/app.html", import.meta.url));
+  assert.match(shell, /WebViewAssetLoader/);
+  assert.match(shell, /https:\/\/appassets\.androidplatform\.net\/assets\/www\/app\.html/);
+  assert.match(shell, /RESOURCE_AUDIO_CAPTURE/);
+  assert.ok(bundle.size > 1_000_000, "the self-contained release web bundle is present");
 });

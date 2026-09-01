@@ -78,7 +78,7 @@ button:focus-visible, [role="button"]:focus-visible, a:focus-visible, input:focu
 .download-dialog > header { display: flex; justify-content: space-between; gap: 24px; }
 .download-dialog > header h2 { margin: 8px 0 7px; font-size: 34px; letter-spacing: -.05em; }
 .download-dialog > header p:last-child { margin: 0; color: #8b8b8e; font-size: 11px; }
-.download-dialog > header > button { flex: 0 0 auto; width: 44px; height: 44px; border: 1px solid #37373d; border-radius: 11px; background: #171719; color: #858589; display: grid; place-items: center; cursor: pointer; }
+.download-dialog > header > button { flex: 0 0 auto; width: 44px; height: 44px; border: 1px solid #37373d; border-radius: 50%; background: #171719; color: #858589; display: grid; place-items: center; cursor: pointer; }
 .download-dialog > header > button:hover { color: var(--ink); }
 .download-grid { margin-top: 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .download-grid > a { min-height: 145px; padding: 18px; border: 1px solid #29292e; border-radius: 16px; background: #141416; color: inherit; display: grid; grid-template-columns: 42px 1fr; gap: 13px; text-decoration: none; }
@@ -119,10 +119,10 @@ button:focus-visible, [role="button"]:focus-visible, a:focus-visible, input:focu
 .model-source-list svg { color: #5f5f64; }
 .session-clock { height: 38px; display: flex; gap: 7px; align-items: center; color: #747473; font-family: var(--font-geist-mono); font-size: 12px; padding: 0 5px; }
 .session-clock.is-running { color: var(--cyan); }
-.button { min-height: 44px; padding: 0 16px; border-radius: 11px; border: 1px solid var(--line); display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; transition: 160ms ease; }
+.button { min-height: 44px; padding: 0 18px; border-radius: 999px; border: 1px solid var(--line); display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; transition: 160ms ease; }
 .button.secondary { background: var(--panel-2); color: var(--ink); }
 .button:hover { transform: translateY(-1px); border-color: #45454b; }
-.icon-button { width: 44px; height: 44px; display: grid; place-items: center; color: #888; background: transparent; border: 1px solid var(--line); border-radius: 11px; cursor: pointer; }
+.icon-button { width: 44px; height: 44px; display: grid; place-items: center; color: #888; background: transparent; border: 1px solid var(--line); border-radius: 50%; cursor: pointer; }
 .content-wrap { width: min(1240px, calc(100% - 48px)); margin: 0 auto; padding: 44px 0 52px; }
 .section-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 27px; }
 .eyebrow { color: var(--cyan) !important; text-transform: uppercase; letter-spacing: .16em; font-size: 10px !important; font-weight: 700; margin: 0 0 12px !important; }
@@ -672,6 +672,8 @@ button:focus-visible, [role="button"]:focus-visible, a:focus-visible, input:focu
 .model-experience-column.is-immersive .model-experience-dock { background: rgba(15,15,17,.96); }
 
 .sax-card-photo.is-oboe { background-image: url("/images/bocal-oboe-cinematic.webp"); background-position: 56% center; }
+.sax-card-photo.is-unavailable { background: radial-gradient(circle at 76% 36%, rgba(142,123,255,.25), transparent 25%), radial-gradient(circle at 83% 68%, rgba(8,254,213,.14), transparent 31%), linear-gradient(142deg, #101117, #07080b 72%); }
+.sax-card-photo.is-unavailable::after { content: "3D"; position: absolute; right: 10%; bottom: -18%; color: rgba(229,228,237,.07); font-size: clamp(110px, 15vw, 200px); font-weight: 700; letter-spacing: -.12em; }
 .replay-onboarding { width: 100%; height: 42px; margin-top: 12px; border: 1px solid #35353a; border-radius: 12px; background: #171719; color: #aaa6c7; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 9px; cursor: pointer; }
 .replay-onboarding:hover { color: var(--cyan); border-color: #35675e; }
 
@@ -679,10 +681,14 @@ button:focus-visible, [role="button"]:focus-visible, a:focus-visible, input:focu
 .experience-overlay { position: fixed; z-index: 120; inset: 0; padding: 18px; background: rgba(3,3,4,.88); backdrop-filter: blur(22px); display: grid; place-items: center; }
 .instrument-experience, .onboarding-guide { width: min(1320px, 100%); max-height: calc(100dvh - 36px); overflow: hidden; border: 1px solid #38383f; border-radius: 28px; background: #0a0a0c; box-shadow: 0 45px 150px rgba(0,0,0,.84); }
 .instrument-experience { padding: clamp(22px, 3vw, 38px); display: flex; flex-direction: column; overflow-y: auto; overscroll-behavior: contain; scrollbar-color: var(--line) transparent; }
+/* A picker can legitimately be taller than a phone. Do not let flexbox shrink
+   the profile section (and silently clip its controls); make the dialog's own
+   scroll container carry the overflow instead. */
+.instrument-experience > .instrument-gallery-section, .instrument-experience > .other-instruments, .instrument-experience > .experience-footer { flex: 0 0 auto; }
 .experience-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 30px; }
 .experience-header h2, .onboarding-heading h2 { margin: 4px 0 9px; font-size: clamp(34px, 5vw, 67px); line-height: .96; letter-spacing: -.06em; font-weight: 560; }
 .experience-header p:last-child { max-width: 620px; margin: 0; color: #838387; font-size: 11px; line-height: 1.55; }
-.experience-header > button { flex: 0 0 auto; width: 41px; height: 41px; border: 1px solid #36363c; border-radius: 12px; background: #151517; color: #8a8a8e; display: grid; place-items: center; cursor: pointer; }
+.experience-header > button { flex: 0 0 auto; width: 41px; height: 41px; border: 1px solid #36363c; border-radius: 50%; background: #151517; color: #8a8a8e; display: grid; place-items: center; cursor: pointer; }
 .instrument-gallery-section { margin-top: 25px; }
 .instrument-gallery-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
 .instrument-gallery-heading > span { color: var(--ink); font-size: 11px; font-weight: 720; letter-spacing: .12em; text-transform: uppercase; }
@@ -714,10 +720,12 @@ button:focus-visible, [role="button"]:focus-visible, a:focus-visible, input:focu
 .other-instruments-heading h3 { margin: 0; font-size: clamp(25px, 3vw, 38px); line-height: .96; letter-spacing: -.055em; }
 .other-instruments-heading > p { max-width: 54ch; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
 .other-instrument-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; margin-top: 19px; }
-.other-instrument-card { position: relative; min-height: 184px; padding: 15px; overflow: hidden; isolation: isolate; border: 1px solid rgba(255,255,255,.14); border-radius: 16px; background-color: #18191f; background-position: center; background-size: cover; box-shadow: inset 0 1px 0 rgba(255,255,255,.18), inset 0 -24px 38px rgba(0,0,0,.25), 0 10px 26px rgba(0,0,0,.2); transition: transform .24s ease, border-color .24s ease, filter .24s ease; }
+.other-instrument-card { position: relative; min-height: 184px; padding: 15px; overflow: hidden; isolation: isolate; border: 1px solid rgba(255,255,255,.14); border-radius: 16px; background-color: #18191f; background-position: center; background-size: cover; color: inherit; font: inherit; text-align: left; cursor: pointer; box-shadow: inset 0 1px 0 rgba(255,255,255,.18), inset 0 -24px 38px rgba(0,0,0,.25), 0 10px 26px rgba(0,0,0,.2); transition: transform .24s ease, border-color .24s ease, filter .24s ease; }
 .other-instrument-card::before { content: ""; position: absolute; z-index: -1; inset: 0; background: linear-gradient(180deg, rgba(255,255,255,.12), transparent 28%, rgba(5,5,8,.08) 50%, rgba(5,5,8,.86)); }
 .other-instrument-card::after { content: ""; position: absolute; z-index: -1; inset: 0; opacity: .2; background-image: repeating-linear-gradient(100deg, rgba(255,255,255,.12) 0 1px, transparent 1px 5px); mix-blend-mode: soft-light; }
 .other-instrument-card:hover { transform: translateY(-4px); border-color: rgba(8,254,213,.52); filter: saturate(1.12) brightness(1.08); }
+.other-instrument-card.is-selected { border-color: rgba(8,254,213,.72); transform: translateY(-3px); box-shadow: inset 0 0 0 1px rgba(8,254,213,.2), inset 0 -24px 38px rgba(0,0,0,.2), 0 16px 32px rgba(8,254,213,.12); }
+.other-instrument-card:focus-visible, .other-instrument-profile:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
 .other-instrument-copy { position: absolute; z-index: 2; left: 15px; right: 15px; bottom: 15px; display: grid; gap: 5px; }
 .other-instrument-copy small { color: rgba(255,255,255,.68); font-size: 7px; font-weight: 650; letter-spacing: .105em; line-height: 1.4; text-transform: uppercase; }
 .other-instrument-copy strong { color: #fffdfa; font-size: 18px; letter-spacing: -.04em; line-height: 1; }
@@ -745,12 +753,29 @@ button:focus-visible, [role="button"]:focus-visible, a:focus-visible, input:focu
 .other-instrument-art.is-electronic i { left: 18%; top: 24%; width: 127px; height: 76px; border: 1px solid rgba(129,249,234,.62); border-radius: 12px; background: linear-gradient(135deg, rgba(8,73,77,.93), rgba(14,27,36,.9)); box-shadow: inset 0 1px 0 rgba(202,255,249,.25), 0 10px 19px rgba(0,0,0,.35); }
 .other-instrument-art.is-electronic b { left: 29%; top: 39%; width: 13px; height: 13px; border-radius: 50%; background: #8bffe9; box-shadow: 25px 0 0 #ab89ff, 50px 0 0 #8bffe9, 75px 0 0 #ab89ff, 0 27px 0 #ab89ff, 25px 27px 0 #8bffe9, 50px 27px 0 #ab89ff, 75px 27px 0 #8bffe9; }
 .other-instrument-art.is-electronic em { left: 30%; top: 13%; width: 87px; height: 125px; border: 1px solid rgba(8,254,213,.36); border-radius: 50%; box-shadow: 0 0 34px rgba(8,254,213,.23); }
+.other-instrument-profile-panel { position: relative; z-index: 1; margin-top: 15px; padding: clamp(15px, 2vw, 21px); border: 1px solid rgba(142,123,255,.24); border-radius: 18px; background: linear-gradient(128deg, rgba(8,11,15,.86), rgba(28,24,41,.86)); box-shadow: inset 0 1px 0 rgba(255,255,255,.07); }
+.other-instrument-profile-panel > header { display: flex; align-items: end; justify-content: space-between; gap: 20px; }
+.other-instrument-profile-panel h4 { margin: 4px 0 0; font-size: clamp(20px, 2.2vw, 30px); line-height: 1; letter-spacing: -.045em; }
+.other-instrument-profile-panel > header > p { max-width: 56ch; margin: 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
+.other-instrument-profile-grid { margin-top: 16px; display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap: 8px; }
+.other-instrument-profile { position: relative; min-height: 130px; padding: 14px; overflow: hidden; border: 1px solid rgba(255,255,255,.11); border-radius: 15px; background: radial-gradient(circle at 88% 8%, rgba(8,254,213,.1), transparent 32%), rgba(8,9,12,.64); color: var(--ink); display: grid; align-content: start; gap: 6px; text-align: left; cursor: pointer; transition: transform .18s ease, border-color .18s ease, background .18s ease; }
+.other-instrument-profile:hover, .other-instrument-profile.is-focused { transform: translateY(-2px); border-color: rgba(142,123,255,.6); background: radial-gradient(circle at 88% 8%, rgba(8,254,213,.18), transparent 34%), rgba(17,18,25,.9); }
+.other-instrument-profile.is-current { border-color: rgba(8,254,213,.72); box-shadow: inset 0 0 0 1px rgba(8,254,213,.12); }
+.other-instrument-profile small, .other-instrument-profile-action small { color: #aaa0ff; font: 7px var(--font-geist-mono); text-transform: uppercase; letter-spacing: .1em; }
+.other-instrument-profile strong { font-size: 15px; letter-spacing: -.025em; }
+.other-instrument-profile > span { color: var(--muted); font-size: 8px; line-height: 1.4; }
+.other-instrument-profile em { position: absolute; top: 10px; right: 10px; padding: 3px 5px; border-radius: 99px; background: rgba(8,254,213,.12); color: var(--cyan); font: 7px var(--font-geist-mono); font-style: normal; }
+.other-instrument-profile-action { margin-top: 12px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,.09); display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.other-instrument-profile-action > div { min-width: 0; display: grid; gap: 4px; }
+.other-instrument-profile-action strong { font-size: 14px; }
+.other-instrument-profile-action span { color: var(--muted); font-size: 10px; line-height: 1.45; }
 .experience-footer { min-height: 58px; display: flex; justify-content: space-between; align-items: center; gap: 20px; }
 .experience-footer > div { display: grid; gap: 3px; }
 .experience-footer small { color: #65656a; font-size: 7px; text-transform: uppercase; letter-spacing: .12em; }
 .experience-footer strong { font-size: 13px; }
 .experience-footer span { color: #77777b; font-size: 8px; }
-.experience-primary { min-height: 44px; padding: 0 17px; border: 0; border-radius: 12px; background: var(--cyan); color: #051b17; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-size: 10px; font-weight: 760; cursor: pointer; }
+.experience-primary { min-height: 46px; padding: 0 20px; border: 0; border-radius: 999px; background: radial-gradient(circle at 40% 25%, #86ffeb, var(--cyan) 58%, #05ad92); color: #051b17; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-size: 10px; font-weight: 760; cursor: pointer; box-shadow: inset 0 1px 1px rgba(255,255,255,.7), inset 0 -3px 7px rgba(0,0,0,.24), 0 5px 16px rgba(8,254,213,.17); transition: transform .14s ease, box-shadow .14s ease; }
+.experience-primary:active { transform: translateY(2px); box-shadow: inset 0 2px 5px rgba(0,0,0,.3), 0 2px 6px rgba(0,0,0,.36); }
 .experience-primary:disabled { background: #242429; color: #68686d; cursor: not-allowed; }
 
 .onboarding-overlay { padding: 0; background: #070708; }
@@ -767,29 +792,29 @@ button:focus-visible, [role="button"]:focus-visible, a:focus-visible, input:focu
 .onboarding-guide > .instrument-panel-deck { min-height: 0; height: 100%; margin: 20px 0; }
 .onboarding-guide .instrument-panel { min-height: 290px; }
 .onboarding-actions { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 12px; }
-.onboarding-back { min-height: 42px; padding: 0 13px; border: 1px solid #333339; border-radius: 11px; background: #151517; color: #8a8a8e; display: inline-flex; align-items: center; gap: 7px; font-size: 9px; cursor: pointer; }
+.onboarding-back { min-height: 42px; padding: 0 16px; border: 1px solid #333339; border-radius: 999px; background: #151517; color: #8a8a8e; display: inline-flex; align-items: center; gap: 7px; font-size: 9px; cursor: pointer; }
 .onboarding-back:disabled { opacity: 0; pointer-events: none; }
-.onboarding-scene { min-height: 0; margin: 22px 0; border: 1px solid #2e2e34; border-radius: 25px; overflow: hidden; background: radial-gradient(circle at 75% 50%, rgba(142,123,255,.13), transparent 38%), #0e0e10; display: grid; grid-template-columns: minmax(260px, .75fr) minmax(380px, 1.25fr); align-items: center; }
-.onboarding-copy { padding: clamp(28px, 5vw, 70px); }
+.onboarding-scene { position: relative; min-height: 0; margin: 22px 0; border: 1px solid #2e2e34; border-radius: 25px; overflow: hidden; isolation: isolate; background: radial-gradient(circle at 75% 50%, rgba(142,123,255,.13), transparent 38%), #0e0e10; display: grid; grid-template-columns: minmax(260px, .75fr) minmax(380px, 1.25fr); align-items: center; }
+.tuner-onboarding-scene { background-image: linear-gradient(90deg, #101015 0%, rgba(10,10,14,.93) 32%, rgba(10,10,14,.18) 100%), url("/images/bocal-tenor-sax-cinematic.webp"); background-position: center, 78% center; background-size: cover, cover; }
+.contact-onboarding-scene { background-image: linear-gradient(90deg, #101015 0%, rgba(10,10,14,.94) 34%, rgba(10,10,14,.2) 100%), url("/images/bocal-baritone-sax-cinematic-v2.png"); background-position: center, 74% center; background-size: cover, cover; }
+.onboarding-copy { position: relative; z-index: 2; padding: clamp(28px, 5vw, 70px); }
 .onboarding-copy > span { color: var(--cyan); display: inline-flex; align-items: center; gap: 8px; font-size: 9px; text-transform: uppercase; letter-spacing: .13em; font-weight: 700; }
 .onboarding-copy h3 { margin: 18px 0 12px; font-size: clamp(31px, 4vw, 58px); line-height: .98; letter-spacing: -.055em; }
 .onboarding-copy p { max-width: 520px; margin: 0; color: #8b8b8f; font-size: 12px; line-height: 1.65; }
-.onboarding-tuner-visual { position: relative; justify-self: center; width: min(520px, 88%); aspect-ratio: 1.35; border: 1px solid #35353c; border-radius: 50%; display: grid; place-items: center; box-shadow: 0 0 100px rgba(142,123,255,.1), inset 0 0 80px rgba(142,123,255,.04); }
-.onboarding-tuner-visual small { position: absolute; top: 17%; color: var(--violet); font-size: 9px; letter-spacing: .15em; }
-.onboarding-tuner-visual strong { font-size: clamp(82px, 10vw, 150px); letter-spacing: -.09em; }
+.onboarding-tuner-visual { position: relative; justify-self: center; width: min(520px, 82%); aspect-ratio: 1; overflow: hidden; border: 1px solid rgba(196,188,255,.34); border-radius: 49% 51% 52% 48% / 46% 49% 51% 54%; background: radial-gradient(circle at 50% 49%, rgba(9,17,20,.05) 0 23%, rgba(6,7,10,.68) 64%, rgba(5,5,7,.95) 100%), url("/images/bocal-tenor-sax-cinematic.webp"); background-position: center, 61% center; background-size: cover, cover; display: grid; place-items: center; box-shadow: 0 0 100px rgba(142,123,255,.16), inset 0 0 90px rgba(0,0,0,.38), inset 0 0 0 12px rgba(8,8,11,.22); }
+.onboarding-tuner-visual::before { content: ""; position: absolute; inset: 9%; border: 1px solid rgba(142,123,255,.28); border-radius: inherit; box-shadow: 0 0 55px rgba(8,254,213,.1); pointer-events: none; }
+.onboarding-tuner-visual small { position: absolute; z-index: 1; top: 17%; color: var(--violet); font-size: 9px; letter-spacing: .15em; }
+.onboarding-tuner-visual strong { position: relative; z-index: 1; font-size: clamp(82px, 10vw, 150px); letter-spacing: -.09em; text-shadow: 0 8px 34px rgba(0,0,0,.7); }
 .onboarding-tuner-visual strong sup { font-size: .18em; color: var(--cyan); }
-.onboarding-tuner-visual > div { position: absolute; left: 8%; right: 8%; bottom: 22%; height: 2px; background: #3a3a40; }
+.onboarding-tuner-visual > div { position: absolute; z-index: 1; left: 13%; right: 13%; bottom: 23%; height: 2px; background: rgba(222,221,232,.4); box-shadow: 0 0 18px rgba(142,123,255,.25); }
 .onboarding-tuner-visual > div i { position: absolute; left: 49%; top: -8px; width: 18px; height: 18px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 24px rgba(8,254,213,.45); }
 .onboarding-tuner-visual > div b { position: absolute; left: 50%; top: -12px; width: 1px; height: 27px; background: #ddd; }
-.onboarding-tuner-visual > span { position: absolute; bottom: 13%; color: #5f5f63; font: 8px var(--font-geist-mono); }
+.onboarding-tuner-visual > span { position: absolute; z-index: 1; bottom: 13%; color: rgba(232,231,238,.62); font: 8px var(--font-geist-mono); }
 .onboarding-tuner-visual > span:nth-of-type(1) { left: 10%; }.onboarding-tuner-visual > span:nth-of-type(2) { left: 50%; }.onboarding-tuner-visual > span:nth-of-type(3) { right: 10%; }
-.onboarding-contact-visual { position: relative; justify-self: center; width: min(560px, 90%); height: 82%; min-height: 300px; overflow: hidden; border: 1px solid #393941; border-radius: 50%; background: radial-gradient(circle at 50% 46%, rgba(230,229,223,.92) 0 20%, rgba(131,136,132,.78) 48%, rgba(16,17,20,.96) 76%); box-shadow: inset 0 0 90px rgba(0,0,0,.36), 0 0 80px rgba(142,123,255,.08); }
-.onboarding-contact-visual::before { content: ""; position: absolute; left: calc(50% - 20px); top: 8%; width: 40px; height: 84%; border-radius: 46% 46% 48% 48%; background: linear-gradient(90deg, #17120a, #d2a84a 24%, #6e4f16 48%, #f3cd73 72%, #211709); box-shadow: 0 0 0 1px #6e5121, 0 20px 45px rgba(0,0,0,.34); }
-.onboarding-key-rail { position: absolute; z-index: 2; left: calc(50% - 44px); top: 16%; width: 88px; height: 66%; border-left: 2px solid rgba(255,222,140,.8); border-right: 2px solid rgba(89,59,12,.72); filter: drop-shadow(0 5px 4px rgba(0,0,0,.3)); }
-.onboarding-key-rail::before, .onboarding-key-rail::after { content: ""; position: absolute; left: 11px; right: 11px; height: 2px; background: rgba(255,222,140,.7); box-shadow: 0 48px rgba(255,222,140,.7), 0 96px rgba(255,222,140,.7), 0 144px rgba(255,222,140,.7); }
-.onboarding-key-rail::before { top: 18px; }.onboarding-key-rail::after { top: 42px; left: 28px; right: -18px; }
-.onboarding-contact-visual > b { position: absolute; z-index: 3; left: calc(50% - 11px); width: 22px; height: 22px; border-radius: 50%; background: #dffef8; border: 2px solid var(--cyan); box-shadow: 0 0 0 8px rgba(8,254,213,.18), 0 0 34px 12px rgba(8,254,213,.36); animation: key-glow 1.8s ease-in-out infinite alternate; }
-.onboarding-contact-visual > b:nth-of-type(1) { top: 31%; }.onboarding-contact-visual > b:nth-of-type(2) { top: 44%; }.onboarding-contact-visual > b:nth-of-type(3) { top: 57%; }
+.onboarding-contact-visual { position: relative; justify-self: center; width: min(500px, 82%); aspect-ratio: 4 / 5; overflow: hidden; border: 1px solid rgba(231,189,96,.3); border-radius: 42% 58% 49% 51% / 47% 43% 57% 53%; background: linear-gradient(160deg, rgba(5,5,8,.08), rgba(5,5,8,.78)), url("/images/bocal-baritone-sax-cinematic-v2.png"); background-position: center, 61% center; background-size: cover, cover; box-shadow: inset 0 0 90px rgba(0,0,0,.42), 0 0 80px rgba(142,123,255,.14); }
+.onboarding-contact-visual::before { content: ""; position: absolute; inset: 11%; border: 1px solid rgba(255,224,148,.24); border-radius: inherit; background: radial-gradient(circle at 61% 31%, rgba(8,254,213,.19) 0 3%, transparent 10%), radial-gradient(circle at 58% 48%, rgba(8,254,213,.15) 0 3%, transparent 10%), radial-gradient(circle at 54% 65%, rgba(8,254,213,.12) 0 3%, transparent 10%); box-shadow: inset 0 0 40px rgba(0,0,0,.18); }
+.onboarding-contact-visual > b { position: absolute; z-index: 3; left: calc(58% - 11px); width: 22px; height: 22px; border-radius: 50%; background: #dffef8; border: 2px solid var(--cyan); box-shadow: 0 0 0 8px rgba(8,254,213,.18), 0 0 34px 12px rgba(8,254,213,.36); animation: key-glow 1.8s ease-in-out infinite alternate; }
+.onboarding-contact-visual > b:nth-of-type(1) { top: 31%; }.onboarding-contact-visual > b:nth-of-type(2) { top: 48%; }.onboarding-contact-visual > b:nth-of-type(3) { top: 65%; }
 .onboarding-contact-visual > b:nth-of-type(2) { animation-delay: .28s; }.onboarding-contact-visual > b:nth-of-type(3) { animation-delay: .56s; }
 .onboarding-contact-visual em { position: absolute; right: 10%; top: 46%; color: var(--cyan); font: 9px var(--font-geist-mono); letter-spacing: .13em; }
 @keyframes key-glow { from { opacity: .68; scale: .92; } to { opacity: 1; scale: 1.08; } }
@@ -1056,6 +1081,15 @@ button:focus-visible, [role="button"]:focus-visible, a:focus-visible, input:focu
   .other-instrument-copy small { font-size: 6px; }
   .other-instrument-copy em { font-size: 7px; }
   .other-instrument-art { inset: 12px 8px 49px; transform: scale(.83); transform-origin: 50% 0; }
+  .other-instrument-profile-panel { margin-top: 12px; padding: 14px; border-radius: 16px; }
+  .other-instrument-profile-panel > header { display: block; }
+  .other-instrument-profile-panel > header > p { margin-top: 10px; font-size: 10px; }
+  .other-instrument-profile-grid { grid-template-columns: 1fr 1fr; gap: 7px; }
+  .other-instrument-profile { min-height: 125px; padding: 12px; }
+  .other-instrument-profile-action { align-items: flex-end; gap: 11px; }
+  .other-instrument-profile-action > div { max-width: 54%; }
+  .other-instrument-profile-action span { font-size: 9px; }
+  .other-instrument-profile-action .experience-primary { flex: 0 0 auto; max-width: 46%; padding-inline: 13px; }
   .experience-footer > div { max-width: 44%; }
   .experience-footer strong { font-size: 11px; }
   .experience-footer .experience-primary { max-width: 55%; }
@@ -1071,8 +1105,9 @@ button:focus-visible, [role="button"]:focus-visible, a:focus-visible, input:focu
   .onboarding-copy { padding: 22px; }
   .onboarding-copy h3 { font-size: 34px; }
   .onboarding-copy p { font-size: 10px; }
-  .onboarding-tuner-visual { width: 78%; margin: 6px auto 30px; }
-  .onboarding-contact-visual { width: 88%; height: 320px; min-height: 280px; margin: 0 auto 24px; }
+  .tuner-onboarding-scene, .contact-onboarding-scene { background-position: center, 65% center; }
+  .onboarding-tuner-visual { width: min(82%, 360px); margin: 4px auto 28px; }
+  .onboarding-contact-visual { width: min(82%, 340px); margin: 0 auto 24px; }
   .onboarding-proof-grid { padding: 0 20px 24px; grid-template-columns: 1fr; }
   .onboarding-proof-grid > span { min-height: 175px; }
   .onboarding-proof-grid svg { margin-bottom: auto; }
@@ -1235,7 +1270,7 @@ button:focus-visible, [role="button"]:focus-visible, a:focus-visible, input:focu
    aspect-ratio property collapsed on Android WebViews).
    ============================================================ */
 @media (width<=680px), (orientation: landscape) and (max-height: 520px) {
-  .mobile-dock { display: block; position: fixed; left: 6px; right: 6px; bottom: 4px; z-index: 50; max-width: 480px; margin-inline: auto;
+  .mobile-dock { display: block; position: fixed; left: 6px; right: 6px; bottom: calc(8px + env(safe-area-inset-bottom)); z-index: 50; max-width: 480px; margin-inline: auto;
     --hy-srf: #1f2129; --hy-srf2: #282d37; --hy-srf3: #323844; --hy-groove: #0c0e13;
     --hy-rim: rgba(255,255,255,.14); --hy-rim2: rgba(255,255,255,.07); --hy-lip: rgba(255,255,255,.1);
     --hy-drk: rgba(0,0,0,.78); --hy-drk2: rgba(0,0,0,.42);
@@ -1250,20 +1285,17 @@ button:focus-visible, [role="button"]:focus-visible, a:focus-visible, input:focu
     box-shadow: inset 0 2px 2px var(--hy-rim2), inset 0 -4px 8px var(--hy-drk2), 0 2px 5px var(--hy-drk), 0 0 0 1px rgba(0,0,0,.2);
     transition: transform .1s ease, box-shadow .1s ease; }
   .dock-side-button:active { transform: translateY(2px); box-shadow: inset 0 2px 4px rgba(0,0,0,.5), 0 1px 3px var(--hy-drk); }
-  /* Instrument switch: recessed crater track, raised keycap segment. */
-  /* Arced instrument switch: a fixed 200x48-proportioned box so the SVG
-     curve stays undistorted, with buttons seated on the same Bezier. */
-  .dock-pill { position: relative; flex: 0 0 auto; width: 216px; height: 52px; border: 0; background: none; box-shadow: none; padding: 0; }
-  .pill-track { position: absolute; inset: 0; width: 100%; height: 100%;
-    filter: drop-shadow(0 2px 5px rgba(0,0,0,.5)); }
-  .dock-pill button { position: absolute; transform: translate(-50%, -50%) rotate(var(--tilt, 0deg));
-    border: 0; border-radius: 999px; padding: 7px 14px; font-size: 12.5px; font-weight: 650;
-    color: #8e929c; background: transparent; cursor: pointer; white-space: nowrap;
-    transition: color .2s ease, box-shadow .15s ease; }
-  .dock-pill button.is-active { color: var(--hy-cap-ink);
-    background: radial-gradient(circle at 40% 32%, var(--hy-cap-hi) 0%, var(--hy-cap) 60%, var(--hy-cap-lo) 100%);
-    box-shadow: inset 0 1px 1px rgba(255,255,255,.9), inset 0 -2px 4px rgba(0,0,0,.18), 0 2px 5px rgba(0,0,0,.55), 0 0 0 1px rgba(0,0,0,.3); }
-  .dock-pill button.is-active:active { transform: translate(-50%, calc(-50% + 1px)) rotate(var(--tilt, 0deg)); }
+  /* One contextual action belongs above the arc: select the active
+     instrument. It intentionally replaces the old two-profile mini-nav. */
+  .dock-instrument-context { min-width: 0; max-width: 292px; height: 48px; padding: 5px 13px 5px 6px; border: 0; border-radius: 999px; color: #e4e5e8; display: flex; align-items: center; gap: 8px; text-align: left; cursor: pointer;
+    background: radial-gradient(150% 150% at 50% 125%, var(--hy-srf2) 0%, var(--hy-srf) 48%, var(--hy-groove) 100%);
+    box-shadow: inset 0 6px 12px -5px var(--hy-drk), inset 0 -1px 1px var(--hy-lip), 0 2px 5px var(--hy-drk), 0 0 0 1px rgba(0,0,0,.24); transition: transform .1s ease, filter .1s ease, box-shadow .1s ease; }
+  .dock-instrument-context:active { transform: translateY(2px); box-shadow: inset 0 2px 5px rgba(0,0,0,.48), 0 1px 3px var(--hy-drk); }
+  .dock-instrument-context > span:nth-child(2) { min-width: 0; display: grid; gap: 1px; }
+  .dock-instrument-context small { color: #979ba4; font: 7px var(--font-geist-mono); letter-spacing: .1em; text-transform: uppercase; }
+  .dock-instrument-context strong { overflow: hidden; color: #e8e8e7; font-size: 10px; letter-spacing: -.015em; text-overflow: ellipsis; white-space: nowrap; }
+  .dock-instrument-context > svg { margin-left: auto; flex: 0 0 auto; color: #aeb2bc; }
+  .dock-instrument-icon { flex: 0 0 auto; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; color: var(--hy-cap-ink); background: radial-gradient(circle at 40% 32%, var(--hy-cap-hi), var(--hy-cap) 62%, var(--hy-cap-lo)); box-shadow: inset 0 1px 1px rgba(255,255,255,.88), inset 0 -2px 4px rgba(0,0,0,.18), 0 1px 3px rgba(0,0,0,.44); }
 
   /* The adopted landscape side-dock pins .mobile-nav with inset:50% and a
      translateY(-50%); position:relative alone leaves those in force and
@@ -1272,8 +1304,8 @@ button:focus-visible, [role="button"]:focus-visible, a:focus-visible, input:focu
     width: 100%; height: 0; padding: 0 0 25%; margin: 0;
     background: none; border: 0; border-radius: 0; box-shadow: none; backdrop-filter: none; }
   .mobile-nav.is-arc::before { content: none; }
-  .arc-inner { position: absolute; inset: 0; }
-  .arc-shape { position: absolute; inset: 0; width: 100%; height: 100%; filter: drop-shadow(0 20px 32px rgba(0,0,0,.72)) drop-shadow(0 5px 10px rgba(0,0,0,.55)); }
+  .arc-inner { position: absolute; inset: 0; overflow: visible; }
+  .arc-shape { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 20px 32px rgba(0,0,0,.72)) drop-shadow(0 5px 10px rgba(0,0,0,.55)); }
 
   .mobile-nav.is-arc button { position: absolute; transform: translate(-50%, -50%) rotate(var(--tilt, 0deg)); width: auto; min-width: 44px; height: 42%; padding: 0 12px; border: 0; background: transparent; color: #83878f; border-radius: 999px; display: flex; align-items: center; justify-content: center; gap: 7px; font-size: 11px; font-weight: 650; cursor: pointer; transition: color 160ms ease; white-space: nowrap; }
   /* Active tab: a raised keycap riding the curve. */
@@ -1353,11 +1385,13 @@ button:focus-visible, [role="button"]:focus-visible, a:focus-visible, input:focu
 @media (orientation: landscape) and (max-height: 520px) {
   .app-shell { display: block; padding-bottom: 150px; }
   .side-rail { display: none; }
-  .mobile-dock { max-width: 430px; bottom: 2px; }
+  .mobile-dock { max-width: 430px; bottom: calc(8px + env(safe-area-inset-bottom)); }
   .mobile-dock::before { top: -44px; }
   .dock-side-button { width: 40px; height: 40px; }
-  .dock-pill { width: 178px; height: 44px; }
-  .dock-pill button { padding: 6px 12px; font-size: 11.5px; }
+  .dock-instrument-context { max-width: 220px; height: 42px; padding-right: 10px; gap: 6px; }
+  .dock-instrument-icon { width: 32px; height: 32px; }
+  .dock-instrument-context small { font-size: 6px; }
+  .dock-instrument-context strong { font-size: 9px; }
   .mobile-nav.is-arc button { height: 44%; padding: 0 10px; font-size: 10px; gap: 6px; }
   .content-wrap, .sax-lab-view { padding-bottom: 12px; }
 }
@@ -1369,14 +1403,14 @@ button:focus-visible, [role="button"]:focus-visible, a:focus-visible, input:focu
    ============================================================ */
 @media (hover: hover) and (pointer: fine) {
   .mobile-nav.is-arc button:not(.is-active):hover,
-  .dock-pill button:not(.is-active):hover { color: var(--ink); }
+  .dock-instrument-context:hover { color: var(--ink); filter: brightness(1.12); }
   .dock-side-button:hover { filter: brightness(1.15); }
   .rail-button:hover { background: #17171a; }
 }
 /* A visible, high-contrast focus ring on every dock control, drawn outside
    the keycap so it reads against both the bar and the page behind it. */
 .mobile-nav.is-arc button:focus-visible,
-.dock-pill button:focus-visible,
+.dock-instrument-context:focus-visible,
 .dock-side-button:focus-visible {
   outline: 2px solid var(--cyan);
   outline-offset: 3px;
@@ -1584,6 +1618,11 @@ html[data-theme="light"] .apk-blocker strong { color: #694700; }
 html[data-theme="light"] .apk-blocker p { color: #67532a; }
 html[data-theme="light"] .live-badge { background: #f6f1e9; }
 html[data-theme="light"] .tuner-card::before { background: linear-gradient(90deg, rgba(255,253,249,.98) 0 54%, rgba(255,253,249,.78) 76%, rgba(255,253,249,.32)), url("/images/bocal-alto-sax-cinematic.webp") 78% center / cover no-repeat; opacity: .7; }
+/* The shared cinematic-card overlay is dark by default. In light mode it
+   must become a parchment veil as well; otherwise the semantic dark ink is
+   placed on a dark photographic card and fails contrast. */
+html[data-theme="light"] :where(.insight-card, .today-strip, .analysis-card, .analysis-side > article, .metronome-card, .control-card, .drone-strip, .skill-rating-card, .focus-plan, .week-card, .repertoire-card, .lesson-card, .equipment-card, .oboe-inspector, .setup-explorer, .lab-footer-cards article)::after { background: linear-gradient(92deg, rgba(255,253,249,.98) 0 46%, rgba(255,253,249,.82) 70%, rgba(255,253,249,.4)); }
+html[data-theme="light"] :where(.insight-card, .today-strip, .analysis-card, .analysis-side > article, .metronome-card, .control-card, .drone-strip, .skill-rating-card, .focus-plan, .week-card, .repertoire-card, .lesson-card, .equipment-card, .oboe-inspector, .setup-explorer, .lab-footer-cards article)::before { opacity: .16; filter: saturate(.72) brightness(1.14); }
 html[data-theme="light"] .sax-card::after { background: linear-gradient(90deg, rgba(255,253,249,.98) 0 44%, rgba(255,253,249,.72) 66%, rgba(255,253,249,.14)); }
 html[data-theme="light"] .sax-card-photo { filter: saturate(.9) brightness(1.08); }
 html[data-theme="light"] .other-instruments { border-color: rgba(101,75,208,.26); background: radial-gradient(circle at 92% 8%, rgba(101,75,208,.14), transparent 27%), linear-gradient(145deg, #fbf7f0, #eae4dc); box-shadow: inset 0 1px 0 rgba(255,255,255,.94), inset 0 -18px 42px rgba(102,83,61,.07), 0 18px 60px rgba(81,63,43,.1); }

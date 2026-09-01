@@ -13,7 +13,13 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import type { InstrumentId } from "./instruments";
+import {
+  INSTRUMENT_GROUPS,
+  INSTRUMENTS,
+  instrumentsInGroup,
+  type InstrumentGroupId,
+  type InstrumentId,
+} from "./instruments";
 
 export const BOCAL_ONBOARDING_KEY = "bocal-onboarding-v2";
 
@@ -29,8 +35,11 @@ type GalleryInstrument = {
   availableId?: InstrumentId;
 };
 
+type OtherInstrumentGroupId = Exclude<InstrumentGroupId, "woodwinds">;
+
 type OtherInstrument = {
   id: string;
+  group: OtherInstrumentGroupId;
   name: string;
   family: string;
   status: string;
@@ -66,24 +75,36 @@ const WOODWIND_GALLERY_INSTRUMENTS: GalleryInstrument[] = [
   },
   { id: "tenor-sax", name: "Tenor saxophone", family: "Saxophone family", pitch: "B♭", status: "Fingering trainer · shown on an alto", image: "/images/bocal-tenor-sax-cinematic.webp", imagePosition: "57% center", gradient: "linear-gradient(160deg, #672d19, #231116)", availableId: "tenor-sax" },
   { id: "soprano-sax", name: "Soprano saxophone", family: "Saxophone family", pitch: "B♭", status: "Fingering trainer · shown on an alto", image: "/images/bocal-soprano-sax-cinematic.webp", imagePosition: "55% center", gradient: "linear-gradient(160deg, #153a48, #0d1821)", availableId: "soprano-sax" },
-  { id: "bari-sax", name: "Baritone saxophone", family: "Saxophone family", pitch: "E♭", status: "Fingering trainer · shown on an alto, no low A", gradient: "linear-gradient(160deg, #4a2a12, #1b1410)", availableId: "bari-sax" },
+  {
+    id: "bari-sax",
+    name: "Baritone saxophone",
+    family: "Saxophone family",
+    pitch: "E♭",
+    status: "Fingering trainer · shown on an alto, no low A",
+    // Decorative, original card art only. The lab remains explicitly scoped
+    // to the validated alto-model fingering map below.
+    image: "/images/bocal-baritone-sax-cinematic-v2.png",
+    imagePosition: "62% center",
+    gradient: "linear-gradient(160deg, #4a2a12, #1b1410)",
+    availableId: "bari-sax",
+  },
   { id: "flute", name: "Flute", family: "Air reed", pitch: "C", status: "Tuner + practice · lab pending", image: "/images/bocal-flute-cinematic.webp", imagePosition: "54% center", gradient: "linear-gradient(160deg, #5b6573, #181c24)", availableId: "flute" },
   { id: "bassoon", name: "Bassoon", family: "Double reed", pitch: "C", status: "Tuner + practice · lab pending", image: "/images/bocal-bassoon-cinematic.webp", imagePosition: "61% center", gradient: "linear-gradient(160deg, #5b281e, #1d1112)", availableId: "bassoon" },
   { id: "clarinet", name: "Clarinet", family: "Single reed", pitch: "B♭", status: "Not shipping · commercial licence required", image: "/images/bocal-clarinet-cinematic.webp", imagePosition: "55% center", gradient: "linear-gradient(160deg, #293652, #12121c)" },
 ];
 
-// Discovery only: these cards deliberately have no InstrumentId or action.
-// A beautiful gallery must not silently pretend that a string, keyboard, or
-// brass profile has a validated transposition, notation, range, or fingering
-// model behind it.
+// These categories are entry points to the deliberately small profiles in
+// instruments.ts. Each profile has a specific written/concert relationship
+// and primary staff clef; category membership alone never supplies a guessed
+// transposition, range, tuning, or fingering map.
 const OTHER_INSTRUMENTS: OtherInstrument[] = [
-  { id: "bowed-strings", name: "Bowed strings", family: "Violin · viola · cello · bass", status: "Tuner foundations planned", gradient: "linear-gradient(145deg, #7a301f, #24130f 70%)", art: "bowed" },
-  { id: "fretted-strings", name: "Fretted & plucked", family: "Guitar · bass · harp · ukulele", status: "Tuner foundations planned", gradient: "linear-gradient(145deg, #835b1e, #21170e 70%)", art: "fretted" },
-  { id: "brass", name: "Brass", family: "Trumpet · horn · trombone · tuba", status: "Instrument profiles in development", gradient: "linear-gradient(145deg, #76500e, #24190b 70%)", art: "brass" },
-  { id: "keyboards", name: "Keyboards", family: "Piano · organ · synthesizer", status: "Instrument profiles in development", gradient: "linear-gradient(145deg, #304767, #101a28 70%)", art: "keys" },
-  { id: "percussion", name: "Percussion", family: "Mallets · drums · hand percussion", status: "Practice tools planned", gradient: "linear-gradient(145deg, #6c253e, #221018 70%)", art: "percussion" },
-  { id: "voice", name: "Voice", family: "Classical · contemporary · choir", status: "Pitch tools planned", gradient: "linear-gradient(145deg, #553d71, #1c132b 70%)", art: "voice" },
-  { id: "electronic", name: "Electronic & MIDI", family: "Controllers · wind synths · modular", status: "Profile research in progress", gradient: "linear-gradient(145deg, #0b5555, #0b2025 70%)", art: "electronic" },
+  { id: "bowed-strings", group: "bowed-strings", name: "Bowed strings", family: "Violin · viola · cello · bass", status: "Choose a tuner profile", gradient: "linear-gradient(145deg, #7a301f, #24130f 70%)", art: "bowed" },
+  { id: "fretted-strings", group: "fretted-strings", name: "Fretted & plucked", family: "Guitar · bass guitar · harp", status: "Choose a tuner profile", gradient: "linear-gradient(145deg, #835b1e, #21170e 70%)", art: "fretted" },
+  { id: "brass", group: "brass", name: "Brass", family: "Trumpet · horn · trombone · tuba", status: "Choose a tuner profile", gradient: "linear-gradient(145deg, #76500e, #24190b 70%)", art: "brass" },
+  { id: "keyboards", group: "keyboards", name: "Keyboards", family: "Piano · organ · synthesizer", status: "Choose a tuner profile", gradient: "linear-gradient(145deg, #304767, #101a28 70%)", art: "keys" },
+  { id: "percussion", group: "percussion", name: "Percussion", family: "Pitched mallet instruments", status: "Choose a tuner profile", gradient: "linear-gradient(145deg, #6c253e, #221018 70%)", art: "percussion" },
+  { id: "voice", group: "voice", name: "Voice", family: "Concert-pitch vocal tuning", status: "Choose a tuner profile", gradient: "linear-gradient(145deg, #553d71, #1c132b 70%)", art: "voice" },
+  { id: "electronic", group: "electronic", name: "Electronic audio", family: "Speaker or amp through the microphone", status: "Choose a tuner profile", gradient: "linear-gradient(145deg, #0b5555, #0b2025 70%)", art: "electronic" },
 ];
 
 function useEscape(open: boolean, close: () => void) {
@@ -147,7 +168,24 @@ function InstrumentPanelDeck({
   );
 }
 
-function OtherInstrumentCollection() {
+function OtherInstrumentCollection({
+  selectedId,
+  activeGroup,
+  focusedProfileId,
+  onGroupChange,
+  onProfileFocus,
+  onSelect,
+}: {
+  selectedId: InstrumentId;
+  activeGroup: OtherInstrumentGroupId | null;
+  focusedProfileId: InstrumentId | null;
+  onGroupChange: (group: OtherInstrumentGroupId) => void;
+  onProfileFocus: (id: InstrumentId) => void;
+  onSelect: (id: InstrumentId) => void;
+}) {
+  const profiles = activeGroup ? instrumentsInGroup(activeGroup) : [];
+  const focusedProfile = profiles.find((profile) => profile.id === focusedProfileId) ?? profiles[0];
+
   return (
     <section className="other-instruments" aria-labelledby="other-instruments-title">
       <header className="other-instruments-heading">
@@ -155,14 +193,18 @@ function OtherInstrumentCollection() {
           <p className="eyebrow">Beyond woodwinds</p>
           <h3 id="other-instruments-title">Other Instruments</h3>
         </div>
-        <p>Rich instrument profiles are coming only after their tuning, notation, and learning claims are validated.</p>
+        <p>Choose a family, then a profile with a defined tuning and notation baseline. 3D fingering guidance remains unavailable unless it has been validated separately.</p>
       </header>
-      <div className="other-instrument-grid" role="list" aria-label="Planned instrument families">
+      <div className="other-instrument-grid" role="group" aria-label="Instrument families">
         {OTHER_INSTRUMENTS.map((item) => (
-          <article
-            className={`other-instrument-card is-${item.art}`}
+          <button
+            type="button"
+            className={`other-instrument-card is-${item.art} ${activeGroup === item.group ? "is-selected" : ""}`}
             key={item.id}
-            role="listitem"
+            aria-pressed={activeGroup === item.group}
+            aria-expanded={activeGroup === item.group}
+            aria-controls="other-instrument-profile-panel"
+            onClick={() => onGroupChange(item.group)}
             style={{ backgroundImage: item.gradient }}
           >
             <span className={`other-instrument-art is-${item.art}`} aria-hidden="true"><i /><b /><em /></span>
@@ -171,9 +213,45 @@ function OtherInstrumentCollection() {
               <strong>{item.name}</strong>
               <em>{item.status}</em>
             </span>
-          </article>
+          </button>
         ))}
       </div>
+      {activeGroup && focusedProfile && (
+        <section className="other-instrument-profile-panel" id="other-instrument-profile-panel" aria-labelledby="other-instrument-profile-title">
+          <header>
+            <div>
+              <p className="eyebrow">{INSTRUMENT_GROUPS[activeGroup].name}</p>
+              <h4 id="other-instrument-profile-title">Choose the instrument in your hands.</h4>
+            </div>
+            <p>{INSTRUMENT_GROUPS[activeGroup].summary}. These profiles make the tuner, pulse, and local analysis usable; none adds a fingering map.</p>
+          </header>
+          <div className="other-instrument-profile-grid" role="listbox" aria-label={`${INSTRUMENT_GROUPS[activeGroup].name} profiles`}>
+            {profiles.map((profile) => (
+              <button
+                type="button"
+                key={profile.id}
+                role="option"
+                aria-selected={profile.id === focusedProfile.id}
+                className={`other-instrument-profile ${profile.id === focusedProfile.id ? "is-focused" : ""} ${profile.id === selectedId ? "is-current" : ""}`}
+                onClick={() => onProfileFocus(profile.id)}
+              >
+                <small>{profile.family} · {profile.pitchLabel}</small>
+                <strong>{profile.name}</strong>
+                <span>{profile.labStatus}</span>
+                {profile.id === selectedId && <em>Current</em>}
+              </button>
+            ))}
+          </div>
+          <footer className="other-instrument-profile-action">
+            <div>
+              <small>{focusedProfile.family} · {focusedProfile.pitchLabel}</small>
+              <strong>{focusedProfile.name}</strong>
+              <span>{focusedProfile.tunerDescription}</span>
+            </div>
+            <button type="button" className="experience-primary" onClick={() => onSelect(focusedProfile.id)}>Use {focusedProfile.shortName} <ArrowRight size={16} /></button>
+          </footer>
+        </section>
+      )}
     </section>
   );
 }
@@ -190,22 +268,38 @@ export function InstrumentPickerExperience({
   onClose: () => void;
 }) {
   const [focusedId, setFocusedId] = useState<string>(selectedId);
+  const [activeOtherGroup, setActiveOtherGroup] = useState<OtherInstrumentGroupId | null>(null);
+  const [focusedOtherProfileId, setFocusedOtherProfileId] = useState<InstrumentId | null>(null);
   useEscape(open, onClose);
   if (!open) return null;
   const focused = WOODWIND_GALLERY_INSTRUMENTS.find((item) => item.id === focusedId) ?? WOODWIND_GALLERY_INSTRUMENTS[0];
+
+  const chooseOtherGroup = (group: OtherInstrumentGroupId) => {
+    const profiles = instrumentsInGroup(group);
+    const current = INSTRUMENTS[selectedId];
+    setActiveOtherGroup(group);
+    setFocusedOtherProfileId(current.group === group ? current.id : profiles[0]?.id ?? null);
+  };
 
   return (
     <div className="experience-overlay" role="presentation">
       <section className="instrument-experience" role="dialog" aria-modal="true" aria-labelledby="instrument-experience-title">
         <header className="experience-header">
-          <div><p className="eyebrow">Choose an instrument</p><h2 id="instrument-experience-title">What are you playing today?</h2><p>Woodwind profiles adjust Bocal’s tuner, lessons and written-pitch display. Explore the wider instrument landscape below without making unsupported claims.</p></div>
+          <div><p className="eyebrow">Choose an instrument</p><h2 id="instrument-experience-title">What are you playing today?</h2><p>Every selection below changes Bocal’s live tuner, written-pitch display, pulse and local analysis. 3D guidance stays unavailable until its model and map have been validated.</p></div>
           <button onClick={onClose} aria-label="Close instrument selection"><X size={20} /></button>
         </header>
         <section className="instrument-gallery-section" aria-labelledby="woodwind-instruments-title">
           <div className="instrument-gallery-heading"><span id="woodwind-instruments-title">Woodwinds</span><small>{WOODWIND_GALLERY_INSTRUMENTS.filter((item) => item.availableId).length} profiles ready</small></div>
           <InstrumentPanelDeck focusedId={focusedId} selectedId={selectedId} onFocus={setFocusedId} />
         </section>
-        <OtherInstrumentCollection />
+        <OtherInstrumentCollection
+          selectedId={selectedId}
+          activeGroup={activeOtherGroup}
+          focusedProfileId={focusedOtherProfileId}
+          onGroupChange={chooseOtherGroup}
+          onProfileFocus={setFocusedOtherProfileId}
+          onSelect={onSelect}
+        />
         <footer className="experience-footer">
           <div><small>{focused.family}</small><strong>{focused.name} · {focused.pitch}</strong><span>{focused.status}</span></div>
           {focused.availableId ? (
@@ -275,7 +369,7 @@ export function OnboardingGuide({
         {step === 2 && (
           <div className="onboarding-scene contact-onboarding-scene">
             <div className="onboarding-copy"><span><CircleDot size={17} /> Key glow</span><h3>Follow the light.</h3><p>Each note lights only the touch-pieces you need. Rotate the instrument to find the side and thumb keys; nothing sits between you and the keywork.</p></div>
-            <div className="onboarding-contact-visual" aria-hidden="true"><span className="onboarding-key-rail" /><b /><b /><b /><em>KEY GLOW</em></div>
+            <div className="onboarding-contact-visual" aria-hidden="true"><b /><b /><b /><em>KEY GLOW</em></div>
           </div>
         )}
         {step === 3 && (
