@@ -1850,6 +1850,23 @@ html[data-theme="light"] .tracker-diagnostics span, html[data-theme="light"] .tr
 html[data-theme="light"] .tracker-diagnostics strong { color: #2a2624; }
 html[data-theme="light"] .tuner-card::before { background: linear-gradient(90deg, rgba(255,253,249,.99) 0 58%, rgba(255,253,249,.94) 78%, rgba(255,253,249,.8)), url("/images/bocal-alto-sax-cinematic.webp"); }
 html[data-theme="light"] .notation-hint, html[data-theme="light"] .calibration-summary, html[data-theme="light"] .pitch-detail small { color: #4f4b49; }
+/* Controls whose dark background was hard-coded rather than tokenised: the
+   calibration disclosure and body, the diagnostics box, the precision select,
+   the preset buttons, and the empty-note placeholder. Text on these was made
+   dark above, which is only right once the surface is light too. */
+html[data-theme="light"] .calibration-toggle { color: #1d1b1b; background: #f0ece5; border: 1px solid #d9d2c8; box-shadow: inset 0 1px 0 rgba(255,255,255,.9); }
+html[data-theme="light"] .calibration-toggle:hover { background: #f6f2eb; }
+html[data-theme="light"] .calibration-toggle svg:first-child { color: #5e5a5a; }
+html[data-theme="light"] .calibration-body { background: #f7f3ec; border: 1px solid #d9d2c8; box-shadow: inset 0 1px 0 rgba(255,255,255,.9); }
+html[data-theme="light"] .calibration-presets button { color: #3d3938; background: #fffdf9; border-color: #d9d2c8; }
+html[data-theme="light"] .calibration-presets button small { color: #716c6a; }
+html[data-theme="light"] .calibration-value { color: #1d1b1b; }
+html[data-theme="light"] .tracker-diagnostics { background: #f7f3ec; border-color: #d9d2c8; }
+html[data-theme="light"] .tracker-diagnostics > div:first-child > i { background: #e4ded5; }
+html[data-theme="light"] .precision-picker span { color: #5e5a5a; }
+html[data-theme="light"] .precision-picker select { color: #1d1b1b; background: #fffdf9; border-color: #d9d2c8; }
+html[data-theme="light"] .note-name.is-empty { color: #d6cfc4; }
+html[data-theme="light"] .notation-switch button:not(.is-active), html[data-theme="light"] .lab-mode-switch button:not(.is-active) { color: #57524f; }
 @media (width<=680px), (orientation: landscape) and (max-height: 520px) {
   html[data-theme="light"] .mobile-dock { --hy-srf: #ebe4da; --hy-srf2: #f4eee6; --hy-srf3: #fffefa; --hy-groove: #d8d0c5; --hy-rim: rgba(255,255,255,.96); --hy-rim2: rgba(255,255,255,.7); --hy-lip: rgba(255,255,255,.9); --hy-drk: rgba(83,65,48,.24); --hy-drk2: rgba(83,65,48,.14); --hy-cap-hi: #fffefa; --hy-cap: #f0eade; --hy-cap-lo: #d0c4b1; --hy-cap-ink: #2d2825; }
   html[data-theme="light"] .mobile-dock::before { background: linear-gradient(180deg, rgba(245,241,234,0) 0%, rgba(245,241,234,.72) 20%, rgba(245,241,234,.97) 38%, var(--black) 55%); }
