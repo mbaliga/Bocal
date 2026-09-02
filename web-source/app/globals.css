@@ -1872,3 +1872,72 @@ html[data-theme="light"] .notation-switch button:not(.is-active), html[data-them
   html[data-theme="light"] .mobile-dock::before { background: linear-gradient(180deg, rgba(245,241,234,0) 0%, rgba(245,241,234,.72) 20%, rgba(245,241,234,.97) 38%, var(--black) 55%); }
   html[data-theme="light"] .dock-side-button { color: #5b5552; }
 }
+
+/* ============================================================
+   Tone generator depth: sustain/hold, intervals, chords (with
+   just-intonation chord tuning) and the exercise player. Reuses the Hyle
+   crater/keycap vocabulary (.notation-switch) for small choice groups and
+   the existing .tone-controls select styling for longer option lists, so
+   the new controls read as the same instrument as the octave/voice/level
+   row above them rather than a bolted-on panel.
+   ============================================================ */
+.tone-shape-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+.tone-shape-switch button { font-size: 10px; padding: 6px 11px; }
+.tone-sustain-toggle { display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px; border-radius: 999px;
+  background: linear-gradient(180deg, #101012, #17171a); box-shadow: inset 0 1px 3px rgba(0,0,0,.6), inset 0 -1px 0 rgba(255,255,255,.04);
+  color: #a7a7a9; font-size: 9px; text-transform: uppercase; letter-spacing: .07em; cursor: pointer; }
+.tone-sustain-toggle svg { color: #85857f; flex: 0 0 auto; }
+.tone-sustain-toggle input { accent-color: var(--cyan); width: 13px; height: 13px; margin: 0; }
+.tone-sustain-toggle small { color: var(--cyan); font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: 0; }
+.tone-shape-options { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; margin-top: 12px; }
+.tone-shape-options label { display: grid; gap: 5px; color: #737378; font-size: 8px; text-transform: uppercase; letter-spacing: .09em; min-width: 132px; flex: 1 1 132px; }
+.tone-shape-options select { height: 34px; padding: 0 9px; border: 1px solid #303036; border-radius: 9px; background: #101013; color: #c1beb5; font: inherit; font-size: 9px; text-transform: none; letter-spacing: 0; width: 100%; }
+.tone-shape-options .notation-switch { flex: 0 0 auto; }
+.tone-shape-options .notation-switch button { font-size: 9px; padding: 6px 10px; }
+.tone-just-note { margin: 8px 0 0; font-size: 9.5px; line-height: 1.55; color: var(--muted); max-width: 60ch; }
+.tone-sounding { margin: 12px 0 0; font-size: 9.5px; line-height: 1.6; color: var(--subtle); min-height: 13px; overflow-wrap: anywhere; }
+.tone-keyboard button.is-exercise-current { border-color: var(--cyan); box-shadow: 0 0 0 2px rgba(8,254,213,.45), 0 0 18px rgba(8,254,213,.2); }
+
+.tone-exercise { margin-top: 18px; padding: 16px 15px; border-radius: 16px; border: 1px solid #262629;
+  background: linear-gradient(180deg, rgba(255,255,255,.015), rgba(0,0,0,.1)); }
+.tone-exercise-head { display: flex; flex-direction: column; gap: 4px; }
+.tone-exercise-head p { margin: 0; font-size: 10px; line-height: 1.5; color: var(--muted); }
+.tone-exercise-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin-top: 12px; }
+.tone-exercise-controls label { display: grid; gap: 5px; color: #737378; font-size: 8px; text-transform: uppercase; letter-spacing: .09em; }
+.tone-exercise-controls select { height: 32px; padding: 0 8px; border: 1px solid #303036; border-radius: 9px; background: #101013; color: #c1beb5; font: inherit; font-size: 9px; text-transform: none; letter-spacing: 0; }
+.tone-exercise-controls input[type="range"] { width: 100%; accent-color: var(--cyan); height: 32px; }
+.tone-exercise-controls small { color: #8b8b8f; font-size: 8.5px; text-transform: none; letter-spacing: 0; font-variant-numeric: tabular-nums; }
+.tone-exercise-actions { display: flex; align-items: center; gap: 8px; margin-top: 13px; flex-wrap: wrap; }
+.tone-exercise-play { height: 32px; padding: 0 14px; border: 0; border-radius: 9px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+  font-size: 10px; font-weight: 650; color: #043c35; background: radial-gradient(circle at 40% 32%, #e3fff8 0%, #4fd9c1 55%, #008f7b 100%);
+  box-shadow: inset 0 2px 2px rgba(255,255,255,.55), inset 0 -3px 6px rgba(0,58,47,.24), 0 2px 6px rgba(0,82,69,.22); }
+.tone-exercise-loop { height: 32px; padding: 0 11px; border: 1px solid #34343a; border-radius: 9px; background: #151518; color: #a7a7a9;
+  display: inline-flex; align-items: center; gap: 6px; font-size: 9.5px; cursor: pointer; }
+.tone-exercise-loop.is-active { border-color: #4c8e82; background: #132a26; color: var(--cyan); }
+.tone-exercise-status { font-size: 9.5px; color: var(--subtle); font-variant-numeric: tabular-nums; }
+
+@media (width<=440px) {
+  .tone-shape-options { flex-direction: column; align-items: stretch; }
+  .tone-shape-options label { min-width: 0; }
+  .tone-shape-options .notation-switch { align-self: flex-start; }
+  .tone-exercise-controls { grid-template-columns: 1fr; }
+}
+
+html[data-theme="light"] .tone-generator-card { background: linear-gradient(145deg, #f6faf8, #fffdf9); }
+html[data-theme="light"] .tone-generator-head p, html[data-theme="light"] .tone-exercise-head p { color: #645e59; }
+html[data-theme="light"] .tone-stop { color: #3d3938; background: linear-gradient(180deg, #fffefa, #eee8df); border-color: #d9d2c8; }
+html[data-theme="light"] .precision-picker select, html[data-theme="light"] .tone-controls select, html[data-theme="light"] .tone-shape-options select, html[data-theme="light"] .tone-exercise-controls select {
+  color: #1d1b1b; background: #fffdf9; border-color: #d9d2c8; }
+html[data-theme="light"] .tone-shape-options label, html[data-theme="light"] .tone-exercise-controls label { color: #716c6a; }
+html[data-theme="light"] .tone-keyboard button { background: linear-gradient(180deg, #fffdf9, #f0ece5); border-color: #d9d2c8; color: #4a453f; }
+html[data-theme="light"] .tone-keyboard button small { color: #837c76; }
+html[data-theme="light"] .tone-keyboard button svg { color: #9a938a; }
+html[data-theme="light"] .tone-keyboard button:hover, html[data-theme="light"] .tone-keyboard button.is-playing { border-color: #4fa896; background: #e5f2ed; color: #087e6d; box-shadow: 0 0 14px rgba(0,127,110,.14); }
+html[data-theme="light"] .tone-keyboard button.is-exercise-current { border-color: #087e6d; box-shadow: 0 0 0 2px rgba(0,127,110,.3), 0 0 14px rgba(0,127,110,.16); }
+html[data-theme="light"] .tone-sustain-toggle { color: #57524f; background: #f0ece5; box-shadow: inset 0 1px 0 rgba(255,255,255,.9); }
+html[data-theme="light"] .tone-sustain-toggle svg { color: #716c6a; }
+html[data-theme="light"] .tone-just-note, html[data-theme="light"] .tone-sounding, html[data-theme="light"] .tone-exercise-status { color: #5e5a5a; }
+html[data-theme="light"] .tone-exercise { border-color: #d9d2c8; background: linear-gradient(180deg, rgba(255,255,255,.5), rgba(0,0,0,.02)); }
+html[data-theme="light"] .tone-exercise-controls small { color: #6f6967; }
+html[data-theme="light"] .tone-exercise-loop { color: #3d3938; background: linear-gradient(180deg, #fffefa, #eee8df); border-color: #d9d2c8; }
+html[data-theme="light"] .tone-exercise-loop.is-active { border-color: #4fa896; background: #e5f2ed; color: #087e6d; }
