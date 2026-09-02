@@ -1,0 +1,1 @@
+Early release. Five practice workspaces, a fingering trainer for the four saxophones and a 3D oboe, microphone tuning with reference-pitch and temperament controls, and tone analysis, all running on device.

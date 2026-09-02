@@ -14,6 +14,8 @@ node_modules/
 .wrangler/
 .vinext/
 .openai/
+!web-source/.openai/
+!web-source/.openai/hosting.json
 
 # web-source build output — vite build (dist/) and the standalone on-device
 # preview (preview-dist/, see web-source/preview/README.md). Both regenerate

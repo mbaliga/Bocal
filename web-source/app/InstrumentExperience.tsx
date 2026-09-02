@@ -29,7 +29,19 @@ type GalleryInstrument = {
   availableId?: InstrumentId;
 };
 
-const GALLERY_INSTRUMENTS: GalleryInstrument[] = [
+type OtherInstrument = {
+  id: string;
+  name: string;
+  family: string;
+  status: string;
+  gradient: string;
+  art: "bowed" | "fretted" | "brass" | "keys" | "percussion" | "voice" | "electronic";
+};
+
+// These are the only profiles that can change Bocal's tuning and notation
+// behavior today. The wider discovery gallery below is deliberately kept out
+// of InstrumentId until each profile has a validated musical contract.
+const WOODWIND_GALLERY_INSTRUMENTS: GalleryInstrument[] = [
   {
     id: "alto-sax",
     name: "Alto saxophone",
@@ -52,12 +64,35 @@ const GALLERY_INSTRUMENTS: GalleryInstrument[] = [
     gradient: "linear-gradient(160deg, #241645, #081716 72%)",
     availableId: "oboe",
   },
+  {
+    id: "guitar",
+    name: "Guitar",
+    family: "Frets and strings",
+    pitch: "C",
+    status: "String tuner + chord player",
+    gradient: "linear-gradient(160deg, #102b29, #17131f 72%)",
+    availableId: "guitar",
+  },
   { id: "tenor-sax", name: "Tenor saxophone", family: "Saxophone family", pitch: "B♭", status: "Fingering trainer · shown on an alto", image: "/images/bocal-tenor-sax-cinematic.webp", imagePosition: "57% center", gradient: "linear-gradient(160deg, #672d19, #231116)", availableId: "tenor-sax" },
   { id: "soprano-sax", name: "Soprano saxophone", family: "Saxophone family", pitch: "B♭", status: "Fingering trainer · shown on an alto", image: "/images/bocal-soprano-sax-cinematic.webp", imagePosition: "55% center", gradient: "linear-gradient(160deg, #153a48, #0d1821)", availableId: "soprano-sax" },
   { id: "bari-sax", name: "Baritone saxophone", family: "Saxophone family", pitch: "E♭", status: "Fingering trainer · shown on an alto, no low A", gradient: "linear-gradient(160deg, #4a2a12, #1b1410)", availableId: "bari-sax" },
   { id: "flute", name: "Flute", family: "Air reed", pitch: "C", status: "Tuner + practice · lab pending", image: "/images/bocal-flute-cinematic.webp", imagePosition: "54% center", gradient: "linear-gradient(160deg, #5b6573, #181c24)", availableId: "flute" },
   { id: "bassoon", name: "Bassoon", family: "Double reed", pitch: "C", status: "Tuner + practice · lab pending", image: "/images/bocal-bassoon-cinematic.webp", imagePosition: "61% center", gradient: "linear-gradient(160deg, #5b281e, #1d1112)", availableId: "bassoon" },
   { id: "clarinet", name: "Clarinet", family: "Single reed", pitch: "B♭", status: "Not shipping · commercial licence required", image: "/images/bocal-clarinet-cinematic.webp", imagePosition: "55% center", gradient: "linear-gradient(160deg, #293652, #12121c)" },
+];
+
+// Discovery only: these cards deliberately have no InstrumentId or action.
+// A beautiful gallery must not silently pretend that a string, keyboard, or
+// brass profile has a validated transposition, notation, range, or fingering
+// model behind it.
+const OTHER_INSTRUMENTS: OtherInstrument[] = [
+  { id: "bowed-strings", name: "Bowed strings", family: "Violin · viola · cello · bass", status: "Tuner foundations planned", gradient: "linear-gradient(145deg, #7a301f, #24130f 70%)", art: "bowed" },
+  { id: "fretted-strings", name: "Fretted & plucked", family: "Guitar · bass · harp · ukulele", status: "Tuner foundations planned", gradient: "linear-gradient(145deg, #835b1e, #21170e 70%)", art: "fretted" },
+  { id: "brass", name: "Brass", family: "Trumpet · horn · trombone · tuba", status: "Instrument profiles in development", gradient: "linear-gradient(145deg, #76500e, #24190b 70%)", art: "brass" },
+  { id: "keyboards", name: "Keyboards", family: "Piano · organ · synthesizer", status: "Instrument profiles in development", gradient: "linear-gradient(145deg, #304767, #101a28 70%)", art: "keys" },
+  { id: "percussion", name: "Percussion", family: "Mallets · drums · hand percussion", status: "Practice tools planned", gradient: "linear-gradient(145deg, #6c253e, #221018 70%)", art: "percussion" },
+  { id: "voice", name: "Voice", family: "Classical · contemporary · choir", status: "Pitch tools planned", gradient: "linear-gradient(145deg, #553d71, #1c132b 70%)", art: "voice" },
+  { id: "electronic", name: "Electronic & MIDI", family: "Controllers · wind synths · modular", status: "Profile research in progress", gradient: "linear-gradient(145deg, #0b5555, #0b2025 70%)", art: "electronic" },
 ];
 
 function useEscape(open: boolean, close: () => void) {
@@ -78,14 +113,18 @@ function InstrumentPanelDeck({
   focusedId,
   selectedId,
   onFocus,
+  items = WOODWIND_GALLERY_INSTRUMENTS,
+  ariaLabel = "Woodwind instruments",
 }: {
   focusedId: string;
   selectedId: InstrumentId;
   onFocus: (id: string) => void;
+  items?: GalleryInstrument[];
+  ariaLabel?: string;
 }) {
   return (
-    <div className="instrument-panel-deck" role="listbox" aria-label="Instrument collection">
-      {GALLERY_INSTRUMENTS.map((item, index) => {
+    <div className="instrument-panel-deck" role="listbox" aria-label={ariaLabel}>
+      {items.map((item, index) => {
         const focused = item.id === focusedId;
         const selected = item.availableId === selectedId;
         return (
@@ -117,6 +156,37 @@ function InstrumentPanelDeck({
   );
 }
 
+function OtherInstrumentCollection() {
+  return (
+    <section className="other-instruments" aria-labelledby="other-instruments-title">
+      <header className="other-instruments-heading">
+        <div>
+          <p className="eyebrow">Beyond woodwinds</p>
+          <h3 id="other-instruments-title">Other Instruments</h3>
+        </div>
+        <p>Rich instrument profiles are coming only after their tuning, notation, and learning claims are validated.</p>
+      </header>
+      <div className="other-instrument-grid" role="list" aria-label="Planned instrument families">
+        {OTHER_INSTRUMENTS.map((item) => (
+          <article
+            className={`other-instrument-card is-${item.art}`}
+            key={item.id}
+            role="listitem"
+            style={{ backgroundImage: item.gradient }}
+          >
+            <span className={`other-instrument-art is-${item.art}`} aria-hidden="true"><i /><b /><em /></span>
+            <span className="other-instrument-copy">
+              <small>{item.family}</small>
+              <strong>{item.name}</strong>
+              <em>{item.status}</em>
+            </span>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export function InstrumentPickerExperience({
   open,
   selectedId,
@@ -131,16 +201,20 @@ export function InstrumentPickerExperience({
   const [focusedId, setFocusedId] = useState<string>(selectedId);
   useEscape(open, onClose);
   if (!open) return null;
-  const focused = GALLERY_INSTRUMENTS.find((item) => item.id === focusedId) ?? GALLERY_INSTRUMENTS[0];
+  const focused = WOODWIND_GALLERY_INSTRUMENTS.find((item) => item.id === focusedId) ?? WOODWIND_GALLERY_INSTRUMENTS[0];
 
   return (
     <div className="experience-overlay" role="presentation">
       <section className="instrument-experience" role="dialog" aria-modal="true" aria-labelledby="instrument-experience-title">
         <header className="experience-header">
-          <div><p className="eyebrow">Choose an instrument</p><h2 id="instrument-experience-title">What are you playing today?</h2><p>Pick an instrument and Bocal will adjust the tuner, lessons and written-pitch display around it.</p></div>
+          <div><p className="eyebrow">Choose an instrument</p><h2 id="instrument-experience-title">What are you playing today?</h2><p>Woodwind profiles adjust Bocal’s tuner, lessons and written-pitch display. Explore the wider instrument landscape below without making unsupported claims.</p></div>
           <button onClick={onClose} aria-label="Close instrument selection"><X size={20} /></button>
         </header>
-        <InstrumentPanelDeck focusedId={focusedId} selectedId={selectedId} onFocus={setFocusedId} />
+        <section className="instrument-gallery-section" aria-labelledby="woodwind-instruments-title">
+          <div className="instrument-gallery-heading"><span id="woodwind-instruments-title">Woodwinds</span><small>{WOODWIND_GALLERY_INSTRUMENTS.filter((item) => item.availableId).length} profiles ready</small></div>
+          <InstrumentPanelDeck focusedId={focusedId} selectedId={selectedId} onFocus={setFocusedId} />
+        </section>
+        <OtherInstrumentCollection />
         <footer className="experience-footer">
           <div><small>{focused.family}</small><strong>{focused.name} · {focused.pitch}</strong><span>{focused.status}</span></div>
           {focused.availableId ? (
@@ -177,7 +251,7 @@ export function OnboardingGuide({
   const finish = () => { setStep(0); onComplete(); };
   useEscape(open, finish);
   if (!open) return null;
-  const focusedInstrument = GALLERY_INSTRUMENTS.find((item) => item.id === focusedId) ?? GALLERY_INSTRUMENTS[0];
+  const focusedInstrument = WOODWIND_GALLERY_INSTRUMENTS.find((item) => item.id === focusedId) ?? WOODWIND_GALLERY_INSTRUMENTS[0];
 
   const chooseFocused = () => {
     const selected = focusedInstrument.availableId;

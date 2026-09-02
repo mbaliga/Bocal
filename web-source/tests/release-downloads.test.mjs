@@ -2,18 +2,12 @@ import assert from "node:assert/strict";
 import { readFile, readdir, stat } from "node:fs/promises";
 import test from "node:test";
 
-test("the public handoff and verified Android build point to repository-owned source and assets", async () => {
+test("the public handoff and Android release gate point to repository-owned source and assets", async () => {
   const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
   const publicDownloads = await readdir(new URL("../public/downloads/", import.meta.url));
   assert.ok(publicDownloads.includes("BOCAL_HANDOFF.md"));
   const handoff = await stat(new URL("../public/downloads/BOCAL_HANDOFF.md", import.meta.url));
-  const latestApk = (await readFile(new URL("../debug-apks/latest-debug-apk.txt", import.meta.url), "utf8")).trim();
-  const committedApks = (await readdir(new URL("../debug-apks/", import.meta.url))).filter((name) => name.endsWith(".apk"));
-  assert.ok(committedApks.includes(latestApk));
-  const apk = await stat(new URL(`../debug-apks/${latestApk}`, import.meta.url));
   assert.ok(handoff.size > 10_000);
-  assert.ok(apk.size > 5_000_000);
-  assert.equal(latestApk, "Bocal-native-debug-0.2.0.apk");
   for (const name of ["alto-sax", "oboe", "tenor-sax", "soprano-sax", "clarinet", "flute", "bassoon"]) {
     const sourceImage = await stat(new URL(`../assets/source/bocal-${name}-cinematic.png`, import.meta.url));
     const webImage = await stat(new URL(`../public/images/bocal-${name}-cinematic.webp`, import.meta.url));
@@ -21,8 +15,8 @@ test("the public handoff and verified Android build point to repository-owned so
     assert.ok(webImage.size > 10_000, `${name} optimized image is present`);
   }
   assert.match(page, /\/downloads\/BOCAL_HANDOFF\.md/);
-  assert.match(page, /\/downloads\/Bocal-native-debug\.apk/);
-  assert.match(page, /Verified debug build/);
+  assert.doesNotMatch(page, /\/downloads\/Bocal-native-debug\.apk/);
+  assert.match(page, /Android release promotion is pending/);
   assert.match(page, /Settings & model library/i);
   assert.match(page, /Only models with usable rights and player-checked keywork/i);
 });

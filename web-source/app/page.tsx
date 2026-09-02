@@ -11,6 +11,7 @@ import {
   Crosshair,
   Download,
   FileText,
+  Guitar,
   LockKeyhole,
   Mic,
   MoreHorizontal,
@@ -22,11 +23,13 @@ import {
   Settings2,
   Smartphone,
   Sparkles,
+  Sun,
   TimerReset,
   Volume2,
   Waves,
   Wind,
   X,
+  Moon,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -36,6 +39,8 @@ import {
   InstrumentPickerExperience,
   OnboardingGuide,
 } from "./InstrumentExperience";
+import { GuitarStudio } from "./GuitarStudio";
+import { ToneGenerator } from "./ToneGenerator";
 import { StablePitchTracker, type PitchTrackerReading } from "./pitch-engine";
 import { INSTRUMENTS, isInstrumentId, type InstrumentId } from "./instruments";
 import StaffNote from "./StaffNote";
@@ -67,6 +72,7 @@ import {
   type TemperamentId,
   type TuningOptions,
 } from "./tuning";
+import { recordPracticeActivity } from "./practice-data";
 
 const SaxophoneLab = dynamic(
   () => import("./SaxophoneLab").then((module) => module.SaxophoneLab),
@@ -75,6 +81,7 @@ const SaxophoneLab = dynamic(
 
 type Mode = "tune" | "sax" | "pulse" | "analyze" | "practice";
 type RailSide = "left" | "right";
+type Theme = "dark" | "light";
 
 type PitchReading = {
   hz: number;
@@ -93,6 +100,7 @@ const TONIC_STORAGE_KEY = "bocal-sa-tonic";
 const REFERENCE_HZ_STORAGE_KEY = "bocal-reference-hz";
 const TEMPERAMENT_STORAGE_KEY = "bocal-temperament";
 const TEMPERAMENT_KEY_STORAGE_KEY = "bocal-temperament-key";
+const THEME_STORAGE_KEY = "bocal-theme";
 
 const REFERENCE_PRESETS: { hz: number; label: string }[] = [
   { hz: 415, label: "Baroque" },
@@ -170,6 +178,7 @@ export default function Home() {
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [downloadCenterOpen, setDownloadCenterOpen] = useState(false);
   const [railSide, setRailSide] = useState<RailSide>("left");
+  const [theme, setTheme] = useState<Theme>("dark");
   const [notation, setNotation] = useState<NotationSystem>("western");
   const [saTonic, setSaTonic] = useState(0);
   const [referenceHz, setReferenceHz] = useState(REFERENCE_HZ_DEFAULT);
@@ -223,6 +232,25 @@ export default function Home() {
       shouldOpen = true;
     }
     const timer = window.setTimeout(() => setOnboardingOpen(shouldOpen), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      try {
+        const saved = localStorage.getItem(THEME_STORAGE_KEY);
+        const next: Theme = saved === "light" || saved === "dark"
+          ? saved
+          : document.documentElement.dataset.theme === "light"
+            ? "light"
+            : "dark";
+        setTheme(next);
+        document.documentElement.dataset.theme = next;
+        document.documentElement.style.colorScheme = next;
+      } catch {
+        // Dark remains the dependable default if browser storage is unavailable.
+      }
+    }, 0);
     return () => window.clearTimeout(timer);
   }, []);
 
@@ -361,10 +389,17 @@ export default function Home() {
       const current = parseSkillEvidence(localStorage.getItem(SKILL_EVIDENCE_STORAGE_KEY));
       localStorage.setItem(SKILL_EVIDENCE_STORAGE_KEY, JSON.stringify(withTunerSession(current, summary)));
       window.dispatchEvent(new Event("bocal-skill-evidence"));
+      recordPracticeActivity({
+        type: "tuning",
+        seconds: summary.durationMs / 1000,
+        instrumentId: instrument.id,
+        notes: summary.midiNotes.map((midi) => fullNoteLabel(midi, "western")),
+        label: `${instrument.shortName} tuner session`,
+      });
     } catch {
       // The tuner remains fully functional when device storage is unavailable.
     }
-  }, []);
+  }, [instrument.id, instrument.shortName]);
 
   const stopListening = useCallback(() => {
     if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
@@ -543,6 +578,13 @@ export default function Home() {
     try { localStorage.setItem(NAVIGATION_SIDE_STORAGE_KEY, side); } catch { /* The preference still applies for this visit. */ }
   };
 
+  const chooseTheme = (next: Theme) => {
+    setTheme(next);
+    document.documentElement.dataset.theme = next;
+    document.documentElement.style.colorScheme = next;
+    try { localStorage.setItem(THEME_STORAGE_KEY, next); } catch { /* The preference still applies for this visit. */ }
+  };
+
   return (
     <div className={`app-shell nav-${railSide}`}>
       <a className="skip-to-content" href="#bocal-main">Skip to content</a>
@@ -579,7 +621,7 @@ export default function Home() {
         <header className="top-bar">
           <div className="instrument-picker-wrap">
             <button className="instrument-picker" aria-label="Choose instrument" aria-expanded={instrumentPickerOpen} onClick={() => setInstrumentPickerOpen((value) => !value)}>
-              <span className="instrument-icon"><Wind size={18} /></span>
+              <span className="instrument-icon">{instrument.id === "guitar" ? <Guitar size={18} /> : <Wind size={18} />}</span>
               <span><small>Instrument</small>{instrument.shortName} · {instrument.pitchLabel}</span>
               <ChevronDown size={16} />
             </button>
@@ -592,13 +634,16 @@ export default function Home() {
               {sessionActive ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" />}
               {sessionActive ? "End session" : "Start practice"}
             </button>
+            <button className="icon-button theme-toggle" aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} appearance`} aria-pressed={theme === "light"} onClick={() => chooseTheme(theme === "dark" ? "light" : "dark")}>
+              {theme === "dark" ? <Sun size={19} /> : <Moon size={19} />}
+            </button>
             <button className="icon-button" aria-label="Open settings and handoff" aria-expanded={downloadCenterOpen} onClick={() => setDownloadCenterOpen(true)}><MoreHorizontal size={20} /></button>
           </div>
         </header>
 
         {instrumentPickerOpen && <InstrumentPickerExperience open selectedId={instrumentId} onSelect={chooseInstrument} onClose={() => setInstrumentPickerOpen(false)} />}
         {onboardingOpen && <OnboardingGuide open selectedId={instrumentId} onSelect={chooseInstrument} onComplete={completeOnboarding} />}
-        {downloadCenterOpen && <DownloadCenter railSide={railSide} onRailSideChange={chooseRailSide} onClose={() => setDownloadCenterOpen(false)} onOpenOnboarding={() => { setDownloadCenterOpen(false); setOnboardingOpen(true); }} />}
+        {downloadCenterOpen && <DownloadCenter railSide={railSide} onRailSideChange={chooseRailSide} theme={theme} onThemeChange={chooseTheme} onClose={() => setDownloadCenterOpen(false)} onOpenOnboarding={() => { setDownloadCenterOpen(false); setOnboardingOpen(true); }} />}
 
         {mode === "tune" && (
           <TunerView
@@ -625,7 +670,9 @@ export default function Home() {
             onTemperamentKeyPcChange={chooseTemperamentKeyPc}
           />
         )}
-        {mode === "sax" && <SaxophoneLab onBack={() => selectMode("tune")} instrumentId={instrumentId} />}
+        {mode === "sax" && (instrumentId === "guitar"
+          ? <GuitarStudio reading={reading ? { hz: reading.hz, cents: reading.cents, midi: reading.concertMidi } : null} listening={listening} onListen={startListening} />
+          : <SaxophoneLab onBack={() => selectMode("tune")} instrumentId={instrumentId} />)}
         {mode === "pulse" && <PulseView />}
         {mode === "analyze" && <AnalysisView instrument={instrument} notation={notation} saTonic={saTonic} />}
         {mode === "practice" && (
@@ -738,11 +785,15 @@ export default function Home() {
 function DownloadCenter({
   railSide,
   onRailSideChange,
+  theme,
+  onThemeChange,
   onClose,
   onOpenOnboarding,
 }: {
   railSide: RailSide;
   onRailSideChange: (side: RailSide) => void;
+  theme: Theme;
+  onThemeChange: (theme: Theme) => void;
   onClose: () => void;
   onOpenOnboarding: () => void;
 }) {
@@ -752,12 +803,6 @@ function DownloadCenter({
       title: "Bocal handoff",
       copy: "Research, user journeys, feature scope, saxophone notes, architecture, Android status and release checks in one file.",
       icon: FileText,
-    },
-    {
-      href: "/downloads/Bocal-native-debug.apk",
-      title: "Android debug APK",
-      copy: "Bocal 0.2.0 for Android 8+: tuner, bronze sax lab, key glows, onboarding, curved navigation and local practice history. Debug-signed for direct testing.",
-      icon: Smartphone,
     },
   ];
   const modelSources: Array<{ instrument: string; status: string; tone: "ready" | "review" | "blocked"; href?: string }> = [
@@ -783,6 +828,13 @@ function DownloadCenter({
             <button role="radio" aria-checked={railSide === "right"} className={railSide === "right" ? "is-active" : ""} onClick={() => onRailSideChange("right")}>Right</button>
           </div>
         </section>
+        <section className="settings-panel" aria-labelledby="appearance-title">
+          <div><Sun size={18} /><span><strong id="appearance-title">Appearance</strong><p>Choose an illuminated light surface or Bocal’s deep studio finish.</p></span></div>
+          <div className="side-choice theme-choice" role="radiogroup" aria-label="Appearance">
+            <button role="radio" aria-checked={theme === "light"} className={theme === "light" ? "is-active" : ""} onClick={() => onThemeChange("light")}>Light</button>
+            <button role="radio" aria-checked={theme === "dark"} className={theme === "dark" ? "is-active" : ""} onClick={() => onThemeChange("dark")}>Dark</button>
+          </div>
+        </section>
         <section className="model-source-panel" aria-labelledby="model-source-title">
           <header><div><strong id="model-source-title">Educational model sourcing</strong><p>Only models with usable rights and player-checked keywork will enter the learning lab.</p></div><span>{modelSources.filter((item) => item.tone === "ready").length} integrated</span></header>
           <div className="model-source-list">
@@ -805,7 +857,7 @@ function DownloadCenter({
         </div>
         <div className="apk-blocker">
           <Smartphone size={18} />
-          <div><strong>Verified debug build.</strong><p>Built and signature-checked. Physical-phone checks for microphone accuracy, latency, interruptions and rotation are still open.</p></div>
+          <div><strong>Android release promotion is pending.</strong><p>A current artifact will appear here only after release signing, installation, cold launch, and physical-device audio checks pass.</p></div>
         </div>
         <button className="replay-onboarding" onClick={onOpenOnboarding}><Sparkles size={15} /> Replay the onboarding guide</button>
       </section>
@@ -1006,8 +1058,10 @@ function TunerView({
   onTemperamentChange: (next: TemperamentId) => void;
   onTemperamentKeyPcChange: (next: number) => void;
 }) {
-  const inTune = trackerReading.state === "locked" && reading !== null && Math.abs(reading.cents) <= 5;
-  const direction = reading === null ? "Waiting" : reading.cents > 5 ? "Sharp" : reading.cents < -5 ? "Flat" : "Centered";
+  const [precision, setPrecision] = useState<"standard" | "fine" | "ultra">("fine");
+  const tolerance = precision === "standard" ? 10 : precision === "ultra" ? 2 : 5;
+  const inTune = trackerReading.state === "locked" && reading !== null && Math.abs(reading.cents) <= tolerance;
+  const direction = reading === null ? "Waiting" : reading.cents > tolerance ? "Sharp" : reading.cents < -tolerance ? "Flat" : "Centered";
   const markerPosition = reading === null ? 50 : Math.max(4, Math.min(96, 50 + reading.cents * 0.8));
   // The concert name is always shown in letters. It exists so a player can
   // check themselves against a piano or another section, and that conversation
@@ -1047,7 +1101,7 @@ function TunerView({
           : trackerReading.state === "holding"
             ? { title: "The signal dipped.", copy: "Bocal holds the last note briefly instead of jumping. The display clears if the sound doesn’t return." }
             : inTune
-              ? { title: "Right in the middle.", copy: "You’re within five cents. Keep the air and embouchure where they are." }
+              ? { title: "Right in the middle.", copy: `You’re within ${tolerance} cents. Keep the air and embouchure where they are.` }
               : { title: `${direction} by ${Math.abs(reading?.cents ?? 0)} cents.`, copy: direction === "Sharp" ? "Ease the jaw pressure without losing the air." : "Support the air and bring the pitch up without biting." };
   const signalPercent = Math.min(100, Math.round((trackerReading.rms / Math.max(trackerReading.gate * 1.6, 0.0001)) * 100));
 
@@ -1066,7 +1120,7 @@ function TunerView({
         <section className={`tuner-card ${inTune ? "is-centered" : ""} ${reading ? "has-reading" : "is-waiting"}`} aria-live="polite">
           <div className="tuner-card-top">
             <span className="status-label"><CircleDot size={15} /> {trackerReading.state === "locked" ? direction : trackerLabel}</span>
-            <button className="small-action" onClick={onReference}><Volume2 size={16} /> Hear reference A</button>
+            <div className="tuner-top-actions"><label className="precision-picker"><span>Precision</span><select value={precision} onChange={(event) => setPrecision(event.target.value as "standard" | "fine" | "ultra")} aria-label="Tuner precision"><option value="standard">Standard ±10¢</option><option value="fine">Fine ±5¢</option><option value="ultra">Ultra ±2¢</option></select></label><button className="small-action" onClick={onReference}><Volume2 size={16} /> Hear reference A</button></div>
           </div>
 
           <div className="note-readout">
@@ -1147,17 +1201,35 @@ function TunerView({
             <p className="lock-policy"><LockKeyhole size={13} /> Noise gate · 3-frame lock · 550 ms dropout hold</p>
           </article>
 
-          <article className="sax-card" onClick={onOpenSax} role="button" tabIndex={0} onKeyDown={(event) => event.key === "Enter" && onOpenSax()}>
-            <div>
-              <span className="card-kicker"><Rotate3D size={15} /> {instrument.id === "alto-sax" ? "Fingering lab" : "Anatomy preview"}</span>
-              <h3>{instrument.id === "alto-sax" ? (reading ? `See ${writtenLabel} on the sax.` : "Open the interactive alto sax.") : "Explore the oboe up close."}</h3>
-              <p>{instrument.id === "alto-sax" ? "Open the sax and the keys for this note will light up." : "Turn the model and tap its rods, springs and keywork."}</p>
-            </div>
-            <div className={`sax-card-photo ${instrument.id === "oboe" ? "is-oboe" : ""}`} aria-hidden="true" />
-            <span className="round-arrow"><ArrowRight size={17} /></span>
-          </article>
+          {instrument.id === "guitar" ? (
+            <article className="guitar-launch-card" onClick={onOpenSax} role="button" tabIndex={0} onKeyDown={(event) => event.key === "Enter" && onOpenSax()}>
+              <span className="card-kicker"><Guitar size={15} /> String studio</span>
+              <h3>{reading ? `Put ${writtenLabel} in context.` : "Tune, then follow the chord shapes."}</h3>
+              <p>Six-string tuning, colour-coded finger placement and a patient chord player.</p>
+              <div className="guitar-launch-strings" aria-hidden="true"><i /><i /><i /><i /><i /><i /></div>
+              <span className="round-arrow"><ArrowRight size={17} /></span>
+            </article>
+          ) : (
+            <article className="sax-card" onClick={onOpenSax} role="button" tabIndex={0} onKeyDown={(event) => event.key === "Enter" && onOpenSax()}>
+              <div>
+                <span className="card-kicker"><Rotate3D size={15} /> {instrument.id === "alto-sax" ? "Fingering lab" : "Anatomy preview"}</span>
+                <h3>{instrument.id === "alto-sax" ? (reading ? `See ${writtenLabel} on the sax.` : "Open the interactive alto sax.") : "Explore the oboe up close."}</h3>
+                <p>{instrument.id === "alto-sax" ? "Open the sax and the keys for this note will light up." : "Turn the model and tap its rods, springs and keywork."}</p>
+              </div>
+              <div className={`sax-card-photo ${instrument.id === "oboe" ? "is-oboe" : ""}`} aria-hidden="true" />
+              <span className="round-arrow"><ArrowRight size={17} /></span>
+            </article>
+          )}
         </aside>
       </div>
+
+      <ToneGenerator
+        referenceHz={referenceHz}
+        temperament={temperament}
+        temperamentKeyPc={temperamentKeyPc}
+        notation={notation}
+        saTonic={saTonic}
+      />
 
       <section className="today-strip">
         <div className="today-title"><span>This session</span><strong>Your practice, as it happens.</strong></div>
