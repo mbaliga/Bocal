@@ -19,6 +19,7 @@ import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "reac
 import type { InstrumentProfile } from "./instruments";
 import type { NotationSystem } from "./notation";
 import { TranscribePanel } from "./TranscribePanel";
+import { recordPracticeActivity } from "./practice-data";
 
 type AnalysisMode = "waveform" | "spectrum";
 type RecordingTake = { id: string; name: string; url: string; createdAt: string; seconds: number };

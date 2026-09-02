@@ -706,7 +706,7 @@ button:focus-visible, [role="button"]:focus-visible, a:focus-visible, input:focu
 .instrument-ghost { position: absolute; inset: 48px 14px 80px; display: grid; place-items: center; opacity: .65; }
 .instrument-ghost i { display: block; width: 24px; height: 76%; border-radius: 20px 20px 46% 46%; background: linear-gradient(90deg, rgba(255,255,255,.09), rgba(255,255,255,.42), rgba(255,255,255,.08)); }
 .instrument-ghost b { position: absolute; width: 66px; height: 22px; bottom: 4%; border: 5px solid rgba(255,255,255,.25); border-top: 0; border-radius: 0 0 40px 40px; }
-.other-instruments { position: relative; margin: 5px 0 20px; padding: clamp(17px, 2.4vw, 25px); overflow: hidden; border: 1px solid rgba(142,123,255,.2); border-radius: 22px; background: radial-gradient(circle at 92% 8%, rgba(142,123,255,.14), transparent 27%), linear-gradient(145deg, rgba(25,24,34,.94), rgba(11,12,15,.98)); box-shadow: inset 0 1px 0 rgba(255,255,255,.07), inset 0 -18px 42px rgba(0,0,0,.16), 0 18px 60px rgba(0,0,0,.16); }
+.other-instruments { position: relative; flex: 0 0 auto; margin: 5px 0 20px; padding: clamp(17px, 2.4vw, 25px); overflow: hidden; border: 1px solid rgba(142,123,255,.2); border-radius: 22px; background: radial-gradient(circle at 92% 8%, rgba(142,123,255,.14), transparent 27%), linear-gradient(145deg, rgba(25,24,34,.94), rgba(11,12,15,.98)); box-shadow: inset 0 1px 0 rgba(255,255,255,.07), inset 0 -18px 42px rgba(0,0,0,.16), 0 18px 60px rgba(0,0,0,.16); }
 .other-instruments::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .24; background-image: repeating-linear-gradient(116deg, rgba(255,255,255,.035) 0 1px, transparent 1px 6px), radial-gradient(circle at 20% 25%, rgba(8,254,213,.13), transparent 29%); mix-blend-mode: screen; }
 .other-instruments-heading, .other-instrument-grid { position: relative; z-index: 1; }
 .other-instruments-heading { display: flex; align-items: end; justify-content: space-between; gap: 28px; }
@@ -1397,7 +1397,7 @@ button:focus-visible, [role="button"]:focus-visible, a:focus-visible, input:focu
    inherited, because these surfaces live in the page body where the dock's
    media-scoped custom properties do not reach.
    ============================================================ */
-.notation-picker { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: -2px 0 4px; }
+.notation-picker { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; margin: -2px 0 4px; }
 .notation-switch { display: inline-flex; gap: 3px; padding: 4px; border-radius: 999px;
   background: linear-gradient(180deg, #0b0b0d, #131316);
   box-shadow: inset 0 2px 5px rgba(0,0,0,.72), inset 0 -1px 0 rgba(255,255,255,.05), 0 1px 0 rgba(255,255,255,.04); }
@@ -1417,7 +1417,7 @@ button:focus-visible, [role="button"]:focus-visible, a:focus-visible, input:focu
    sits behind a disclosure rather than open in the readout like the notation
    switch above. The toggle itself is a shallow crater; opening it reveals a
    slightly deeper recessed panel holding the same track/keycap vocabulary. */
-.calibration-picker { width: 100%; max-width: 360px; margin: 2px auto 0; }
+.calibration-picker { position: relative; z-index: 1; width: 100%; max-width: 360px; margin: 2px auto 0; }
 .calibration-toggle { width: 100%; display: flex; align-items: center; gap: 7px; border: 0; border-radius: 12px;
   padding: 8px 12px; cursor: pointer; font-size: 12px; font-weight: 620; color: var(--subtle);
   background: linear-gradient(180deg, #101012, #17171a);
@@ -1767,6 +1767,7 @@ button:focus-visible, [role="button"]:focus-visible, a:focus-visible, input:focu
   .practice-visualizer-head .local-chip { display: inline-flex; margin-top: 13px; }
   .practice-map-grid { grid-template-columns: 1fr; }
   .gentle-win-card { grid-column: auto; }
+}
 
 /*
    Light is a material inversion, not a colour inversion. The same Hyle-style
@@ -1835,6 +1836,20 @@ html[data-theme="light"] .listen-button, html[data-theme="light"] .tone-button, 
 html[data-theme="light"] .lab-mode-switch, html[data-theme="light"] .notation-switch { background: linear-gradient(180deg, #d8d0c5, #e8e1d7 52%, #f8f4ed); box-shadow: inset 0 4px 8px rgba(89,69,49,.18), inset 0 -2px 2px rgba(255,255,255,.9); }
 html[data-theme="light"] .lab-mode-switch button.is-active, html[data-theme="light"] .notation-switch button.is-active { color: #282320; background: radial-gradient(circle at 40% 32%, #fffefa 0%, #f0eadf 60%, #d0c4b2 100%); box-shadow: inset 0 1px 1px rgba(255,255,255,.95), inset 0 -2px 4px rgba(87,67,50,.18), 0 2px 5px rgba(87,67,50,.2); }
 html[data-theme="light"] .transcribe-drop, html[data-theme="light"] .transcribe-progress, html[data-theme="light"] .transcribe-notes { background: #ebe4da; border-color: #ccc2b6; box-shadow: inset 0 2px 6px rgba(86,65,46,.14); }
+/* Surfaces that stay dark in light mode -- cinematic photo panels and the
+   handoff card -- must keep light ink, and controls that were hard-coded for
+   the dark palette need real light-mode values. Measured before this block:
+   gallery titles 1.18:1, handoff card 1.07:1, tuner diagnostics 1.24:1. */
+html[data-theme="light"] .instrument-panel, html[data-theme="light"] .instrument-panel-copy strong, html[data-theme="light"] .instrument-panel-copy em { color: #f5f3eb; }
+html[data-theme="light"] .instrument-panel-copy small { color: #d9d4ca; }
+html[data-theme="light"] .download-grid > a { border-color: #d9d2c8; background: #fffdf9; }
+html[data-theme="light"] .download-grid > a:hover { border-color: #92c4b9; background: #eef6f2; }
+html[data-theme="light"] .download-grid > a > i { color: #46399c; background: #ece7ff; }
+html[data-theme="light"] .status-label, html[data-theme="light"] .card-kicker { color: #4d3fa8; }
+html[data-theme="light"] .tracker-diagnostics span, html[data-theme="light"] .tracker-diagnostics small { color: #4f4b49; }
+html[data-theme="light"] .tracker-diagnostics strong { color: #2a2624; }
+html[data-theme="light"] .tuner-card::before { background: linear-gradient(90deg, rgba(255,253,249,.99) 0 58%, rgba(255,253,249,.94) 78%, rgba(255,253,249,.8)), url("/images/bocal-alto-sax-cinematic.webp"); }
+html[data-theme="light"] .notation-hint, html[data-theme="light"] .calibration-summary, html[data-theme="light"] .pitch-detail small { color: #4f4b49; }
 @media (width<=680px), (orientation: landscape) and (max-height: 520px) {
   html[data-theme="light"] .mobile-dock { --hy-srf: #ebe4da; --hy-srf2: #f4eee6; --hy-srf3: #fffefa; --hy-groove: #d8d0c5; --hy-rim: rgba(255,255,255,.96); --hy-rim2: rgba(255,255,255,.7); --hy-lip: rgba(255,255,255,.9); --hy-drk: rgba(83,65,48,.24); --hy-drk2: rgba(83,65,48,.14); --hy-cap-hi: #fffefa; --hy-cap: #f0eade; --hy-cap-lo: #d0c4b1; --hy-cap-ink: #2d2825; }
   html[data-theme="light"] .mobile-dock::before { background: linear-gradient(180deg, rgba(245,241,234,0) 0%, rgba(245,241,234,.72) 20%, rgba(245,241,234,.97) 38%, var(--black) 55%); }

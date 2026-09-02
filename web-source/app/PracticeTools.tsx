@@ -354,6 +354,21 @@ function weekFromSessions(sessions: SessionRecord[]) {
   });
 }
 
+/** Day bucket for a logged activity, matching the keys weekFromSessions emits. */
+function activityDayKey(activity: PracticeActivity) {
+  const captured = new Date(activity.capturedAt);
+  return Number.isFinite(captured.getTime()) ? dayKey(captured) : "";
+}
+
+/** "12 min", "1h 05m", or an em dash for nothing yet -- sized for the day orbit chips. */
+function minuteLabel(seconds: number) {
+  if (!(seconds > 0)) return "\u2014";
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 1) return "<1 min";
+  if (minutes < 60) return `${minutes} min`;
+  return `${Math.floor(minutes / 60)}h ${String(minutes % 60).padStart(2, "0")}m`;
+}
+
 export function PracticeView({
   onOpenTuner,
   onOpenSax,
