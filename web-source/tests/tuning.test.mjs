@@ -130,6 +130,22 @@ test("Vallotti's C-G fifth is 698.04 cents (-1.96 from equal)", () => {
   assert.ok(Math.abs(700 + TEMPERAMENTS.vallotti[7] - 698.04) < 0.01);
 });
 
+test("Kirnberger III has a pure C-E third and puts the schisma on the F#-C# fifth", () => {
+  const k = TEMPERAMENTS.kirnberger3;
+  // Four 1/4-syntonic-comma fifths C-G-D-A-E give a pure 5:4 third: 386.31 cents from C.
+  assert.ok(Math.abs(400 + k[4] - 386.31) < 0.01, `expected E at 386.31 cents from C, got ${400 + k[4]}`);
+  // F#-C# is the fifth that absorbs the leftover schisma: exactly 700 cents wide.
+  const fSharp = 600 + k[6];
+  const cSharp = 100 + k[1] + 1200;
+  assert.ok(Math.abs(cSharp - fSharp - 700) < 0.01, `expected a 700-cent F#-C# fifth, got ${cSharp - fSharp}`);
+  // Every other untempered fifth is pure (701.955): F-C, Bb-F, Eb-Bb, Ab-Eb, C#-Ab.
+  const absolute = k.map((offset, degree) => degree * 100 + offset);
+  const fifth = (from, to) => ((absolute[to] - absolute[from]) % 1200 + 1200) % 1200;
+  for (const [from, to] of [[5, 0], [10, 5], [3, 10], [8, 3], [1, 8]]) {
+    assert.ok(Math.abs(fifth(from, to) - 701.955) < 0.01, `fifth ${from}->${to} should be pure, got ${fifth(from, to)}`);
+  }
+});
+
 test("a tone exactly at a Kirnberger III / Young (1799) target reads 0 cents", () => {
   for (const id of ["kirnberger3", "young1799", "meantone-sixth", "meantone-third"]) {
     const options = { referenceHz: 440, temperament: id, keyPc: 0 };

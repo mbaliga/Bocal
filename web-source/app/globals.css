@@ -2067,6 +2067,7 @@ html[data-theme="light"] .sequence-steps li { background: #f7f3ec; border-color:
 html[data-theme="light"] .sequence-steps button { background: #fffdf9; border-color: #d9d2c8; color: #5e5a5a; }
 html[data-theme="light"] .sequence-loop { color: #5e5a5a; }
 
+/* ============================================================
    Tuner depth: pitch history graph, the temperament select/custom
    editor, and the Sensitivity/Damping controls added to the
    Calibration disclosure. Appended as one block so it's easy to

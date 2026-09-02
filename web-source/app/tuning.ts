@@ -64,9 +64,11 @@ export type TemperamentId =
  * major third C-E (386.31 cents); every other fifth pure. Because only a
  * syntonic comma (not the larger Pythagorean comma) was removed over the 4
  * tempered fifths, the circle doesn't close purely -- the leftover schisma
- * (~1.95 cents) lands entirely on the F-C fifth, which is why F ends up
- * essentially equal-tempered (499.999 vs 500 cents), a well-documented
- * feature of this temperament used here as a self-check.
+ * (~1.95 cents) is taken out of the F#-C# fifth (700 cents instead of
+ * 701.955), which is where Kirnberger placed it. The resulting absolute
+ * table from C is the standard one: C 0, C# 90.225, D 193.157, Eb 294.135,
+ * E 386.314, F 498.045, F# 590.225, G 696.579, Ab 792.180, A 889.735,
+ * Bb 996.090, B 1088.269 (Wikipedia "Kirnberger temperament"; Jorgensen).
  *
  * vallotti (Vallotti, c. 1754) and young1799 (Thomas Young's second
  * temperament, 1799) share a construction: six consecutive fifths tempered
@@ -98,7 +100,7 @@ export const TEMPERAMENTS: Record<Exclude<TemperamentId, "custom">, number[]> = 
   "meantone-sixth": [0, -11.41, -3.26, 4.89, -6.52, 1.63, -9.78, -1.63, -13.04, -4.89, 3.26, -8.15],
   "meantone-third": [0, -36.5, -10.43, 15.64, -20.86, 5.21, -31.28, -5.21, -41.71, -15.64, 10.43, -26.07],
   werckmeister3: [0, -9.78, -7.82, -5.87, -9.78, -1.96, -11.73, -3.91, -7.82, -11.73, -3.91, -7.82],
-  kirnberger3: [0, -7.82, -6.84, -3.91, -13.69, 0, -9.78, -3.42, -5.87, -10.26, -1.96, -11.73],
+  kirnberger3: [0, -9.78, -6.84, -5.87, -13.69, -1.96, -9.78, -3.42, -7.82, -10.26, -3.91, -11.73],
   vallotti: [0, -5.87, -3.91, -1.96, -7.82, 1.96, -7.82, -1.96, -3.91, -5.87, 0, -9.78],
   young1799: [0, -9.78, -3.91, -5.87, -7.82, -1.96, -11.73, -1.96, -7.82, -5.87, -3.91, -9.78],
 };
