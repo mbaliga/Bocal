@@ -2454,3 +2454,21 @@ html[data-theme="light"] .tone-keyboard button small, html[data-theme="light"] .
 html[data-theme="light"] .eyebrow { color: #00695c !important; }
 html[data-theme="light"] .model-loading, html[data-theme="light"] .model-fallback { color: #d9d4ca; }
 
+
+/* ============================================================
+   Light theme, part 3: the controls that landed after part 2 was
+   cut (exercise player, tempo ramp, preset sequences, altissimo
+   quiz toggle). Same recipe: light surface, --muted ink at 4.5:1
+   or better on it. The exercise card drops its translucent gradient
+   for a flat surface so the contrast is the same everywhere on it.
+   ============================================================ */
+html[data-theme="light"] .tone-exercise { background: #f7f3ec; }
+html[data-theme="light"] .tone-exercise-controls label { color: #5e5a5a; }
+html[data-theme="light"] .tone-exercise-controls small { color: #5e5a5a; }
+html[data-theme="light"] .tone-exercise-head p { color: #57524f; }
+html[data-theme="light"] .tone-exercise-status { color: #4f4b49; }
+html[data-theme="light"] .tone-exercise-loop.is-active { color: #066b5c; }
+html[data-theme="light"] .choice-row button small { color: #5e5a5a; }
+html[data-theme="light"] .choice-row button.is-active small { color: #3f3382; }
+html[data-theme="light"] .sequence-add { color: #066b5c; }
+html[data-theme="light"] .altissimo-challenge-toggle { color: #5e5a5a; }
