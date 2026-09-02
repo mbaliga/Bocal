@@ -378,6 +378,34 @@ button:focus-visible, [role="button"]:focus-visible, a:focus-visible, input:focu
 .oboe-truth-card p { margin: 6px 0 0; color: #747478; font-size: 8px; line-height: 1.55; }
 .model-credit { margin-top: auto; padding-top: 18px; color: #78727f; display: flex; align-items: flex-start; gap: 7px; font-size: 8px; line-height: 1.45; text-decoration: none; }
 .model-credit:hover { color: #a69add; }
+
+/* 2D fingering charts (flute, clarinet, bassoon, and the oboe/cor-anglais
+   section beneath their 3D stage). Reuses the sax lab's note-browser,
+   pitch-pair, fingering-choices, finger-hint and pressed-section rules;
+   these are just the pieces those don't already cover. */
+.chart-review-badge { width: fit-content; margin-bottom: 14px; height: 30px; padding: 0 13px; border: 1px solid #3c3758; border-radius: 100px; background: #191727; color: #b9b1e8; display: inline-flex; align-items: center; gap: 7px; font-size: 9px; }
+.chart-review-badge svg { color: var(--violet); flex: 0 0 auto; }
+.chart-workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, .74fr); gap: 14px; }
+.chart-stage { position: relative; min-height: 470px; padding: 20px 14px 14px; border: 1px solid var(--line); border-radius: 22px; background: var(--panel); background-image: radial-gradient(circle at 52% 40%, rgba(142,123,255,.07) 0, rgba(11,11,12,0) 55%); display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.chart-staff-slot { color: var(--subtle); }
+.chart-svg { width: 100%; max-width: 340px; flex: 1 1 auto; min-height: 0; color: #4c4c53; }
+.chart-svg .chart-key-ring { stroke: currentColor; }
+.chart-svg .chart-key-fill { fill: var(--cyan); }
+.chart-spine { stroke: var(--line); stroke-width: 0.6; }
+.chart-legend { display: flex; gap: 14px; color: #77777c; font-size: 8px; }
+.chart-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.chart-legend i { width: 10px; height: 10px; border-radius: 50%; border: 1px solid #5a5a60; display: inline-block; }
+.chart-legend .legend-pressed { background: var(--cyan); border-color: var(--cyan); }
+.chart-legend .legend-half { background: linear-gradient(90deg, var(--cyan) 50%, transparent 50%); }
+.chart-panel { min-width: 0; padding: 26px; border: 1px solid var(--line); border-radius: 22px; background: var(--panel); display: flex; flex-direction: column; }
+.chart-key-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.chart-key-chip { padding: 5px 10px; border: 1px solid #1f5a51; border-radius: 100px; background: #11322e; color: var(--cyan); font-size: 8px; }
+.chart-key-chip.is-half { border-color: #3c3758; background: #191727; color: #b9b1e8; }
+.chart-lab-view .lab-header { margin-bottom: 20px; }
+.oboe-chart-section { margin-top: 14px; }
+.oboe-chart-heading { margin-bottom: 12px; }
+.oboe-chart-heading h2 { margin: 6px 0 0; font-size: 22px; letter-spacing: -.04em; }
+
 .fingering-panel { padding: 26px; display: flex; flex-direction: column; }
 .pitch-pair { display: grid; grid-template-columns: 1fr 20px 1fr; gap: 12px; align-items: center; padding-bottom: 22px; border-bottom: 1px solid var(--line); }
 .pitch-pair > div { display: grid; }
@@ -973,6 +1001,8 @@ button:focus-visible, [role="button"]:focus-visible, a:focus-visible, input:focu
   .oboe-inspector { min-height: 520px; }
   .model-stage { min-height: 510px; }
   .fingering-panel { min-height: 510px; }
+  .chart-workspace { grid-template-columns: 1fr; }
+  .chart-stage { min-height: 400px; }
   .note-browser { grid-template-columns: 40px minmax(0, 1fr) 40px; }
   .note-scroll button { flex-basis: 43px; }
   .colourway-quickbar { grid-template-columns: auto minmax(0, 1fr); padding-left: 11px; gap: 8px; }

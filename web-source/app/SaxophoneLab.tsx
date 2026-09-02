@@ -32,10 +32,13 @@ import {
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { FingeringChart } from "./FingeringChart";
+import { FINGERING_CHARTS } from "./fingering-charts";
 import { ImportedInstrumentCanvas, type InstrumentViewId } from "./ImportedInstrumentCanvas";
 import { OboeLab } from "./OboeLab";
 import { animateEducationalSaxKeys, buildEducationalAltoSaxophone } from "./alto-sax-model";
 import { INSTRUMENTS, type InstrumentId } from "./instruments";
+import type { NotationSystem } from "./notation";
 import {
   SAXOPHONE_FINGERINGS,
   midiToFrequency,
@@ -358,18 +361,60 @@ export function LegacySaxophoneModel({
 export function SaxophoneLab({
   onBack,
   instrumentId = "alto-sax",
+  notation = "western",
+  saTonic = 0,
 }: {
   onBack: () => void;
   instrumentId?: InstrumentId;
+  notation?: NotationSystem;
+  saTonic?: number;
 }) {
   const tier = INSTRUMENTS[instrumentId].labTier;
-  if (tier === "anatomy") return <OboeLab onBack={onBack} instrumentId={instrumentId} />;
+  if (tier === "anatomy") return <OboeLab onBack={onBack} instrumentId={instrumentId} notation={notation} saTonic={saTonic} />;
+  if (tier === "chart") return <FingeringChartLab onBack={onBack} instrumentId={instrumentId} notation={notation} saTonic={saTonic} />;
   if (tier === "none") return <LabUnavailable onBack={onBack} instrumentId={instrumentId} />;
   return <SaxFingeringLab onBack={onBack} instrumentId={instrumentId} />;
 }
 
 /**
- * Shown for instruments Bocal supports everywhere except the 3D lab. Rather
+ * The lab for every chart-only instrument (flute, clarinet, bassoon): no
+ * licensed 3D model, so this is the fingering chart on its own -- header,
+ * note browser and diagram, nothing else competing for the screen.
+ */
+function FingeringChartLab({
+  onBack,
+  instrumentId,
+  notation,
+  saTonic,
+}: {
+  onBack: () => void;
+  instrumentId: InstrumentId;
+  notation: NotationSystem;
+  saTonic: number;
+}) {
+  const instrument = INSTRUMENTS[instrumentId];
+  const chart = FINGERING_CHARTS[instrumentId];
+  return (
+    <div className="sax-lab-view chart-lab-view">
+      <header className="lab-header">
+        <div>
+          <button className="back-link" onClick={onBack}><ArrowLeft size={15} /> Tuner</button>
+          <p className="eyebrow">Fingering chart · {instrument.name}</p>
+          <h1>See exactly which keys to press.</h1>
+          <p>Pick a written note and the diagram shows the standard fingering for it. No 3D model exists yet for the {instrument.shortName.toLowerCase()}, so this chart stands on its own.</p>
+        </div>
+      </header>
+      {chart ? (
+        <FingeringChart chart={chart} instrument={instrument} notation={notation} tonic={saTonic} />
+      ) : (
+        <p className="lab-unavailable-note">No chart data is registered for {instrument.name.toLowerCase()} yet.</p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Shown for instruments Bocal supports everywhere except the lab. Rather
  * than hiding the tab or silently showing the alto's model under another
  * instrument's name, this says plainly what is missing and points at the tools
  * that do work for it.
@@ -381,9 +426,9 @@ function LabUnavailable({ onBack, instrumentId }: { onBack: () => void; instrume
       <button className="lab-back" onClick={onBack}>Back to the tuner</button>
       <h1>The {profile.name.toLowerCase()} lab is not built yet.</h1>
       <p>
-        The 3D lab needs a model Bocal is licensed to ship and a fingering chart checked by a teacher.
-        Neither is in place for the {profile.name.toLowerCase()} yet, and showing a guessed fingering to
-        someone learning it would do more harm than showing nothing.
+        The lab needs either a 3D model Bocal is licensed to ship or a fingering chart checked against
+        published references. Neither is in place for the {profile.name.toLowerCase()} yet, and showing a
+        guessed fingering to someone learning it would do more harm than showing nothing.
       </p>
       <p className="lab-unavailable-note">
         Everything else works for the {profile.name.toLowerCase()}: the tuner already transposes to

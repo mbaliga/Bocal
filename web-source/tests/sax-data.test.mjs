@@ -145,6 +145,10 @@ test("written pitch transposes to the correct concert pitch on every saxophone",
   // The cor anglais is in F, sounding a perfect fifth below written pitch:
   // written C5 (72) sounds concert F4 (65).
   assert.equal(data.writtenToConcert(72, INSTRUMENTS["cor-anglais"].writtenOffset), 65);
+
+  // The clarinet is in B♭ like soprano and tenor sax, sounding a major
+  // second below written pitch: written C5 (72) sounds concert B♭4 (70).
+  assert.equal(data.writtenToConcert(72, INSTRUMENTS["clarinet"].writtenOffset), 70);
 });
 
 test("all fingering contacts resolve and route ids are unique", () => {

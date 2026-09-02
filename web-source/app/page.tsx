@@ -59,7 +59,7 @@ import {
 } from "./pitch-engine";
 import { drawPitchHistory, readPitchHistoryTheme } from "./pitch-history-canvas";
 import { PitchHistoryBuffer } from "./pitch-history";
-import { INSTRUMENTS, isInstrumentId, type InstrumentId } from "./instruments";
+import { INSTRUMENTS, isInstrumentId, type InstrumentId, type InstrumentProfile } from "./instruments";
 import StaffNote from "./StaffNote";
 import {
   fullNoteLabel,
@@ -162,6 +162,39 @@ function formatTime(seconds: number) {
   const minutes = Math.floor(seconds / 60).toString().padStart(2, "0");
   const remainder = (seconds % 60).toString().padStart(2, "0");
   return `${minutes}:${remainder}`;
+}
+
+/**
+ * Copy for the tuner's lab launch card. This used to be hardcoded to
+ * "alto sax or bust, else it must be the oboe" -- which was already wrong
+ * for a soprano/tenor/bari player, and would have stayed wrong for the new
+ * chart-only instruments too. Driven off `labTier` instead, so every
+ * instrument's card says what its lab actually is.
+ */
+function labCardCopy(instrument: InstrumentProfile, writtenLabel: string | null) {
+  const name = instrument.shortName.toLowerCase();
+  if (instrument.labTier === "fingering") {
+    return {
+      kicker: "Fingering lab",
+      heading: writtenLabel ? `See ${writtenLabel} on the sax.` : `Open the interactive ${name} lab.`,
+      body: "Open the sax and the keys for this note will light up.",
+    };
+  }
+  if (instrument.labTier === "anatomy") {
+    return {
+      kicker: "Anatomy + chart",
+      heading: `Explore the ${name} up close.`,
+      body: "Turn the 3D model, or jump straight to the fingering chart below it.",
+    };
+  }
+  if (instrument.labTier === "chart") {
+    return {
+      kicker: "Fingering chart",
+      heading: writtenLabel ? `See ${writtenLabel} on the chart.` : `Open the ${name} fingering chart.`,
+      body: "Pick a written note and see exactly which keys to press.",
+    };
+  }
+  return { kicker: "Lab", heading: `Open the ${name} tools.`, body: "Tuner and practice tools are ready for this instrument." };
 }
 
 const navItems: { id: Mode; label: string; icon: typeof Crosshair }[] = [
@@ -858,7 +891,7 @@ export default function Home() {
         )}
         {mode === "sax" && (instrumentId === "guitar"
           ? <GuitarStudio reading={reading ? { hz: reading.hz, cents: reading.cents, midi: reading.concertMidi } : null} listening={listening} onListen={startListening} />
-          : <SaxophoneLab onBack={() => selectMode("tune")} instrumentId={instrumentId} />)}
+          : <SaxophoneLab onBack={() => selectMode("tune")} instrumentId={instrumentId} notation={notation} saTonic={saTonic} />)}
         {mode === "pulse" && <PulseView />}
         {mode === "analyze" && <AnalysisView instrument={instrument} notation={notation} saTonic={saTonic} />}
         {mode === "practice" && (
@@ -1541,17 +1574,20 @@ function TunerView({
               <div className="guitar-launch-strings" aria-hidden="true"><i /><i /><i /><i /><i /><i /></div>
               <span className="round-arrow"><ArrowRight size={17} /></span>
             </article>
-          ) : (
-            <article className="sax-card" onClick={onOpenSax} role="button" tabIndex={0} onKeyDown={(event) => event.key === "Enter" && onOpenSax()}>
-              <div>
-                <span className="card-kicker"><Rotate3D size={15} /> {instrument.id === "alto-sax" ? "Fingering lab" : "Anatomy preview"}</span>
-                <h3>{instrument.id === "alto-sax" ? (reading ? `See ${writtenLabel} on the sax.` : "Open the interactive alto sax.") : "Explore the oboe up close."}</h3>
-                <p>{instrument.id === "alto-sax" ? "Open the sax and the keys for this note will light up." : "Turn the model and tap its rods, springs and keywork."}</p>
-              </div>
-              <div className={`sax-card-photo ${instrument.labTier === "anatomy" ? "is-oboe" : ""}`} aria-hidden="true" />
-              <span className="round-arrow"><ArrowRight size={17} /></span>
-            </article>
-          )}
+          ) : (() => {
+            const lab = labCardCopy(instrument, writtenLabel);
+            return (
+              <article className="sax-card" onClick={onOpenSax} role="button" tabIndex={0} onKeyDown={(event) => event.key === "Enter" && onOpenSax()}>
+                <div>
+                  <span className="card-kicker"><Rotate3D size={15} /> {lab.kicker}</span>
+                  <h3>{lab.heading}</h3>
+                  <p>{lab.body}</p>
+                </div>
+                <div className={`sax-card-photo ${instrument.labTier === "anatomy" ? "is-oboe" : ""}`} aria-hidden="true" />
+                <span className="round-arrow"><ArrowRight size={17} /></span>
+              </article>
+            );
+          })()}
         </aside>
       </div>
 
