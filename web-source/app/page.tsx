@@ -10,6 +10,7 @@ import {
   Clock3,
   Crosshair,
   Download,
+  Eraser,
   FileText,
   Guitar,
   LockKeyhole,
@@ -41,7 +42,23 @@ import {
 } from "./InstrumentExperience";
 import { GuitarStudio } from "./GuitarStudio";
 import { ToneGenerator } from "./ToneGenerator";
-import { StablePitchTracker, type PitchTrackerReading } from "./pitch-engine";
+import {
+  DAMPING_HINTS,
+  DAMPING_LABELS,
+  DAMPING_ORDER,
+  DAMPING_PRESETS,
+  SENSITIVITY_HINTS,
+  SENSITIVITY_LABELS,
+  SENSITIVITY_ORDER,
+  SENSITIVITY_PRESETS,
+  StablePitchTracker,
+  type Damping,
+  type PitchTrackerReading,
+  type Sensitivity,
+  type StablePitchTrackerOptions,
+} from "./pitch-engine";
+import { drawPitchHistory, readPitchHistoryTheme } from "./pitch-history-canvas";
+import { PitchHistoryBuffer } from "./pitch-history";
 import { INSTRUMENTS, isInstrumentId, type InstrumentId } from "./instruments";
 import StaffNote from "./StaffNote";
 import {
@@ -63,6 +80,10 @@ import {
 import {
   readingFor,
   targetHzFor,
+  loadCustomTemperamentCents,
+  serializeCustomTemperamentCents,
+  CUSTOM_TEMPERAMENT_STORAGE_KEY,
+  DEGREE_LABELS,
   REFERENCE_HZ_DEFAULT,
   REFERENCE_HZ_MAX,
   REFERENCE_HZ_MIN,
@@ -101,6 +122,23 @@ const REFERENCE_HZ_STORAGE_KEY = "bocal-reference-hz";
 const TEMPERAMENT_STORAGE_KEY = "bocal-temperament";
 const TEMPERAMENT_KEY_STORAGE_KEY = "bocal-temperament-key";
 const THEME_STORAGE_KEY = "bocal-theme";
+const SENSITIVITY_STORAGE_KEY = "bocal-tuner-sensitivity";
+const DAMPING_STORAGE_KEY = "bocal-tuner-damping";
+const HISTORY_MODE_STORAGE_KEY = "bocal-tuner-history-mode";
+
+// The pitch-history graph shows the trailing HISTORY_WINDOW_MS of readings.
+// The ring buffer's capacity is sized off the sampling loop's own ~30ms
+// cadence (see the `now - lastAnalysisAt >= 30` throttle in startListening
+// below) with headroom for a slightly bursty rAF, not a separate constant
+// someone could drift out of sync with the loop.
+const HISTORY_WINDOW_MS = 10_000;
+const HISTORY_CAPACITY = Math.ceil(HISTORY_WINDOW_MS / 30) + 30;
+
+const PRECISION_TOLERANCE: Record<"standard" | "fine" | "ultra", number> = {
+  standard: 10,
+  fine: 5,
+  ultra: 2,
+};
 
 const REFERENCE_PRESETS: { hz: number; label: string }[] = [
   { hz: 415, label: "Baroque" },
@@ -184,6 +222,11 @@ export default function Home() {
   const [referenceHz, setReferenceHz] = useState(REFERENCE_HZ_DEFAULT);
   const [temperament, setTemperament] = useState<TemperamentId>("equal");
   const [temperamentKeyPc, setTemperamentKeyPc] = useState(0);
+  const [customCents, setCustomCents] = useState<number[]>(() => loadCustomTemperamentCents(null));
+  const [sensitivity, setSensitivity] = useState<Sensitivity>("medium");
+  const [damping, setDamping] = useState<Damping>("normal");
+  const [precision, setPrecision] = useState<"standard" | "fine" | "ultra">("fine");
+  const [historyMode, setHistoryMode] = useState<"line" | "staff">("line");
   const [reading, setReading] = useState<PitchReading | null>(null);
   const [trackerReading, setTrackerReading] = useState<PitchTrackerReading>({
     state: "silence",
@@ -203,12 +246,26 @@ export default function Home() {
   const audioContextRef = useRef<AudioContext | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const frameRef = useRef<number | null>(null);
-  const trackerRef = useRef(new StablePitchTracker());
+  // Sensitivity (acquireFrames/switchFrames/minimumConfidence) and Damping
+  // (holdMs/smoothing) are all constructor-only options on StablePitchTracker
+  // -- there's no live setter for any of them -- so changing either control
+  // recreates the tracker via the effect below rather than reconfiguring the
+  // running instance. See pitch-engine.ts's SENSITIVITY_PRESETS/DAMPING_PRESETS
+  // comment for the same note from the tracker's side.
+  const trackerOptions = useMemo<StablePitchTrackerOptions>(() => {
+    const sensitivityOptions = SENSITIVITY_PRESETS[sensitivity];
+    const dampingOptions = DAMPING_PRESETS[damping];
+    return { ...sensitivityOptions, ...dampingOptions };
+  }, [sensitivity, damping]);
+  const trackerRef = useRef(new StablePitchTracker(trackerOptions));
+  useEffect(() => {
+    trackerRef.current = new StablePitchTracker(trackerOptions);
+  }, [trackerOptions]);
   const tunerEvidenceRef = useRef<{ startedAt: number; cents: number[]; midiNotes: number[] } | null>(null);
   const instrument = INSTRUMENTS[instrumentId];
   const tuningOptions = useMemo<TuningOptions>(
-    () => ({ referenceHz, temperament, keyPc: temperamentKeyPc }),
-    [referenceHz, temperament, temperamentKeyPc],
+    () => ({ referenceHz, temperament, keyPc: temperamentKeyPc, customCents }),
+    [referenceHz, temperament, temperamentKeyPc, customCents],
   );
   // Read from a ref inside the sampling loop below, rather than closing over
   // tuningOptions at the moment the loop started, so changing the reference
@@ -218,6 +275,57 @@ export default function Home() {
   useEffect(() => {
     tuningOptionsRef.current = tuningOptions;
   }, [tuningOptions]);
+  // Same live-ref pattern for Precision (the tolerance the history graph
+  // colours its trace against) and the history display mode, both of which
+  // a player can change mid-session same as reference pitch/temperament.
+  const precisionRef = useRef(precision);
+  useEffect(() => {
+    precisionRef.current = precision;
+  }, [precision]);
+  const historyModeRef = useRef(historyMode);
+  useEffect(() => {
+    historyModeRef.current = historyMode;
+  }, [historyMode]);
+  // The pitch-history ring buffer lives in a ref, not React state, so pushing
+  // a new sample every ~30ms during a session never triggers a re-render --
+  // only the imperative canvas draw below reads it. historyCanvasRef is the
+  // canvas TunerView renders; paintHistory draws directly onto it from the
+  // rAF sampling loop the tuner already runs (see startListening), never
+  // from a timer of its own.
+  const pitchHistoryRef = useRef(new PitchHistoryBuffer(HISTORY_CAPACITY));
+  const historyCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const paintHistory = useCallback(
+    (fallbackNowMs: number) => {
+      const canvas = historyCanvasRef.current;
+      if (!canvas) return;
+      const samples = pitchHistoryRef.current.toArray();
+      const anchorMs = samples.length ? samples[samples.length - 1].tMs : fallbackNowMs;
+      drawPitchHistory(canvas, pitchHistoryRef.current, {
+        mode: historyMode,
+        clef: instrument.clef,
+        toleranceCents: PRECISION_TOLERANCE[precision],
+        windowMs: HISTORY_WINDOW_MS,
+        nowMs: anchorMs,
+        theme: readPitchHistoryTheme(),
+      });
+    },
+    [historyMode, instrument.clef, precision],
+  );
+  const paintHistoryRef = useRef(paintHistory);
+  useEffect(() => {
+    paintHistoryRef.current = paintHistory;
+    // Repaint immediately on a mode/theme-relevant change even while not
+    // listening, so toggling Line/Staff (or the app theme) on a frozen,
+    // post-session graph updates it right away instead of waiting for the
+    // next "Start live tuner" press. `theme` isn't a paintHistory dependency
+    // itself (colours are re-read from the DOM on every call), it's only
+    // here to trigger this one extra repaint when it flips.
+    if (!listening) paintHistory(performance.now());
+  }, [paintHistory, listening, theme]);
+  const clearHistory = useCallback(() => {
+    pitchHistoryRef.current.clear();
+    paintHistoryRef.current(performance.now());
+  }, []);
   // Seated left to right along the pill arc, current instrument first.
   const pillInstruments = useMemo<InstrumentId[]>(
     () => (partnerInstrumentId === instrumentId ? [instrumentId] : [instrumentId, partnerInstrumentId]),
@@ -308,8 +416,20 @@ export default function Home() {
         }
         const savedKeyPc = Number(localStorage.getItem(TEMPERAMENT_KEY_STORAGE_KEY));
         if (Number.isInteger(savedKeyPc) && savedKeyPc >= 0 && savedKeyPc < 12) setTemperamentKeyPc(savedKeyPc);
+        setCustomCents(loadCustomTemperamentCents(localStorage.getItem(CUSTOM_TEMPERAMENT_STORAGE_KEY)));
+        const savedSensitivity = localStorage.getItem(SENSITIVITY_STORAGE_KEY);
+        if (savedSensitivity && (SENSITIVITY_ORDER as string[]).includes(savedSensitivity)) {
+          setSensitivity(savedSensitivity as Sensitivity);
+        }
+        const savedDamping = localStorage.getItem(DAMPING_STORAGE_KEY);
+        if (savedDamping && (DAMPING_ORDER as string[]).includes(savedDamping)) {
+          setDamping(savedDamping as Damping);
+        }
+        const savedHistoryMode = localStorage.getItem(HISTORY_MODE_STORAGE_KEY);
+        if (savedHistoryMode === "line" || savedHistoryMode === "staff") setHistoryMode(savedHistoryMode);
       } catch {
-        // A=440 equal temperament is the fallback when device storage is unavailable.
+        // A=440 equal temperament, medium sensitivity and normal damping are
+        // the fallback when device storage is unavailable.
       }
     }, 0);
     return () => window.clearTimeout(timer);
@@ -355,6 +475,47 @@ export default function Home() {
     setTemperamentKeyPc(next);
     try {
       localStorage.setItem(TEMPERAMENT_KEY_STORAGE_KEY, String(next));
+    } catch {
+      // The choice still applies for this session.
+    }
+  }, []);
+
+  const chooseCustomCent = useCallback((degreeIndex: number, value: number) => {
+    setCustomCents((current) => {
+      const next = current.slice();
+      next[degreeIndex] = Number.isFinite(value) ? Math.max(-100, Math.min(100, value)) : 0;
+      if (degreeIndex === 0) next[0] = 0;
+      try {
+        localStorage.setItem(CUSTOM_TEMPERAMENT_STORAGE_KEY, serializeCustomTemperamentCents(next));
+      } catch {
+        // The choice still applies for this session.
+      }
+      return next;
+    });
+  }, []);
+
+  const chooseSensitivity = useCallback((next: Sensitivity) => {
+    setSensitivity(next);
+    try {
+      localStorage.setItem(SENSITIVITY_STORAGE_KEY, next);
+    } catch {
+      // The choice still applies for this session.
+    }
+  }, []);
+
+  const chooseDamping = useCallback((next: Damping) => {
+    setDamping(next);
+    try {
+      localStorage.setItem(DAMPING_STORAGE_KEY, next);
+    } catch {
+      // The choice still applies for this session.
+    }
+  }, []);
+
+  const chooseHistoryMode = useCallback((next: "line" | "staff") => {
+    setHistoryMode(next);
+    try {
+      localStorage.setItem(HISTORY_MODE_STORAGE_KEY, next);
     } catch {
       // The choice still applies for this session.
     }
@@ -443,6 +604,7 @@ export default function Home() {
       setPitchTrace([]);
       setAcceptedFrames(0);
       trackerRef.current.reset();
+      pitchHistoryRef.current.clear();
       tunerEvidenceRef.current = { startedAt: performance.now(), cents: [], midiNotes: [] };
       let lastAnalysisAt = Number.NEGATIVE_INFINITY;
 
@@ -462,9 +624,21 @@ export default function Home() {
               setAcceptedFrames(tunerEvidenceRef.current.cents.length);
               setPitchTrace((current) => [...current, nextReading.cents].slice(-18));
             }
+            // The history graph only plots accepted (locked) frames as real
+            // points -- acquiring/holding/silent frames push a gap (null),
+            // same convention the 18-bar trace above already uses via
+            // `accepted`, so a dropout reads as a break in the line rather
+            // than a value that never actually locked.
+            pitchHistoryRef.current.push({
+              tMs: now,
+              cents: nextTrackerReading.accepted ? nextReading.cents : null,
+              midi: nextTrackerReading.accepted ? nextReading.writtenMidi : null,
+            });
           } else {
             setReading(null);
+            pitchHistoryRef.current.push({ tMs: now, cents: null, midi: null });
           }
+          paintHistoryRef.current(now);
         }
         frameRef.current = requestAnimationFrame(sample);
       };
@@ -668,6 +842,18 @@ export default function Home() {
             onReferenceHzChange={chooseReferenceHz}
             onTemperamentChange={chooseTemperament}
             onTemperamentKeyPcChange={chooseTemperamentKeyPc}
+            customCents={customCents}
+            onCustomCentChange={chooseCustomCent}
+            sensitivity={sensitivity}
+            onSensitivityChange={chooseSensitivity}
+            damping={damping}
+            onDampingChange={chooseDamping}
+            precision={precision}
+            onPrecisionChange={setPrecision}
+            historyMode={historyMode}
+            onHistoryModeChange={chooseHistoryMode}
+            onClearHistory={clearHistory}
+            historyCanvasRef={historyCanvasRef}
           />
         )}
         {mode === "sax" && (instrumentId === "guitar"
@@ -922,6 +1108,12 @@ function CalibrationPicker({
   onReferenceHzChange,
   onTemperamentChange,
   onTemperamentKeyPcChange,
+  customCents,
+  onCustomCentChange,
+  sensitivity,
+  onSensitivityChange,
+  damping,
+  onDampingChange,
 }: {
   referenceHz: number;
   temperament: TemperamentId;
@@ -929,6 +1121,12 @@ function CalibrationPicker({
   onReferenceHzChange: (next: number) => void;
   onTemperamentChange: (next: TemperamentId) => void;
   onTemperamentKeyPcChange: (next: number) => void;
+  customCents: number[];
+  onCustomCentChange: (degreeIndex: number, value: number) => void;
+  sensitivity: Sensitivity;
+  onSensitivityChange: (next: Sensitivity) => void;
+  damping: Damping;
+  onDampingChange: (next: Damping) => void;
 }) {
   const [open, setOpen] = useState(false);
   const profile = TEMPERAMENT_PROFILES[temperament];
@@ -978,21 +1176,25 @@ function CalibrationPicker({
           </div>
 
           <div className="calibration-row">
-            <label>Temperament</label>
-            <div className="notation-switch" role="radiogroup" aria-label="Temperament">
-              {TEMPERAMENT_ORDER.map((id) => (
-                <button
-                  key={id}
-                  type="button"
-                  role="radio"
-                  aria-checked={temperament === id}
-                  className={temperament === id ? "is-active" : ""}
-                  onClick={() => onTemperamentChange(id)}
-                >
-                  {TEMPERAMENT_PROFILES[id].label}
-                </button>
-              ))}
+            <div className="calibration-row-head">
+              <label htmlFor="calibration-temperament">Temperament</label>
             </div>
+            {/* A crater/keycap switch like NotationPicker's works for four
+                choices; it doesn't for the eleven a Tunable-depth temperament
+                list needs at 412px, so this one is a plain select styled to
+                match the same recessed-track language instead. */}
+            <select
+              id="calibration-temperament"
+              className="calibration-select"
+              value={temperament}
+              onChange={(event) => onTemperamentChange(event.target.value as TemperamentId)}
+            >
+              {TEMPERAMENT_ORDER.map((id) => (
+                <option key={id} value={id}>
+                  {TEMPERAMENT_PROFILES[id].label}
+                </option>
+              ))}
+            </select>
             <p className="notation-hint">{profile.description}</p>
             {profile.needsKeyCentre && (
               <label className="notation-tonic">
@@ -1006,6 +1208,64 @@ function CalibrationPicker({
                 </select>
               </label>
             )}
+            {temperament === "custom" && (
+              <div className="custom-temperament-grid" role="group" aria-label="Custom temperament cent offsets">
+                {DEGREE_LABELS.map((label, index) => (
+                  <label key={label} className="custom-temperament-cell">
+                    <span>{label}</span>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      step={0.1}
+                      min={-100}
+                      max={100}
+                      value={customCents[index] ?? 0}
+                      disabled={index === 0}
+                      onChange={(event) => onCustomCentChange(index, Number(event.target.value))}
+                      aria-label={`${label} cents from equal`}
+                    />
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="calibration-row">
+            <label>Sensitivity</label>
+            <div className="notation-switch" role="radiogroup" aria-label="Tuner sensitivity">
+              {SENSITIVITY_ORDER.map((id) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="radio"
+                  aria-checked={sensitivity === id}
+                  className={sensitivity === id ? "is-active" : ""}
+                  onClick={() => onSensitivityChange(id)}
+                >
+                  {SENSITIVITY_LABELS[id]}
+                </button>
+              ))}
+            </div>
+            <p className="notation-hint">{SENSITIVITY_HINTS[sensitivity]}</p>
+          </div>
+
+          <div className="calibration-row">
+            <label>Damping</label>
+            <div className="notation-switch" role="radiogroup" aria-label="Tuner damping">
+              {DAMPING_ORDER.map((id) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="radio"
+                  aria-checked={damping === id}
+                  className={damping === id ? "is-active" : ""}
+                  onClick={() => onDampingChange(id)}
+                >
+                  {DAMPING_LABELS[id]}
+                </button>
+              ))}
+            </div>
+            <p className="notation-hint">{DAMPING_HINTS[damping]}</p>
           </div>
         </div>
       )}
@@ -1035,6 +1295,18 @@ function TunerView({
   onReferenceHzChange,
   onTemperamentChange,
   onTemperamentKeyPcChange,
+  customCents,
+  onCustomCentChange,
+  sensitivity,
+  onSensitivityChange,
+  damping,
+  onDampingChange,
+  precision,
+  onPrecisionChange,
+  historyMode,
+  onHistoryModeChange,
+  onClearHistory,
+  historyCanvasRef,
 }: {
   reading: PitchReading | null;
   listening: boolean;
@@ -1057,9 +1329,20 @@ function TunerView({
   onReferenceHzChange: (next: number) => void;
   onTemperamentChange: (next: TemperamentId) => void;
   onTemperamentKeyPcChange: (next: number) => void;
+  customCents: number[];
+  onCustomCentChange: (degreeIndex: number, value: number) => void;
+  sensitivity: Sensitivity;
+  onSensitivityChange: (next: Sensitivity) => void;
+  damping: Damping;
+  onDampingChange: (next: Damping) => void;
+  precision: "standard" | "fine" | "ultra";
+  onPrecisionChange: (next: "standard" | "fine" | "ultra") => void;
+  historyMode: "line" | "staff";
+  onHistoryModeChange: (next: "line" | "staff") => void;
+  onClearHistory: () => void;
+  historyCanvasRef: React.RefObject<HTMLCanvasElement | null>;
 }) {
-  const [precision, setPrecision] = useState<"standard" | "fine" | "ultra">("fine");
-  const tolerance = precision === "standard" ? 10 : precision === "ultra" ? 2 : 5;
+  const tolerance = PRECISION_TOLERANCE[precision];
   const inTune = trackerReading.state === "locked" && reading !== null && Math.abs(reading.cents) <= tolerance;
   const direction = reading === null ? "Waiting" : reading.cents > tolerance ? "Sharp" : reading.cents < -tolerance ? "Flat" : "Centered";
   const markerPosition = reading === null ? 50 : Math.max(4, Math.min(96, 50 + reading.cents * 0.8));
@@ -1120,7 +1403,7 @@ function TunerView({
         <section className={`tuner-card ${inTune ? "is-centered" : ""} ${reading ? "has-reading" : "is-waiting"}`} aria-live="polite">
           <div className="tuner-card-top">
             <span className="status-label"><CircleDot size={15} /> {trackerReading.state === "locked" ? direction : trackerLabel}</span>
-            <div className="tuner-top-actions"><label className="precision-picker"><span>Precision</span><select value={precision} onChange={(event) => setPrecision(event.target.value as "standard" | "fine" | "ultra")} aria-label="Tuner precision"><option value="standard">Standard ±10¢</option><option value="fine">Fine ±5¢</option><option value="ultra">Ultra ±2¢</option></select></label><button className="small-action" onClick={onReference}><Volume2 size={16} /> Hear reference A</button></div>
+            <div className="tuner-top-actions"><label className="precision-picker"><span>Precision</span><select value={precision} onChange={(event) => onPrecisionChange(event.target.value as "standard" | "fine" | "ultra")} aria-label="Tuner precision"><option value="standard">Standard ±10¢</option><option value="fine">Fine ±5¢</option><option value="ultra">Ultra ±2¢</option></select></label><button className="small-action" onClick={onReference}><Volume2 size={16} /> Hear reference A</button></div>
           </div>
 
           <div className="note-readout">
@@ -1162,6 +1445,12 @@ function TunerView({
             onReferenceHzChange={onReferenceHzChange}
             onTemperamentChange={onTemperamentChange}
             onTemperamentKeyPcChange={onTemperamentKeyPcChange}
+            customCents={customCents}
+            onCustomCentChange={onCustomCentChange}
+            sensitivity={sensitivity}
+            onSensitivityChange={onSensitivityChange}
+            damping={damping}
+            onDampingChange={onDampingChange}
           />
 
           <div className="tune-scale" role="meter" aria-valuemin={-50} aria-valuemax={50} aria-valuenow={reading?.cents} aria-label="Pitch deviation in cents">
@@ -1173,6 +1462,47 @@ function TunerView({
             </div>
             <div className="direction-row"><span>Flatten ↓</span><strong>{inTune && <Check size={15} />}{centerInstruction}</strong><span>Sharpen ↑</span></div>
           </div>
+
+          <section className="pitch-history" aria-label="Pitch history">
+            <div className="pitch-history-head">
+              <span className="pitch-history-title">Pitch history</span>
+              <div className="pitch-history-controls">
+                <div className="notation-switch pitch-history-mode" role="radiogroup" aria-label="History display">
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={historyMode === "line"}
+                    className={historyMode === "line" ? "is-active" : ""}
+                    onClick={() => onHistoryModeChange("line")}
+                  >
+                    Line
+                  </button>
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={historyMode === "staff"}
+                    className={historyMode === "staff" ? "is-active" : ""}
+                    onClick={() => onHistoryModeChange("staff")}
+                  >
+                    Staff
+                  </button>
+                </div>
+                <button type="button" className="pitch-history-clear" onClick={onClearHistory}>
+                  <Eraser size={13} /> Clear
+                </button>
+              </div>
+            </div>
+            <canvas
+              ref={historyCanvasRef}
+              className="pitch-history-canvas"
+              role="img"
+              aria-label="Cents deviation from the tuning target over the last ten seconds"
+              height={104}
+            />
+            <p className="pitch-history-caption">
+              Cents from target over the last 10 seconds — a flat line near the middle means you’re steady. Stops when the tuner does, so you can look back.
+            </p>
+          </section>
 
           <div className="tracker-diagnostics" aria-label="Pitch lock diagnostics">
             <div><span>Input</span><i><b style={{ width: `${signalPercent}%` }} /></i><small>{signalPercent >= 63 ? "Above gate" : "Below gate"}</small></div>
@@ -1198,7 +1528,9 @@ function TunerView({
                 <i key={index} className={cents === null ? "is-empty" : ""} style={{ height: cents === null ? "8%" : `${Math.max(12, 100 - Math.abs(cents) * 1.75)}%` }} />
               ))}
             </div>
-            <p className="lock-policy"><LockKeyhole size={13} /> Noise gate · 3-frame lock · 550 ms dropout hold</p>
+            <p className="lock-policy">
+              <LockKeyhole size={13} /> Noise gate · {SENSITIVITY_PRESETS[sensitivity].acquireFrames}-frame lock · {DAMPING_PRESETS[damping].holdMs} ms dropout hold
+            </p>
           </article>
 
           {instrument.id === "guitar" ? (
