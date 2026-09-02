@@ -33,16 +33,33 @@ export type SaxKey = {
   side?: "left" | "right" | "back";
 };
 
+/**
+ * A data-honesty flag, not a musical one. `"unverified"` marks a fingering
+ * this file has not had checked by a teacher -- currently every altissimo
+ * entry and every alternate added alongside them. Its absence does not
+ * itself claim teacher sign-off either; see the top-of-file note and
+ * SaxFingeringLab's truth card for what "checked" does and doesn't mean here.
+ */
+export type ReviewStatus = "unverified";
+
 export type Fingering = {
   id: string;
   note: string;
   octave: number;
   midi: number;
   keys: SaxKeyId[];
-  level: "Low" | "Middle" | "Upper";
+  level: "Low" | "Middle" | "Upper" | "Altissimo";
   hint: string;
   primaryLabel?: string;
   alternates?: FingeringOption[];
+  /** See {@link ReviewStatus}. */
+  review?: ReviewStatus;
+  /**
+   * A small number of adjacent-note trill fingerings. `keys` lists only the
+   * touch-pieces that change between `from` and `to` -- the ones a player
+   * actually alternates -- not the full fingering for either note.
+   */
+  trills?: TrillOption[];
 };
 
 export type FingeringOption = {
@@ -51,6 +68,20 @@ export type FingeringOption = {
   keys: SaxKeyId[];
   hint: string;
   useWhen: string;
+  /** See {@link ReviewStatus}. */
+  review?: ReviewStatus;
+};
+
+export type TrillOption = {
+  /** Fingering id this trill starts from (its own entry carries the array). */
+  from: string;
+  /** Fingering id this trill moves to. */
+  to: string;
+  /** The touch-piece(s) alternated to produce the trill; the rest of the base fingering stays held. */
+  keys: SaxKeyId[];
+  hint: string;
+  /** See {@link ReviewStatus}. */
+  review?: ReviewStatus;
 };
 
 export type SaxMechanic = {
@@ -160,20 +191,37 @@ const oct = (keys: SaxKeyId[]) => ["octave", ...keys] as SaxKeyId[];
  * `instruments.ts`). So this map, despite its name's history, is not
  * alto-specific: it is keyed on written pitch and applies across the family.
  *
- * Two real gaps: this covers the standard written range (B♭3 through F♯6)
- * only, not altissimo or horn-specific alternates; and it has no entry for
- * baritone's low A (written A3), a key many baritones have that the other
- * three saxes lack.
+ * Two real gaps remain: it has no entry for baritone's low A (written A3), a
+ * key many baritones have that the other three saxes lack; and while the
+ * standard written range (B♭3 through F♯6) is teacher-checked, the altissimo
+ * entries appended after it (G6 through C7) are not -- see the `review`
+ * field and the block comment above the altissimo section below.
  */
 export const SAXOPHONE_FINGERINGS: Fingering[] = [
   { id: "bb3", note: "B♭", octave: 3, midi: 58, keys: [...baseSix, "lowBb"], level: "Low", hint: "All six main fingers, then roll the left pinky to low B♭." },
   { id: "b3", note: "B", octave: 3, midi: 59, keys: [...baseSix, "lowB"], level: "Low", hint: "All six main fingers with the left-pinky low B key." },
-  { id: "c4", note: "C", octave: 4, midi: 60, keys: [...baseSix, "lowC"], level: "Low", hint: "All six main fingers with the right-pinky low C key." },
+  {
+    id: "c4", note: "C", octave: 4, midi: 60, keys: [...baseSix, "lowC"], level: "Low",
+    hint: "All six main fingers with the right-pinky low C key.",
+    trills: [{
+      from: "c4", to: "d4", keys: ["lowC"],
+      hint: "Keep all six main pearls down and trill by tapping the right-pinky low C key on and off.",
+      review: "unverified",
+    }],
+  },
   { id: "cs4", note: "C♯", octave: 4, midi: 61, keys: [...baseSix, "lowCsharp"], level: "Low", hint: "All six main fingers with the left-pinky low C♯ key." },
   { id: "d4", note: "D", octave: 4, midi: 62, keys: baseSix, level: "Low", hint: "Close the six main pearl keys. Keep both pinkies relaxed." },
   { id: "eb4", note: "E♭", octave: 4, midi: 63, keys: [...baseSix, "lowEb"], level: "Low", hint: "Six main keys plus the right-pinky E♭ key." },
   { id: "e4", note: "E", octave: 4, midi: 64, keys: ["lh1", "lh2", "lh3", "rh1", "rh2"], level: "Middle", hint: "Lift the right ring finger; keep the other five main keys closed." },
-  { id: "f4", note: "F", octave: 4, midi: 65, keys: ["lh1", "lh2", "lh3", "rh1"], level: "Middle", hint: "Left hand down, plus the right index finger." },
+  {
+    id: "f4", note: "F", octave: 4, midi: 65, keys: ["lh1", "lh2", "lh3", "rh1"], level: "Middle",
+    hint: "Left hand down, plus the right index finger.",
+    trills: [{
+      from: "f4", to: "g4", keys: ["rh1"],
+      hint: "Keep the left-hand stack (B, A, G) down and trill by lifting and dropping the right index F pearl.",
+      review: "unverified",
+    }],
+  },
   {
     id: "fs4", note: "F♯", octave: 4, midi: 66,
     keys: ["lh1", "lh2", "lh3", "rh2"], level: "Middle", primaryLabel: "Regular F♯",
@@ -191,13 +239,29 @@ export const SAXOPHONE_FINGERINGS: Fingering[] = [
     id: "bb4", note: "B♭", octave: 4, midi: 70,
     keys: ["lh1", "bis"], level: "Middle", primaryLabel: "Bis B♭",
     hint: "Use the left index to cover B and the small bis key together.",
-    alternates: [{
-      id: "side-bb4", label: "Side B♭", keys: ["lh1", "sideBb"],
-      hint: "Hold the B pearl with the left index and open the side B♭ vent with the right index side.",
-      useWhen: "Often cleaner beside B natural or in B–B♭ trills; bis is usually the default for scale passages.",
+    alternates: [
+      {
+        id: "side-bb4", label: "Side B♭", keys: ["lh1", "sideBb"],
+        hint: "Hold the B pearl with the left index and open the side B♭ vent with the right index side.",
+        useWhen: "Often cleaner beside B natural or in B–B♭ trills; bis is usually the default for scale passages.",
+      },
+      {
+        id: "long-bb4", label: "Long B♭ (1+1)", keys: ["lh1", "rh1"],
+        hint: "Hold the B pearl with the left index and add the right index F pearl instead of bis or side.",
+        useWhen: "Published as a third option, sometimes used approaching from low F or in specific chromatic runs; bis is still the usual default.",
+        review: "unverified",
+      },
+    ],
+  },
+  {
+    id: "b4", note: "B", octave: 4, midi: 71, keys: ["lh1"], level: "Middle",
+    hint: "Left index finger only.",
+    trills: [{
+      from: "b4", to: "c5", keys: ["sideC"],
+      hint: "Hold the B fingering with the left index down and trill by tapping the side C key with the right index side.",
+      review: "unverified",
     }],
   },
-  { id: "b4", note: "B", octave: 4, midi: 71, keys: ["lh1"], level: "Middle", hint: "Left index finger only." },
   {
     id: "c5", note: "C", octave: 5, midi: 72,
     keys: ["lh2"], level: "Middle", primaryLabel: "Regular C",
@@ -230,11 +294,19 @@ export const SAXOPHONE_FINGERINGS: Fingering[] = [
     id: "bb5", note: "B♭", octave: 5, midi: 82,
     keys: oct(["lh1", "bis"]), level: "Upper", primaryLabel: "Bis B♭",
     hint: "Octave key with the B and bis keys under the left index.",
-    alternates: [{
-      id: "side-bb5", label: "Side B♭", keys: oct(["lh1", "sideBb"]),
-      hint: "Add the octave lever to the B-plus-side-B♭ fingering.",
-      useWhen: "Often cleaner beside upper B natural or for a B–B♭ trill.",
-    }],
+    alternates: [
+      {
+        id: "side-bb5", label: "Side B♭", keys: oct(["lh1", "sideBb"]),
+        hint: "Add the octave lever to the B-plus-side-B♭ fingering.",
+        useWhen: "Often cleaner beside upper B natural or for a B–B♭ trill.",
+      },
+      {
+        id: "long-bb5", label: "Long B♭ (1+1)", keys: oct(["lh1", "rh1"]),
+        hint: "Add the octave lever to the B-plus-right-index (long B♭) fingering.",
+        useWhen: "Published as a third option; bis is still the usual default for scale passages.",
+        review: "unverified",
+      },
+    ],
   },
   { id: "b5", note: "B", octave: 5, midi: 83, keys: oct(["lh1"]), level: "Upper", hint: "Octave key and left index finger." },
   {
@@ -279,6 +351,155 @@ export const SAXOPHONE_FINGERINGS: Fingering[] = [
       hint: "Use the complete palm-F fingering, including the upper E side touch, and add the keyed high-F♯ touch.",
       useWhen: "Useful when approaching from palm D, E♭, E or F; compare response and pitch with the front route.",
     }],
+  },
+
+  /**
+   * Altissimo (written G6 through C7). Altissimo is fundamentally different
+   * from everything above: every fingering here shifts with the horn,
+   * mouthpiece, reed and player, and published charts routinely disagree on
+   * the "best" option for a given note. So, unlike the rest of this file:
+   *   - every entry carries level: "Altissimo", which SaxFingeringLab keeps
+   *     out of Challenge mode's default question pool (see SaxophoneLab.tsx);
+   *   - each note lists 2-3 widely published options rather than one
+   *     "correct" answer, because no single fingering is right for every
+   *     setup;
+   *   - every entry and alternate here carries review: "unverified" --
+   *     nobody who teaches saxophone has checked these for Bocal, which the
+   *     lab surfaces as a badge next to the fingering.
+   *
+   * Sources cross-checked for every fingering below (both consulted 2026-09-02):
+   *   1. The Woodwind Fingering Guide's "Lower Altissimo" (F#6-A6) and
+   *      "Middle Altissimo" (Bb6-C#7) charts:
+   *      https://www.wfg.woodwind.org/sax/sax_alt_4.html
+   *      https://www.wfg.woodwind.org/sax/sax_alt_5.html
+   *      An aggregator of fingerings drawn from published altissimo methods
+   *      (Rascher- and Rousseau-style), some entries annotated by which
+   *      saxophone they suit best -- those annotations are kept in `useWhen`
+   *      below where they exist (e.g. "for alto", "for tenor").
+   *   2. The front-F and palm-key "overtone" fingering families used as the
+   *      standard entry-level teaching approach to altissimo, as described
+   *      in method-literature summaries at saxteacheruk.com and bettersax.com
+   *      (both consulted the same date).
+   * Every option below appears in source (1) and matches the general
+   * fingering family described in source (2); options that could not be
+   * cross-checked this way were left out rather than guessed. None of the
+   * key combinations below duplicate a standard-range fingering above --
+   * two different notes sharing one exact key combination would break the
+   * lab's key-to-note matching in Learn mode.
+   */
+  {
+    id: "g6", note: "G", octave: 6, midi: 91, level: "Altissimo", review: "unverified",
+    keys: ["octave", "frontF"], primaryLabel: "Front F",
+    hint: "Octave key and the front F touch alone -- the simplest published starting point for altissimo G.",
+    alternates: [
+      {
+        id: "g6-frontF-f", label: "Front F + right F", keys: ["octave", "frontF", "rh1"],
+        hint: "Add the right index F pearl to the front-F fingering for a steadier core.",
+        useWhen: "A common addition when the plain front-F version feels thin or hard to center.",
+        review: "unverified",
+      },
+      {
+        id: "g6-frontF-sideBb", label: "Front F + side B♭", keys: ["octave", "frontF", "sideBb"],
+        hint: "Add the side B♭ vent to the front-F fingering.",
+        useWhen: "A published pitch/response adjustment; try it if the plain front-F version is flat or unstable.",
+        review: "unverified",
+      },
+    ],
+  },
+  {
+    id: "gs6", note: "A♭", octave: 6, midi: 92, level: "Altissimo", review: "unverified",
+    keys: ["octave", "lh1", "lh3"], primaryLabel: "Cross fingering",
+    hint: "Octave key with the left index and ring finger, middle finger lifted -- a cross-fingering rather than a palm or front-F route.",
+    alternates: [
+      {
+        id: "gs6-frontF-sideE", label: "Front F + side E", keys: ["octave", "frontF", "sideE"],
+        hint: "Front F touch plus the upper right-hand side E key.",
+        useWhen: "A front-F-family option for players already using front F through this part of the range.",
+        review: "unverified",
+      },
+      {
+        id: "gs6-cross-sideC", label: "Left cross + side C + F", keys: ["octave", "lh1", "sideC", "rh1"],
+        hint: "Left index and right index F pearl down, plus the side C vent open.",
+        useWhen: "An alternative when the plain cross fingering is unstable; adds venting from the side C key.",
+        review: "unverified",
+      },
+    ],
+  },
+  {
+    id: "a6", note: "A", octave: 6, midi: 93, level: "Altissimo", review: "unverified",
+    keys: ["octave", "lh2", "lh3"], primaryLabel: "Core altissimo A",
+    hint: "Octave key with the left middle and ring fingers only.",
+    alternates: [
+      {
+        id: "a6-sideC", label: "+ side C", keys: ["octave", "lh2", "lh3", "sideC"],
+        hint: "Add the side C vent to the core A6 fingering.",
+        useWhen: "A published stabilizing addition; try it if the plain fingering is unfocused.",
+        review: "unverified",
+      },
+      {
+        id: "a6-gsharp", label: "+ G♯", keys: ["octave", "lh2", "lh3", "gsharp"],
+        hint: "Add the left-pinky G♯ key to the core A6 fingering.",
+        useWhen: "Published for baritone specifically, but worth trying as a general option on any horn.",
+        review: "unverified",
+      },
+    ],
+  },
+  {
+    id: "bb6", note: "B♭", octave: 6, midi: 94, level: "Altissimo", review: "unverified",
+    keys: ["octave", "lh3", "sideC"], primaryLabel: "Ring finger + side C",
+    hint: "Octave key, left ring finger, and the side C vent.",
+    alternates: [
+      {
+        id: "bb6-palmD", label: "Palm D + ring stack", keys: ["octave", "palmD", "lh2", "lh3"],
+        hint: "Palm D key with the left middle and ring fingers, no right hand.",
+        useWhen: "Published as working on alto and tenor with no right-hand fingers.",
+        review: "unverified",
+      },
+      {
+        id: "bb6-ring-f", label: "Ring stack + F", keys: ["octave", "lh2", "lh3", "rh1"],
+        hint: "Left middle and ring fingers plus the right index F pearl.",
+        useWhen: "An alternative when the side-C version does not speak cleanly.",
+        review: "unverified",
+      },
+    ],
+  },
+  {
+    id: "b6", note: "B", octave: 6, midi: 95, level: "Altissimo", review: "unverified",
+    keys: ["octave", "palmD", "rh1", "rh2"], primaryLabel: "Palm D + right hand",
+    hint: "Palm D key with the right index and middle fingers.",
+    alternates: [
+      {
+        id: "b6-alto-f", label: "Right F only (alto)", keys: ["octave", "rh1"],
+        hint: "Octave key and the right index F pearl alone.",
+        useWhen: "Published specifically for alto saxophone; may not speak the same way on tenor or baritone.",
+        review: "unverified",
+      },
+      {
+        id: "b6-tenor-full", label: "Full right hand + side C (tenor)", keys: ["octave", "rh1", "rh2", "rh3", "sideC"],
+        hint: "All three right-hand fingers plus the side C vent, no left hand.",
+        useWhen: "Published specifically as speaking more easily on tenor.",
+        review: "unverified",
+      },
+    ],
+  },
+  {
+    id: "c7", note: "C", octave: 7, midi: 96, level: "Altissimo", review: "unverified",
+    keys: ["octave", "palmD", "palmEb", "sideC"], primaryLabel: "Palm D/E♭ + side C",
+    hint: "Palm D and E♭ keys with the side C vent.",
+    alternates: [
+      {
+        id: "c7-full-palm", label: "Full palm stack + ring finger", keys: ["octave", "palmD", "palmEb", "palmF", "lh3"],
+        hint: "All three left-hand palm keys plus the left ring finger, no right hand.",
+        useWhen: "Published as an alternative that avoids right-hand keys entirely.",
+        review: "unverified",
+      },
+      {
+        id: "c7-sideC-sideBb", label: "Palm D/E♭ + side C/B♭", keys: ["octave", "palmD", "palmEb", "sideC", "sideBb"],
+        hint: "Palm D and E♭ keys with both the side C and side B♭ vents open.",
+        useWhen: "Extra venting some players add for stability at the top of this chart.",
+        review: "unverified",
+      },
+    ],
   },
 ];
 
