@@ -1808,7 +1808,7 @@ button:focus-visible, [role="button"]:focus-visible, a:focus-visible, input:focu
 html[data-theme="light"] {
   --ink: #1d1b1b;
   --muted: #5e5a5a;
-  --subtle: #716c6a;
+  --subtle: #67615f;
   --black: #f5f1ea;
   --panel: #fffdf9;
   --panel-2: #f0ece5;
@@ -1889,7 +1889,7 @@ html[data-theme="light"] .calibration-toggle:hover { background: #f6f2eb; }
 html[data-theme="light"] .calibration-toggle svg:first-child { color: #5e5a5a; }
 html[data-theme="light"] .calibration-body { background: #f7f3ec; border: 1px solid #d9d2c8; box-shadow: inset 0 1px 0 rgba(255,255,255,.9); }
 html[data-theme="light"] .calibration-presets button { color: #3d3938; background: #fffdf9; border-color: #d9d2c8; }
-html[data-theme="light"] .calibration-presets button small { color: #716c6a; }
+html[data-theme="light"] .calibration-presets button small { color: #3d3938; }
 html[data-theme="light"] .calibration-value { color: #1d1b1b; }
 html[data-theme="light"] .tracker-diagnostics { background: #f7f3ec; border-color: #d9d2c8; }
 html[data-theme="light"] .tracker-diagnostics > div:first-child > i { background: #e4ded5; }
@@ -2219,3 +2219,238 @@ html[data-theme="light"] .harmonic-meter { background: #e4ded5; }
 html[data-theme="light"] .harmonics-bars li.is-out-of-range .harmonic-cents { color: #a29c96; }
 html[data-theme="light"] .take-pitch-trace canvas { background: var(--panel-2); border-color: var(--line); }
 html[data-theme="light"] .take-pitch-progress { background: #ebe4da; border-color: #ccc2b6; }
+
+/* ============================================================
+   Light theme, part 2: Pulse, Analyze and the Lab.
+   Tune (above) and the arc-nav dock were already carried to light.
+   Everything below was still wearing its dark-theme skin: most of
+   Pulse's and the Lab's controls, and every card in this file's
+   shared "cinematic" recipe, hard-code a dark background or a grey
+   tuned to sit on one. Two repeating shapes account for nearly all
+   of it, so fix the shape, not each instance:
+     1. cards built from the shared ::before (photo) / ::after (dark
+        scrim) pair -- the scrim never got a light variant, so every
+        card using it stayed a dark island over its own light panel;
+     2. small "chip" controls (badges, keycaps, toggles) whose dark
+        background and light-on-dark text were both literal hex,
+        not tokens, so flipping the page theme did nothing to them.
+   Each gets one shared fix below, then the one-off literal colours
+   still standing afterward are patched at their own selector.
+   Two colour helpers recur throughout: #00695c (teal ink for text
+   sitting on a light or mint chip) and #009683 (a lightened --cyan
+   for the reverse -- near-black text on a solid cyan chip, since
+   --cyan itself is too dark at 0.163 luminance to ever clear 4.5:1
+   under near-black text once the chip is the lighter of the two).
+   ============================================================ */
+
+/* Shared cinematic card recipe: recolour the dark scrim so cards
+   that use it (metronome, control, analysis, setup-explorer, the
+   lab footer trio, and the still-unvisited insight/today/skill/
+   focus/week/repertoire/lesson/equipment/oboe cards) read as light
+   panels instead of dark islands. The photo layer beneath needs no
+   change -- it now sits under an opaque-enough light scrim either
+   way, same as .sax-card::after already does for the single-card
+   case this generalises. */
+html[data-theme="light"] :where(.insight-card, .today-strip, .analysis-card, .analysis-side > article, .metronome-card, .control-card, .drone-strip, .skill-rating-card, .focus-plan, .week-card, .repertoire-card, .lesson-card, .equipment-card, .oboe-inspector, .setup-explorer, .lab-footer-cards article)::after {
+  background: linear-gradient(92deg, rgba(255,253,249,.98) 0 46%, rgba(255,253,249,.92) 70%, rgba(255,253,249,.72));
+}
+html[data-theme="light"] .lab-footer-cards article::after { background: linear-gradient(90deg, rgba(255,253,249,.98), rgba(255,253,249,.76)); }
+html[data-theme="light"] .lab-footer-cards p { color: #5e5a5a; }
+
+/* -- Pulse: metronome card -- */
+html[data-theme="light"] .metronome-top button { color: #716c6a; }
+html[data-theme="light"] .tempo-readout > button { border-color: #d9d2c8; background: #fffdf9; color: #57524f; }
+html[data-theme="light"] .tempo-readout span { color: #716c6a; }
+html[data-theme="light"] .tempo-slider { background: #e4ded5; }
+html[data-theme="light"] .beat-lights i { border-color: #d9d2c8; color: #918c89; }
+html[data-theme="light"] .tap-button { color: #57524f; background: #fffdf9; border-color: #d9d2c8; }
+html[data-theme="light"] .tap-button.is-assessing { color: #00695c; border-color: #92c4b9; background: #e5f2ed; }
+html[data-theme="light"] .rhythm-feedback { color: #716c6a; }
+
+/* -- Pulse: control cards (Meter, Subdivision, Click voice, Count-in,
+   Silent-bar drill, Feel the beat) -- headings and choice buttons were
+   coloured for the dark scrim above; the buttons' own dark background
+   is separate from it and needs its own light surface. */
+html[data-theme="light"] .control-head > span, html[data-theme="light"] .haptic-control > div > span { color: #3d3938; }
+html[data-theme="light"] .control-head > span svg, html[data-theme="light"] .haptic-control > div > span svg { color: #654bd0; }
+html[data-theme="light"] .control-head > button { color: #5e5a5a; }
+html[data-theme="light"] .control-head > small { color: #716c6a; }
+html[data-theme="light"] .choice-row button { border-color: #d9d2c8; background: #fffdf9; color: #57524f; }
+html[data-theme="light"] .choice-row button small { color: #918c89; }
+html[data-theme="light"] .choice-row button.is-active { color: #1d1b1b; border-color: #b6a7ec; background: #e7e1ff; }
+html[data-theme="light"] .haptic-control p { color: #716c6a; }
+
+/* -- Pulse: presets and drone strip -- */
+html[data-theme="light"] .preset-chip { border-color: #d9d2c8; background: #fffdf9; color: #3d3938; }
+html[data-theme="light"] .preset-chip small { color: #6b6663; }
+html[data-theme="light"] .preset-save input { border-color: #d9d2c8; background: #fffdf9; color: #1d1b1b; }
+html[data-theme="light"] .preset-save button { border-color: #92c4b9; background: #e5f2ed; color: #00695c; }
+html[data-theme="light"] .drone-icon { background: #ece7ff; }
+html[data-theme="light"] .drone-strip small { color: #5e5a5a; }
+html[data-theme="light"] .drone-controls select, html[data-theme="light"] .drone-controls button { border-color: #d9d2c8; background: #fffdf9; color: #57524f; }
+html[data-theme="light"] .drone-controls button.is-on { color: #00695c; border-color: #92c4b9; background: #e5f2ed; }
+
+/* -- Analyze -- */
+html[data-theme="light"] .analysis-card > header > span { color: #5e5a5a; }
+html[data-theme="light"] .analysis-tabs { background: #f0ece5; border-color: #d9d2c8; }
+html[data-theme="light"] .analysis-tabs button { color: #5e5a5a; }
+html[data-theme="light"] .analysis-tabs button.is-active { background: #009683; color: #04140f; }
+/* The canvas stage stays a deliberately dark scope, like the Tune tab's
+   instrument photography -- the waveform/spectrum canvas itself paints
+   its own dark background directly (AnalysisView's fillStyle #0b0b0d),
+   so the surrounding CSS shell matches it and the empty-state ink and
+   the peak readout are lightened to read on that dark surface instead. */
+html[data-theme="light"] .analysis-empty { color: #d9d4ca; }
+html[data-theme="light"] .analysis-empty strong { color: #f5f3eb; }
+html[data-theme="light"] .peak-readout { background: rgba(245,241,234,.92); border-color: #d9d2c8; color: #3d3938; }
+html[data-theme="light"] .analysis-actions button { background: #fffdf9; border-color: #d9d2c8; color: #3d3938; }
+html[data-theme="light"] .analysis-actions button.primary-analysis { background: #009683; border-color: #009683; color: #04140f; }
+html[data-theme="light"] .analysis-actions button.recording { background: #fbe3e3; border-color: #e2a9a9; color: #8a2323; }
+html[data-theme="light"] .analysis-actions button:disabled { color: #b8afa5; }
+html[data-theme="light"] .analysis-side p { color: #5e5a5a; }
+html[data-theme="light"] .analysis-metrics strong { color: #1d1b1b; }
+html[data-theme="light"] .analysis-metrics small { color: #716c6a; }
+html[data-theme="light"] .no-take { border-color: #d9d2c8; color: #5e5a5a; }
+html[data-theme="light"] .no-take p { color: #5e5a5a; }
+html[data-theme="light"] .take-card > a,
+html[data-theme="light"] .take-actions a, html[data-theme="light"] .take-actions button, html[data-theme="light"] .no-take button {
+  background: #e5f2ed; border-color: #92c4b9; color: #00695c;
+}
+html[data-theme="light"] .metric span { color: #6b6663; }
+html[data-theme="light"] .metric small { color: #6b6663; }
+html[data-theme="light"] .metric-icon { background: #ece7ff; }
+
+/* -- Lab: header strip, note browser, pitch panel -- */
+html[data-theme="light"] .reference-model-strip { background: #f0ece5; color: #5e5a5a; }
+html[data-theme="light"] .reference-model-strip a { color: #4d3fa8; }
+html[data-theme="light"] .lab-instrument-notice { background: #ece7ff; border-color: #cfc3f5; }
+html[data-theme="light"] .lab-instrument-notice p { color: #4b4082; }
+html[data-theme="light"] .note-arrow { background: #f0ece5; color: #57524f; }
+html[data-theme="light"] .note-arrow:hover { background: #e5ded4; }
+html[data-theme="light"] .note-scroll button { color: #716c6a; }
+html[data-theme="light"] .note-scroll button sup { color: #918c89; }
+html[data-theme="light"] .note-scroll button:hover { background: #e5ded4; }
+html[data-theme="light"] .note-scroll button.is-active { background: #009683; color: #04140f; }
+html[data-theme="light"] .note-scroll button.is-active sup { color: #04231d; }
+html[data-theme="light"] .pitch-pair small { color: #5e5a5a; }
+html[data-theme="light"] .pitch-pair > svg { color: #918c89; }
+html[data-theme="light"] .finger-hint { border-color: #cfc3f5; background: #ece7ff; color: #4b4082; }
+html[data-theme="light"] .fingering-choices > small { color: #716c6a; }
+html[data-theme="light"] .fingering-choices button { border-color: #d9d2c8; background: #fffdf9; color: #57524f; }
+html[data-theme="light"] .fingering-choices button.is-active { background: #009683; border-color: #009683; color: #04140f; }
+html[data-theme="light"] .fingering-choices > p { color: #5e5a5a; }
+html[data-theme="light"] .pressed-heading span { color: #5e5a5a; }
+html[data-theme="light"] .pressed-heading strong { background: #cdebe3; color: #00695c; }
+html[data-theme="light"] .hand-map-note { color: #716c6a; }
+html[data-theme="light"] .key-column > small { color: #716c6a; }
+html[data-theme="light"] .key-chip { border-top-color: #e8e1d7; }
+html[data-theme="light"] .key-chip > i { background: #cdebe3; border-color: #92c4b9; color: #00695c; }
+html[data-theme="light"] .key-chip > span { color: #1d1b1b; }
+html[data-theme="light"] .key-chip > span small { color: #716c6a; }
+html[data-theme="light"] .no-key { color: #918c89; }
+html[data-theme="light"] .open-fingering { border-color: #d9d2c8; color: #57524f; }
+html[data-theme="light"] .open-fingering span { color: #1d1b1b; }
+html[data-theme="light"] .linked-pad-trace { background: #f7f3ec; border-color: #d9d2c8; }
+html[data-theme="light"] .linked-pad-trace summary { color: #3d3938; }
+html[data-theme="light"] .linked-pad-trace summary span { background: #cdebe3; color: #00695c; }
+html[data-theme="light"] .linked-pad-trace > div { border-top-color: #e8e1d7; }
+html[data-theme="light"] .linked-pad-trace article { border-bottom-color: #e8e1d7; }
+html[data-theme="light"] .linked-pad-trace article > i { background: #cdebe3; border-color: #92c4b9; color: #00695c; }
+html[data-theme="light"] .linked-pad-trace article strong { color: #1d1b1b; }
+html[data-theme="light"] .linked-pad-trace article span { color: #5e5a5a; }
+html[data-theme="light"] .linked-pad-trace article small { color: #716c6a; }
+html[data-theme="light"] .lab-tip { color: #5e5a5a; }
+html[data-theme="light"] .lab-tip strong { color: #1d1b1b; }
+html[data-theme="light"] .answer-state.correct { color: #00695c; background: #cdebe3; border-color: #92c4b9; }
+html[data-theme="light"] .answer-state.retry { color: #7a5a00; background: #fff3d6; border-color: #e8c98a; }
+
+/* -- Lab: setup explorer (finish / neck / mouthpiece / reed / ligature) -- */
+html[data-theme="light"] .setup-explorer > header > a { color: #5e5a5a; border-color: #d9d2c8; }
+html[data-theme="light"] .setup-explorer > header > a:hover { border-color: #b8afa5; }
+html[data-theme="light"] .setup-part-tabs { background: #f0ece5; border-color: #d9d2c8; }
+html[data-theme="light"] .setup-part-tabs button { color: #5e5a5a; }
+html[data-theme="light"] .setup-part-tabs button:hover { background: #e5ded4; }
+html[data-theme="light"] .setup-part-tabs button.is-active { background: #fffdf9; }
+html[data-theme="light"] .setup-part-tabs small { color: #5e5a5a; }
+html[data-theme="light"] .setup-part-intro > div { background: #f7f3ec; border-color: #d9d2c8; }
+html[data-theme="light"] .setup-part-intro p { color: #5e5a5a; }
+html[data-theme="light"] .setup-part-intro > div:last-child { background: #ece7ff; border-color: #cfc3f5; }
+html[data-theme="light"] .setup-part-intro > div:last-child p { color: #4b4082; }
+html[data-theme="light"] .finish-grid button { border-color: #d9d2c8; background: #fffdf9; color: #57524f; }
+html[data-theme="light"] .finish-grid button:hover { border-color: #b8afa5; }
+html[data-theme="light"] .finish-grid button.is-active { border-color: #92c4b9; background: #e5f2ed; }
+html[data-theme="light"] .finish-grid button > span { box-shadow: inset 0 0 0 3px #fffdf9; }
+html[data-theme="light"] .finish-grid button strong { color: #1d1b1b; }
+html[data-theme="light"] .finish-grid button small { color: #3d3938; }
+/* Same coverflow-dimming reasoning as the setup variant cards above:
+   the finish coverflow's non-active buttons need more opacity headroom
+   under a light backdrop to keep their (now-darkened) description text
+   legible. */
+html[data-theme="light"] .finish-grid.visual-coverflow button { opacity: .84; }
+html[data-theme="light"] .compare-status { background: #f0ece5; border-color: #d9d2c8; }
+html[data-theme="light"] .compare-status > span { color: #00695c; }
+html[data-theme="light"] .compare-status p { color: #3d3938; }
+html[data-theme="light"] .compare-status small { color: #5e5a5a; }
+html[data-theme="light"] .back-link { color: #57524f; }
+html[data-theme="light"] .coverflow-heading span { color: #716c6a; }
+html[data-theme="light"] .coverflow-heading button { border-color: #d9d2c8; background: #fffdf9; color: #57524f; }
+html[data-theme="light"] .variant-card { border-color: #d9d2c8; background: #fffdf9; }
+html[data-theme="light"] .variant-card.is-compared { border-color: #7fb8ab; }
+html[data-theme="light"] .visual-coverflow .variant-card.is-featured { border-color: #cbc0b3; }
+html[data-theme="light"] .variant-card h3 { color: #1d1b1b; }
+html[data-theme="light"] .variant-card > p { color: #3d3938; }
+html[data-theme="light"] .variant-card > ul li { border-color: #d9d2c8; color: #3d3938; }
+html[data-theme="light"] .compare-toggle { border-color: #d9d2c8; background: #fffdf9; color: #57524f; }
+html[data-theme="light"] .compare-toggle[aria-pressed="true"] { color: #004f45; border-color: #7fb8ab; background: #cdebe3; }
+html[data-theme="light"] .attribute-stack { border-color: #e8e1d7; }
+html[data-theme="light"] .attribute-row strong { color: #3d3938; }
+html[data-theme="light"] .attribute-row span { color: #3d3938; }
+html[data-theme="light"] .attribute-row > i { background: #e4ded5; }
+html[data-theme="light"] .variant-use p { color: #3d3938; }
+html[data-theme="light"] .variant-card > footer button { background: #00a894; color: #011008; }
+html[data-theme="light"] .variant-card > footer a { color: #3d3938; }
+html[data-theme="light"] .variant-card > footer a:hover { color: #1d1b1b; }
+html[data-theme="light"] .variant-card h3 { color: #1d1b1b; }
+html[data-theme="light"] .variant-card > header small { color: #4d3fa8; }
+/* The coverflow's non-featured neighbour cards are intentionally dimmed
+   (opacity .58) to read as background depth, a dark-theme value that
+   blends dark-tuned text down toward its own near-black backdrop. Against
+   a light backdrop the same fraction blends every ink toward white
+   instead, and no grey dark enough to stay legible as "de-emphasised
+   text" survives that blend at 4.5:1 -- only literal black would, which
+   defeats the de-emphasis. Keep the depth cue but shallow enough that the
+   now-darkened inks above (#1d1b1b / #3d3938) clear it. */
+html[data-theme="light"] .visual-coverflow .variant-card { opacity: .84; }
+/* Part illustrations (neck/mouthpiece/reed/ligature) stay a small dark
+   "photographic" stage on purpose, same reasoning as the analysis canvas
+   above -- only the index badge sitting on it needs a light-mode ink. */
+html[data-theme="light"] .variant-visual > span { color: #d9d4ca; }
+
+/* -- Lab: the 3D model dock and its floating badges sit directly on the
+   WebGL viewport's own dark fog/lighting, so -- same call as the
+   analysis canvas above -- the dock keeps its dark surface and only its
+   ink is relit for light mode. */
+html[data-theme="light"] .experience-dock-summary small { color: #d9d4ca; }
+html[data-theme="light"] .experience-legend span { color: #d9d4ca; }
+html[data-theme="light"] .experience-dock-actions button { color: #d9d4ca; }
+html[data-theme="light"] .experience-view-presets button { color: #d9d4ca; }
+html[data-theme="light"] .experience-view-presets button.is-active { background: #009683; color: #04140f; }
+html[data-theme="light"] .model-note-badge small { color: #d9d4ca; }
+html[data-theme="light"] .model-note-badge strong { color: #f5f3eb; }
+html[data-theme="light"] .model-note-badge span { color: #d9d4ca; }
+html[data-theme="light"] .model-accuracy-label { color: #d9d4ca; }
+html[data-theme="light"] .model-toolbar span, html[data-theme="light"] .model-toolbar button, html[data-theme="light"] .drag-hint { color: #d9d4ca; }
+
+/* -- Tune: the tone generator card had its own literal dark gradient,
+   independent of the shared card recipe fixed above. */
+html[data-theme="light"] .tone-generator-card { background: linear-gradient(145deg, #fbf9f4, #f2ede4); }
+html[data-theme="light"] .tone-generator-card::before { background: radial-gradient(circle at 86% 0%, rgba(0,127,110,.1), transparent 31%), radial-gradient(circle at 12% 110%, rgba(101,75,208,.09), transparent 40%); }
+html[data-theme="light"] .tone-stop { border-color: #d9d2c8; background: #fffdf9; color: #57524f; }
+html[data-theme="light"] .tone-controls label { color: #5e5a5a; }
+html[data-theme="light"] .tone-controls select { border-color: #d9d2c8; background: #fffdf9; color: #1d1b1b; }
+html[data-theme="light"] .tone-keyboard button { border-color: #d9d2c8; background: linear-gradient(180deg, #fffefa, #f0eadf); color: #57524f; }
+html[data-theme="light"] .tone-keyboard button:hover, html[data-theme="light"] .tone-keyboard button.is-playing { border-color: #92c4b9; background: #e5f2ed; color: #00695c; }
+html[data-theme="light"] .tone-keyboard button small, html[data-theme="light"] .tone-keyboard button svg { color: #837d7a; }
+html[data-theme="light"] .eyebrow { color: #00695c !important; }
+html[data-theme="light"] .model-loading, html[data-theme="light"] .model-fallback { color: #d9d4ca; }
+
