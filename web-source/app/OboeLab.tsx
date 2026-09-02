@@ -16,8 +16,11 @@ import {
   Wind,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { FingeringChart } from "./FingeringChart";
+import { FINGERING_CHARTS } from "./fingering-charts";
 import { ImportedInstrumentCanvas, type InstrumentViewId } from "./ImportedInstrumentCanvas";
 import { INSTRUMENTS, type InstrumentId } from "./instruments";
+import type { NotationSystem } from "./notation";
 
 const OBOE_VIEWS: Array<{ id: InstrumentViewId; label: string }> = [
   { id: "front", label: "Front" },
@@ -33,9 +36,20 @@ const OBOE_VIEWS: Array<{ id: InstrumentViewId; label: string }> = [
  * bulb bell, bocal, pitched in F), so a non-oboe caller gets an explicit
  * banner saying the model, photos and credits on screen are an oboe's.
  */
-export function OboeLab({ onBack, instrumentId = "oboe" }: { onBack: () => void; instrumentId?: InstrumentId }) {
+export function OboeLab({
+  onBack,
+  instrumentId = "oboe",
+  notation = "western",
+  saTonic = 0,
+}: {
+  onBack: () => void;
+  instrumentId?: InstrumentId;
+  notation?: NotationSystem;
+  saTonic?: number;
+}) {
   const instrument = INSTRUMENTS[instrumentId];
   const isOboe = instrumentId === "oboe";
+  const chart = FINGERING_CHARTS[instrumentId];
   const [viewPreset, setViewPreset] = useState<InstrumentViewId>("front");
   const [resetView, setResetView] = useState(0);
   const [immersive, setImmersive] = useState(false);
@@ -61,7 +75,7 @@ export function OboeLab({ onBack, instrumentId = "oboe" }: { onBack: () => void;
           <button className="back-link" onClick={onBack}><ArrowLeft size={15} /> Tuner</button>
           <p className="eyebrow">Instrument lab · {instrument.name} anatomy preview</p>
           <h1>Explore the {instrument.shortName.toLowerCase()} up close.</h1>
-          <p>Turn the {isOboe ? "oboe" : "model"}, zoom in, and tap the keywork to see how it is put together. Fingering lessons will arrive after an oboe teacher checks them.</p>
+          <p>Turn the {isOboe ? "oboe" : "model"}, zoom in, and tap the keywork to see how it is put together. A fingering chart is below, checked against published references but not yet by an oboe teacher.</p>
         </div>
         <span className="preview-status"><Eye size={15} /> Anatomy preview</span>
       </header>
@@ -73,8 +87,9 @@ export function OboeLab({ onBack, instrumentId = "oboe" }: { onBack: () => void;
             The model, photos and credits below are an oboe&apos;s, because that is the only double-reed instrument
             Bocal has a licensed model for. The {instrument.name.toLowerCase()} shares the oboe&apos;s conservatoire
             key system, but it is a distinct instrument: a longer body, a bulb bell, and a bocal (the curved crook
-            Bocal is named after), and it sounds a fifth lower than written. No fingering content exists yet for
-            either instrument -- this is an anatomy preview only.
+            Bocal is named after), and it sounds a fifth lower than written. The fingering chart below is the
+            oboe&apos;s too -- the key system is the same, but no one has confirmed every fingering carries over
+            note-for-note to the {instrument.name.toLowerCase()}.
           </p>
         </div>
       )}
@@ -136,7 +151,7 @@ export function OboeLab({ onBack, instrumentId = "oboe" }: { onBack: () => void;
           </div>
           <div className="oboe-truth-card">
             <ShieldCheck size={17} />
-            <div><strong>Not checked yet</strong><p>Note-to-key maps, alternate fingerings and pad motion still need review by an oboe specialist.</p></div>
+            <div><strong>Not checked yet</strong><p>The fingering chart below is method-book consensus, cross-checked against two published references -- not yet reviewed by an oboe specialist. Pad motion and part names above come from the 3D model only.</p></div>
           </div>
 
           <a className="model-credit" href="https://sketchfab.com/3d-models/oboe-howarth-conservatoire-s20c-instrument-bfa1bb7fd7ef4f7c9d3c843f481a38c8" target="_blank" rel="noreferrer">
@@ -144,6 +159,22 @@ export function OboeLab({ onBack, instrumentId = "oboe" }: { onBack: () => void;
           </a>
         </aside>
       </div>
+
+      {chart && (
+        <section className="oboe-chart-section">
+          <header className="oboe-chart-heading">
+            <p className="eyebrow">Fingering chart</p>
+            <h2>{isOboe ? "The standard oboe fingerings." : `The oboe's fingerings, on the ${instrument.shortName.toLowerCase()}.`}</h2>
+          </header>
+          <FingeringChart
+            chart={chart}
+            instrument={instrument}
+            notation={notation}
+            tonic={saTonic}
+            chartOwnerName={isOboe ? undefined : "oboe"}
+          />
+        </section>
+      )}
     </div>
   );
 }

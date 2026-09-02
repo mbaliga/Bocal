@@ -18,7 +18,7 @@ test("instrument scope, learning readiness, and licenses stay explicit", async (
   assert.match(attribution, /ANDRIANIAINAToky/);
   assert.match(attribution, /WarderiiK/);
   assert.match(attribution, /CC BY 4\.0/g);
-  assert.match(oboeLab, /Note-to-key maps, alternate fingerings and pad motion still need review/);
+  assert.match(oboeLab, /not yet reviewed by an oboe specialist/);
 });
 
 test("oboe preview isolates one authored finish and orbiting cannot remount the renderer", async () => {
