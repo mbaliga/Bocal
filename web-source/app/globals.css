@@ -1941,3 +1941,26 @@ html[data-theme="light"] .tone-exercise { border-color: #d9d2c8; background: lin
 html[data-theme="light"] .tone-exercise-controls small { color: #6f6967; }
 html[data-theme="light"] .tone-exercise-loop { color: #3d3938; background: linear-gradient(180deg, #fffefa, #eee8df); border-color: #d9d2c8; }
 html[data-theme="light"] .tone-exercise-loop.is-active { border-color: #4fa896; background: #e5f2ed; color: #087e6d; }
+
+/* ---------------------------------------------------------------------- */
+/* Sax lab: altissimo register + review badge (feat/sax-altissimo)        */
+/* Styles for the Altissimo group divider in the note browser, the        */
+/* "Quiz altissimo too" challenge-mode toggle, and the unverified-fingering*/
+/* badge/truth-card. All colours are theme variables so this needs no      */
+/* separate light-mode block.                                              */
+/* ---------------------------------------------------------------------- */
+.lab-mode-controls { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.altissimo-challenge-toggle { display: inline-flex; align-items: center; gap: 6px; color: #77777a; font-size: 10px; cursor: pointer; user-select: none; }
+.altissimo-challenge-toggle input { accent-color: var(--cyan); width: 13px; height: 13px; cursor: pointer; }
+.altissimo-challenge-toggle:hover { color: var(--ink); }
+
+.note-scroll-divider { flex: 0 0 auto; align-self: center; padding: 0 4px; color: #58585b; font-size: 8px; text-transform: uppercase; letter-spacing: .11em; border-left: 1px dashed var(--line); padding-left: 10px; margin-left: 3px; white-space: nowrap; }
+
+.review-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border: 1px solid #6a4a1f; border-radius: 999px; background: rgba(255, 176, 32, .12); color: #e0a84a; font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; vertical-align: middle; }
+.review-badge svg { flex: 0 0 auto; }
+.choice-review-dot { display: inline-block; width: 5px; height: 5px; margin-left: 5px; border-radius: 50%; background: #e0a84a; vertical-align: middle; }
+.sax-review-tip svg { color: #e0a84a; }
+.sax-review-tip .review-badge { margin: 0 2px; }
+html[data-theme="light"] .review-badge { border-color: #d99a2b; background: rgba(217, 154, 43, .12); color: #8a5d10; }
+html[data-theme="light"] .sax-review-tip svg { color: #8a5d10; }
+html[data-theme="light"] .choice-review-dot { background: #8a5d10; }

@@ -49,14 +49,76 @@ test("every mechanism declares real pad motion and known coupled cups", () => {
   assert.deepEqual(data.SAX_MECHANICS.lowBb.coupledCupIds, ["lowC", "lowB"]);
 });
 
-test("the keyed range is chromatic from written B-flat 3 through F-sharp 6", () => {
-  assert.equal(data.ALTO_FINGERINGS.length, 33);
-  assert.deepEqual(data.ALTO_FINGERINGS.map((note) => note.midi), Array.from({ length: 33 }, (_, index) => 58 + index));
+test("the keyed range is chromatic from written B-flat 3 through altissimo C7", () => {
+  assert.equal(data.ALTO_FINGERINGS.length, 39);
+  assert.deepEqual(data.ALTO_FINGERINGS.map((note) => note.midi), Array.from({ length: 39 }, (_, index) => 58 + index));
   assert.equal(data.ALTO_FINGERINGS[0].id, "bb3");
-  assert.equal(data.ALTO_FINGERINGS.at(-1).id, "fs6");
+  assert.equal(data.ALTO_FINGERINGS.at(-1).id, "c7");
+  // The written range now reaches at least midi 96 (C7), the top of the
+  // altissimo block added alongside the standard B♭3-F♯6 range.
+  assert.ok(data.ALTO_FINGERINGS.at(-1).midi >= 96);
   // writtenToConcert no longer assumes alto: the caller must pass the
   // instrument's writtenOffset (see the dedicated per-horn test below).
   for (const note of data.ALTO_FINGERINGS) assert.equal(data.writtenToConcert(note.midi, 9), note.midi - 9);
+});
+
+test("primary-list midi values are strictly increasing and unique", () => {
+  const midis = data.ALTO_FINGERINGS.map((note) => note.midi);
+  assert.equal(new Set(midis).size, midis.length);
+  for (let index = 1; index < midis.length; index += 1) {
+    assert.ok(midis[index] > midis[index - 1], `midi should increase at index ${index}`);
+  }
+});
+
+test("every Altissimo entry, and every fingering/trill it or the rest of the chart newly introduces as an alternate, is flagged review: unverified where expected", () => {
+  const altissimoIds = new Set(["g6", "gs6", "a6", "bb6", "b6", "c7"]);
+  for (const note of data.ALTO_FINGERINGS) {
+    if (altissimoIds.has(note.id)) {
+      assert.equal(note.level, "Altissimo", `${note.id} should be level Altissimo`);
+      assert.equal(note.review, "unverified", `${note.id} should be review: unverified`);
+      for (const alternate of note.alternates ?? []) {
+        assert.equal(alternate.review, "unverified", `${note.id}/${alternate.id} should be review: unverified`);
+      }
+    } else {
+      assert.notEqual(note.level, "Altissimo", `${note.id} should not be level Altissimo`);
+    }
+  }
+  // The long B♭ (1+1) alternates are new, non-altissimo additions and must
+  // also carry the flag.
+  const byId = Object.fromEntries(data.ALTO_FINGERINGS.map((note) => [note.id, note]));
+  assert.equal(byId.bb4.alternates.find((alternate) => alternate.id === "long-bb4").review, "unverified");
+  assert.equal(byId.bb5.alternates.find((alternate) => alternate.id === "long-bb5").review, "unverified");
+  // Untouched standard-range entries and alternates stay unflagged.
+  assert.equal(byId.fs4.review, undefined);
+  assert.equal(byId.bb4.alternates.find((alternate) => alternate.id === "side-bb4").review, undefined);
+});
+
+test("altissimo fingerings never duplicate the exact key combination of another entry", () => {
+  const seen = new Map();
+  for (const note of data.ALTO_FINGERINGS) {
+    for (const choice of [{ id: note.id, keys: note.keys }, ...(note.alternates ?? [])]) {
+      const signature = [...choice.keys].sort().join(",");
+      const existing = seen.get(signature);
+      assert.ok(!existing, `${choice.id} duplicates the key combination already used by ${existing}`);
+      seen.set(signature, choice.id);
+    }
+  }
+});
+
+test("trill entries reference real keys and existing fingering ids", () => {
+  const keyIds = new Set(data.SAX_KEYS.map((key) => key.id));
+  const routeIds = new Set(data.ALTO_FINGERINGS.map((note) => note.id));
+  let trillCount = 0;
+  for (const note of data.ALTO_FINGERINGS) {
+    for (const trill of note.trills ?? []) {
+      trillCount += 1;
+      assert.ok(routeIds.has(trill.from), `trill.from ${trill.from} is a real fingering id`);
+      assert.ok(routeIds.has(trill.to), `trill.to ${trill.to} is a real fingering id`);
+      assert.equal(trill.from, note.id);
+      for (const key of trill.keys) assert.ok(keyIds.has(key), `trill ${trill.from}->${trill.to} uses ${key}`);
+    }
+  }
+  assert.ok(trillCount >= 3, "expected at least the B-C, F-G and C-D trills");
 });
 
 test("SAXOPHONE_FINGERINGS is the map and ALTO_FINGERINGS is a back-compat alias for it", () => {
@@ -97,6 +159,9 @@ test("all fingering contacts resolve and route ids are unique", () => {
       routeIds.add(alternate.id);
       for (const key of alternate.keys) assert.ok(keyIds.has(key), `${alternate.id} uses ${key}`);
       assert.equal(alternate.keys.includes("altFsharp") && alternate.keys.includes("highFsharp"), false);
+    }
+    for (const trill of note.trills ?? []) {
+      for (const key of trill.keys) assert.ok(keyIds.has(key), `${note.id} trill to ${trill.to} uses ${key}`);
     }
   }
 });

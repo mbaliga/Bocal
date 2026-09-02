@@ -21,6 +21,7 @@ import {
   MousePointer2,
   RefreshCw,
   Rotate3D,
+  ShieldAlert,
   ShieldCheck,
   Shuffle,
   Sparkles,
@@ -28,7 +29,7 @@ import {
   Wind,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { ImportedInstrumentCanvas, type InstrumentViewId } from "./ImportedInstrumentCanvas";
@@ -43,6 +44,7 @@ import {
   SAX_MECHANICS,
   type Fingering,
   type FingeringOption,
+  type ReviewStatus,
   type SaxKeyId,
   writtenToConcert,
 } from "./sax-data";
@@ -85,6 +87,7 @@ type FingeringChoice = {
   hint: string;
   useWhen?: string;
   isPrimary: boolean;
+  review?: ReviewStatus;
 };
 
 function sameKeys(left: Set<SaxKeyId>, right: SaxKeyId[]) {
@@ -99,12 +102,28 @@ function fingeringChoices(fingering: Fingering): FingeringChoice[] {
       keys: fingering.keys,
       hint: fingering.hint,
       isPrimary: true,
+      review: fingering.review,
     },
     ...(fingering.alternates ?? []).map((alternate: FingeringOption) => ({
       ...alternate,
       isPrimary: false,
     })),
   ];
+}
+
+/**
+ * Altissimo and its new alternates are common published fingerings pulled
+ * from method literature, not fingerings a teacher has checked for Bocal
+ * (see the sourcing note above SAXOPHONE_FINGERINGS's altissimo block in
+ * sax-data.ts). This badge is the honesty marker for that gap -- it must
+ * never be dropped from a fingering that carries review: "unverified".
+ */
+function ReviewBadge() {
+  return (
+    <span className="review-badge" title="Not checked by a teacher for Bocal -- a common published fingering.">
+      <ShieldAlert size={11} /> Unverified
+    </span>
+  );
 }
 
 function hexColour(value: number) {
@@ -393,6 +412,11 @@ function SaxFingeringLab({ onBack, instrumentId }: { onBack: () => void; instrum
   const [activeKeys, setActiveKeys] = useState<Set<SaxKeyId>>(() => new Set(SAXOPHONE_FINGERINGS[initialIndex].keys));
   const [challenge, setChallenge] = useState<Fingering | null>(null);
   const [feedback, setFeedback] = useState<"idle" | "correct" | "retry">("idle");
+  // Altissimo is far more setup-dependent than the standard range covered by
+  // the rest of this chart (see the sourcing note in sax-data.ts), so a
+  // beginner working through Challenge mode shouldn't be quizzed on it by
+  // default. Players who do want the drill can opt in here.
+  const [includeAltissimoInChallenge, setIncludeAltissimoInChallenge] = useState(false);
   const [resetView, setResetView] = useState(0);
   const [showGuides, setShowGuides] = useState(false);
   const [immersive, setImmersive] = useState(false);
@@ -407,6 +431,10 @@ function SaxFingeringLab({ onBack, instrumentId }: { onBack: () => void; instrum
   const selected = SAXOPHONE_FINGERINGS[selectedIndex];
   const choices = fingeringChoices(selected);
   const selectedChoice = choices[Math.min(choiceIndex, choices.length - 1)];
+  const firstAltissimoIndex = useMemo(
+    () => SAXOPHONE_FINGERINGS.findIndex((fingering) => fingering.level === "Altissimo"),
+    [],
+  );
   const colorway = SAX_COLORWAYS.find((candidate) => candidate.id === colorwayId) ?? SAX_COLORWAYS[0];
   const setupPart = SAX_SETUP_PARTS.find((part) => part.id === setupPartId) ?? SAX_SETUP_PARTS[0];
   const activeKeyDetails = SAX_KEYS.filter((key) => activeKeys.has(key.id));
@@ -541,7 +569,10 @@ function SaxFingeringLab({ onBack, instrumentId }: { onBack: () => void; instrum
   };
 
   const startChallenge = () => {
-    const next = SAXOPHONE_FINGERINGS[Math.floor(Math.random() * (SAXOPHONE_FINGERINGS.length - 4)) + 4];
+    const pool = SAXOPHONE_FINGERINGS
+      .slice(4)
+      .filter((fingering) => includeAltissimoInChallenge || fingering.level !== "Altissimo");
+    const next = pool[Math.floor(Math.random() * pool.length)];
     setTrainerMode("challenge");
     setChallenge(next);
     setSelectedIndex(SAXOPHONE_FINGERINGS.indexOf(next));
@@ -620,9 +651,19 @@ function SaxFingeringLab({ onBack, instrumentId }: { onBack: () => void; instrum
           <h1>See exactly which keys to press.</h1>
           <p>Pick a written note, or tap a key on the sax. The cyan glow marks each touch point; the panel explains what that key moves.</p>
         </div>
-        <div className="lab-mode-switch" aria-label="Trainer mode">
-          <button className={trainerMode === "learn" ? "is-active" : ""} onClick={switchToLearn}><Eye size={15} /> Learn</button>
-          <button className={trainerMode === "challenge" ? "is-active" : ""} onClick={startChallenge}><Shuffle size={15} /> Challenge</button>
+        <div className="lab-mode-controls">
+          <div className="lab-mode-switch" aria-label="Trainer mode">
+            <button className={trainerMode === "learn" ? "is-active" : ""} onClick={switchToLearn}><Eye size={15} /> Learn</button>
+            <button className={trainerMode === "challenge" ? "is-active" : ""} onClick={startChallenge}><Shuffle size={15} /> Challenge</button>
+          </div>
+          <label className="altissimo-challenge-toggle">
+            <input
+              type="checkbox"
+              checked={includeAltissimoInChallenge}
+              onChange={(event) => setIncludeAltissimoInChallenge(event.target.checked)}
+            />
+            Quiz altissimo too
+          </label>
         </div>
       </header>
 
@@ -633,9 +674,10 @@ function SaxFingeringLab({ onBack, instrumentId }: { onBack: () => void; instrum
             Fingerings for your {instrument.shortName.toLowerCase()}, shown on an alto. Soprano, alto, tenor and
             baritone read the same written note off the same grip, so the fingerings below are correct for your horn
             — but the 3D model, photos and sound you see and hear here are an alto&apos;s, because that is the only
-            saxophone Bocal has a licensed model for. This chart covers the standard written range only (B♭3 to
-            F♯6), not altissimo, and the alternate fingerings are checked on alto — they can feel or respond
-            differently on {instrument.shortName.toLowerCase()}.
+            saxophone Bocal has a licensed model for. The standard written range (B♭3 to F♯6) is checked on alto —
+            those fingerings and alternates can feel or respond differently on {instrument.shortName.toLowerCase()}.
+            The altissimo notes (G6 to C7) are unverified for every horn, alto included — see the badge on those
+            fingerings.
             {instrumentId === "bari-sax" &&
               " Many baritones also have a low A key (written A3) below this chart's lowest note; it isn't included here."}
           </p>
@@ -646,14 +688,18 @@ function SaxFingeringLab({ onBack, instrumentId }: { onBack: () => void; instrum
         <button className="note-arrow" aria-label="Previous note" onClick={() => chooseNote(selectedIndex - 1)}><ChevronLeft size={18} /></button>
         <div className="note-scroll">
           {SAXOPHONE_FINGERINGS.map((fingering, index) => (
-            <button
-              key={fingering.id}
-              className={index === selectedIndex ? "is-active" : ""}
-              onClick={() => chooseNote(index)}
-              aria-label={`${fingering.note} ${fingering.octave}`}
-            >
-              {fingering.note}<sup>{fingering.octave}</sup>
-            </button>
+            <Fragment key={fingering.id}>
+              {index === firstAltissimoIndex && (
+                <span className="note-scroll-divider" aria-hidden="true">Altissimo</span>
+              )}
+              <button
+                className={index === selectedIndex ? "is-active" : ""}
+                onClick={() => chooseNote(index)}
+                aria-label={`${fingering.note} ${fingering.octave}${fingering.level === "Altissimo" ? ", altissimo, unverified" : ""}`}
+              >
+                {fingering.note}<sup>{fingering.octave}</sup>
+              </button>
+            </Fragment>
           ))}
         </div>
         <button className="note-arrow" aria-label="Next note" onClick={() => chooseNote(selectedIndex + 1)}><ChevronRight size={18} /></button>
@@ -699,6 +745,7 @@ function SaxFingeringLab({ onBack, instrumentId }: { onBack: () => void; instrum
               <small>{trainerMode === "challenge" ? "Build this fingering" : "Written pitch"}</small>
               <strong>{selected.note}<sup>{selected.octave}</sup></strong>
               <span>{selected.level} register</span>
+              {selectedChoice.review === "unverified" && <ReviewBadge />}
             </div>
             <div className="model-accuracy-label">Bronze study · key glows aligned to the reference mesh</div>
             <div className="drag-hint"><Rotate3D size={15} /> Drag to orbit</div>
@@ -709,7 +756,7 @@ function SaxFingeringLab({ onBack, instrumentId }: { onBack: () => void; instrum
           {trainerMode === "challenge" ? (
             <div className="challenge-head">
               <span className="panel-kicker"><Sparkles size={14} /> Finger memory</span>
-              <h2>Build {selected.note}<sup>{selected.octave}</sup></h2>
+              <h2>Build {selected.note}<sup>{selected.octave}</sup> {selectedChoice.review === "unverified" && <ReviewBadge />}</h2>
               <p>Primary or validated alternate fingerings are accepted.</p>
               {feedback === "correct" && <div className="answer-state correct"><Check size={17} /> That&apos;s it. Clean and correct.</div>}
               {feedback === "retry" && <div className="answer-state retry"><X size={17} /> Not yet. Compare fingertip targets and try once more.</div>}
@@ -733,9 +780,10 @@ function SaxFingeringLab({ onBack, instrumentId }: { onBack: () => void; instrum
                         key={choice.id}
                         className={index === choiceIndex ? "is-active" : ""}
                         onClick={() => chooseChoice(selected, index)}
-                      >{choice.label}</button>
+                      >{choice.label}{choice.review === "unverified" && <i className="choice-review-dot" aria-label="unverified" title="Not checked by a teacher for Bocal" />}</button>
                     ))}
                   </div>
+                  {selectedChoice.review === "unverified" && <ReviewBadge />}
                   {selectedChoice.useWhen && <p><Info size={13} /> {selectedChoice.useWhen}</p>}
                 </div>
               )}
@@ -780,6 +828,7 @@ function SaxFingeringLab({ onBack, instrumentId }: { onBack: () => void; instrum
           )}
 
           <div className="lab-tip"><Ear size={15} /><span><strong>What you’re seeing.</strong> Cyan marks the keys for this note. Gold rings show other keys you can tap. The movement of linked pads stays in the panel above.</span></div>
+          <div className="lab-tip sax-review-tip"><ShieldAlert size={15} /><span><strong>Not checked yet.</strong> The altissimo notes (G6–C7) and the fingerings marked <ReviewBadge /> above are common fingerings drawn from published charts and method books, not fingerings a teacher has checked for Bocal — expect them to vary by horn, mouthpiece and player.</span></div>
         </aside>
       </div>
 
