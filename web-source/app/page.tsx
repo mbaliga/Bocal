@@ -1216,7 +1216,7 @@ function TunerView({
                 <h3>{instrument.id === "alto-sax" ? (reading ? `See ${writtenLabel} on the sax.` : "Open the interactive alto sax.") : "Explore the oboe up close."}</h3>
                 <p>{instrument.id === "alto-sax" ? "Open the sax and the keys for this note will light up." : "Turn the model and tap its rods, springs and keywork."}</p>
               </div>
-              <div className={`sax-card-photo ${instrument.id === "oboe" ? "is-oboe" : ""}`} aria-hidden="true" />
+              <div className={`sax-card-photo ${instrument.labTier === "anatomy" ? "is-oboe" : ""}`} aria-hidden="true" />
               <span className="round-arrow"><ArrowRight size={17} /></span>
             </article>
           )}

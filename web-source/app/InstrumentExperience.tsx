@@ -65,6 +65,15 @@ const WOODWIND_GALLERY_INSTRUMENTS: GalleryInstrument[] = [
     availableId: "oboe",
   },
   {
+    id: "cor-anglais",
+    name: "Cor anglais",
+    family: "Double reed",
+    pitch: "F",
+    status: "Anatomy preview · shown on the oboe model",
+    gradient: "linear-gradient(160deg, #180e30, #04100f 72%)",
+    availableId: "cor-anglais",
+  },
+  {
     id: "guitar",
     name: "Guitar",
     family: "Frets and strings",

@@ -7,6 +7,7 @@ export type InstrumentId =
   | "bari-sax"
   | "flute"
   | "oboe"
+  | "cor-anglais"
   | "bassoon"
   | "guitar";
 
@@ -114,6 +115,19 @@ export const INSTRUMENTS: Record<InstrumentId, InstrumentProfile> = {
     labTier: "anatomy",
     labStatus: "3D anatomy preview",
   },
+  "cor-anglais": {
+    id: "cor-anglais",
+    name: "Cor anglais",
+    shortName: "Cor anglais",
+    family: "Double reed",
+    pitchLabel: "F",
+    // A perfect fifth below written pitch: written C5 (72) sounds concert F4 (65).
+    writtenOffset: 7,
+    clef: "treble",
+    tunerDescription: "Your written note is shown first. Bocal handles the F transposition.",
+    labTier: "anatomy",
+    labStatus: "3D anatomy preview, shown on the oboe model",
+  },
   bassoon: {
     id: "bassoon",
     name: "Bassoon",
@@ -148,6 +162,7 @@ export const INSTRUMENT_ORDER: InstrumentId[] = [
   "soprano-sax",
   "bari-sax",
   "oboe",
+  "cor-anglais",
   "flute",
   "bassoon",
   "guitar",

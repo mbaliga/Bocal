@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { ImportedInstrumentCanvas, type InstrumentViewId } from "./ImportedInstrumentCanvas";
+import { INSTRUMENTS, type InstrumentId } from "./instruments";
 
 const OBOE_VIEWS: Array<{ id: InstrumentViewId; label: string }> = [
   { id: "front", label: "Front" },
@@ -25,7 +26,16 @@ const OBOE_VIEWS: Array<{ id: InstrumentViewId; label: string }> = [
   { id: "back", label: "Back" },
 ];
 
-export function OboeLab({ onBack }: { onBack: () => void }) {
+/**
+ * The 3D anatomy preview for the oboe -- and, by honest borrowing, for the
+ * cor anglais. Bocal has no cor anglais model: the cor anglais shares the
+ * oboe's conservatoire key system but is a distinct instrument (longer body,
+ * bulb bell, bocal, pitched in F), so a non-oboe caller gets an explicit
+ * banner saying the model, photos and credits on screen are an oboe's.
+ */
+export function OboeLab({ onBack, instrumentId = "oboe" }: { onBack: () => void; instrumentId?: InstrumentId }) {
+  const instrument = INSTRUMENTS[instrumentId];
+  const isOboe = instrumentId === "oboe";
   const [viewPreset, setViewPreset] = useState<InstrumentViewId>("front");
   const [resetView, setResetView] = useState(0);
   const [immersive, setImmersive] = useState(false);
@@ -49,12 +59,25 @@ export function OboeLab({ onBack }: { onBack: () => void }) {
       <header className="lab-header">
         <div>
           <button className="back-link" onClick={onBack}><ArrowLeft size={15} /> Tuner</button>
-          <p className="eyebrow">Instrument lab · Oboe anatomy preview</p>
-          <h1>Explore the oboe up close.</h1>
-          <p>Turn the oboe, zoom in, and tap the keywork to see how the model is put together. Fingering lessons will arrive after an oboe teacher checks them.</p>
+          <p className="eyebrow">Instrument lab · {instrument.name} anatomy preview</p>
+          <h1>Explore the {instrument.shortName.toLowerCase()} up close.</h1>
+          <p>Turn the {isOboe ? "oboe" : "model"}, zoom in, and tap the keywork to see how it is put together. Fingering lessons will arrive after an oboe teacher checks them.</p>
         </div>
         <span className="preview-status"><Eye size={15} /> Anatomy preview</span>
       </header>
+
+      {!isOboe && (
+        <div className="lab-instrument-notice">
+          <Info size={15} />
+          <p>
+            The model, photos and credits below are an oboe&apos;s, because that is the only double-reed instrument
+            Bocal has a licensed model for. The {instrument.name.toLowerCase()} shares the oboe&apos;s conservatoire
+            key system, but it is a distinct instrument: a longer body, a bulb bell, and a bocal (the curved crook
+            Bocal is named after), and it sounds a fifth lower than written. No fingering content exists yet for
+            either instrument -- this is an anatomy preview only.
+          </p>
+        </div>
+      )}
 
       <div className="oboe-workspace">
         <div className={`model-experience-column ${immersive ? "is-immersive" : ""}`}>

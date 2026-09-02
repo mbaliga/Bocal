@@ -344,7 +344,7 @@ export function SaxophoneLab({
   instrumentId?: InstrumentId;
 }) {
   const tier = INSTRUMENTS[instrumentId].labTier;
-  if (tier === "anatomy") return <OboeLab onBack={onBack} />;
+  if (tier === "anatomy") return <OboeLab onBack={onBack} instrumentId={instrumentId} />;
   if (tier === "none") return <LabUnavailable onBack={onBack} instrumentId={instrumentId} />;
   return <SaxFingeringLab onBack={onBack} instrumentId={instrumentId} />;
 }
