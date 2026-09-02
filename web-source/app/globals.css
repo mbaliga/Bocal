@@ -1964,3 +1964,105 @@ html[data-theme="light"] .tone-exercise-loop.is-active { border-color: #4fa896; 
 html[data-theme="light"] .review-badge { border-color: #d99a2b; background: rgba(217, 154, 43, .12); color: #8a5d10; }
 html[data-theme="light"] .sax-review-tip svg { color: #8a5d10; }
 html[data-theme="light"] .choice-review-dot { background: #8a5d10; }
+
+   Metronome depth: per-beat accent squares, the tempo-ramp card,
+   and preset sequences (Pulse / PulseView in PracticeTools.tsx).
+   Appended as one block so it merges cleanly against the rest of
+   the file. Reuses the existing dark palette (#151517 panels,
+   #303035 hairlines, --cyan/--violet accents) and the
+   choice-row / preset-list / preset-chip vocabulary already
+   established above rather than inventing a second one.
+   ============================================================ */
+
+/* The beat-lights row doubles as the accent-pattern editor: the same dots
+   that show the live beat now also cycle normal -> accent -> silent on tap.
+   Buttons, not the original <i> dots, so they need a full reset. */
+.beat-lights button { all: unset; box-sizing: border-box; width: 32px; height: 32px; border: 1px solid #323237; border-radius: 50%; display: grid; place-items: center; color: #5c5c5f; font-family: var(--font-geist-mono); font-size: 8px; cursor: pointer; transition: 120ms ease; }
+.beat-lights button:hover:not(:disabled) { border-color: #4c4c52; color: #9c9ca0; }
+.beat-lights button.is-accent { color: var(--violet); border-color: #544e79; background: #201c33; }
+.beat-lights button.is-silent { color: #4b4b4f; border-color: #2a2a2e; background: #101012; border-style: dashed; }
+.beat-lights button.is-active { color: #06211d; background: var(--cyan); border-color: var(--cyan); transform: scale(1.18); box-shadow: 0 0 0 7px rgba(8,254,213,.09); }
+.beat-lights button.is-active.is-accent, .beat-lights button.is-active.is-silent { color: #06211d; } /* the live-beat highlight always wins over the resting accent style */
+.beat-lights button:disabled { cursor: default; }
+.accent-hint { margin: 0 0 3px; text-align: center; color: #6d6d70; font-size: 8px; line-height: 1.5; }
+
+/* A saved sequence takes over the base tempo/meter/voice/count-in/silent-bar
+   controls -- dim them rather than hide them, so it stays visible that
+   they're the sequence's business now, not this run's. */
+.control-card.is-locked { opacity: .42; pointer-events: none; }
+.sequence-now-playing { display: flex; align-items: center; gap: 7px; margin: -2px 0 14px; padding: 8px 12px; border: 1px solid #3a3450; border-radius: 11px; background: #191530; color: #c7bfff; font-size: 9px; }
+.sequence-now-playing svg:first-child { color: var(--violet); flex: 0 0 auto; }
+.sequence-now-playing span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sequence-now-playing strong { color: var(--ink); }
+.sequence-now-playing button { border: 0; background: transparent; color: #9086c4; display: grid; place-items: center; cursor: pointer; }
+.sequence-now-playing button:hover { color: var(--ink); }
+
+/* Tempo ramp card: reuses .control-card/.toggle/.choice-row, adds its own
+   from/to fields and hint text. */
+.ramp-fields { display: flex; align-items: flex-end; gap: 9px; margin-bottom: 10px; }
+.ramp-fields svg { flex: 0 0 auto; margin-bottom: 9px; color: #5c5c5f; }
+.ramp-fields label { flex: 1; min-width: 0; display: grid; gap: 5px; color: #77777a; font-size: 8px; text-transform: uppercase; letter-spacing: .08em; }
+.ramp-fields input[type="number"] { width: 100%; height: 36px; padding: 0 9px; border: 1px solid #303035; border-radius: 9px; background: #151517; color: var(--ink); font: 13px var(--font-geist-mono); }
+.ramp-fields input[type="number"]:disabled { opacity: .5; }
+.ramp-bars-choices { grid-template-columns: repeat(4, 1fr); margin-bottom: 10px; }
+.ramp-bars-choices button { font-size: 12px; display: grid; gap: 2px; }
+.ramp-bars-choices button small { font-size: 7px; }
+.control-hint { margin: 0; color: #6d6d70; font-size: 9px; line-height: 1.5; }
+
+/* Sequences: an ordered chain of saved presets, styled after .metronome-presets. */
+.metronome-sequences { margin-top: 15px; padding: 19px 21px; border: 1px solid var(--line); border-radius: 19px; background: var(--panel); display: grid; gap: 14px; }
+.sequence-head p { margin: 6px 0 0; color: #737378; font-size: 9px; line-height: 1.5; max-width: 640px; }
+.sequence-head h2 { margin: 8px 0 0; font-size: 18px; letter-spacing: -.035em; }
+.sequence-list { display: flex; gap: 7px; overflow-x: auto; scrollbar-width: none; }
+.sequence-list::-webkit-scrollbar { display: none; }
+.sequence-chip { min-width: 125px; padding: 10px; border: 1px solid #303036; border-radius: 11px; background: #111114; color: #b4b2ab; display: grid; gap: 5px; text-align: left; cursor: pointer; }
+.sequence-chip:hover { border-color: #6c5eb0; color: var(--violet); }
+.sequence-chip strong { font-size: 9px; }
+.sequence-chip small { color: #68686d; font-size: 7px; }
+.sequence-chip.is-active { border-color: var(--violet); background: #201c33; color: var(--ink); }
+.sequence-builder { display: grid; gap: 10px; padding-top: 4px; border-top: 1px solid #26262b; }
+.sequence-builder-row { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.sequence-builder-row select { min-width: 0; height: 36px; padding: 0 9px; border: 1px solid #303035; border-radius: 9px; background: #151517; color: var(--ink); font-size: 9px; }
+.sequence-bars-choices { grid-template-columns: repeat(4, 1fr); }
+.sequence-bars-choices button { height: 36px; font-size: 10px; display: grid; gap: 1px; }
+.sequence-bars-choices button small { font-size: 6px; }
+.sequence-add { height: 36px; padding: 0 12px; border: 1px solid #35675e; border-radius: 9px; background: #132a26; color: var(--cyan); display: inline-flex; align-items: center; gap: 5px; font-size: 8px; white-space: nowrap; cursor: pointer; }
+.sequence-steps { display: grid; gap: 5px; margin: 0; padding: 0; list-style: none; }
+.sequence-steps li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; border: 1px solid #26262b; border-radius: 9px; background: #101012; color: #a9a9ac; font-size: 9px; }
+.sequence-steps button { flex: 0 0 auto; width: 22px; height: 22px; border: 1px solid #35353a; border-radius: 50%; background: #171719; color: #9a9a9e; display: grid; place-items: center; cursor: pointer; }
+.sequence-steps button:hover { color: var(--cyan); border-color: #3c6c64; }
+.sequence-builder-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.sequence-loop { display: inline-flex; align-items: center; gap: 7px; color: #9b9b9e; font-size: 9px; }
+.sequence-loop svg { color: var(--violet); }
+.sequence-builder-footer .preset-save { flex: 1; min-width: 220px; }
+
+@media (max-width: 680px) {
+  .sequence-builder-row { grid-template-columns: 1fr; }
+  .sequence-now-playing span { white-space: normal; }
+}
+
+html[data-theme="light"] .beat-lights button { border-color: #d9d2c8; color: #918c88; }
+html[data-theme="light"] .beat-lights button.is-accent { color: #4d3fa8; border-color: #b8acf0; background: #ece7ff; }
+html[data-theme="light"] .beat-lights button.is-silent { color: #a49e97; border-color: #d9d2c8; background: #efe9e0; }
+html[data-theme="light"] .beat-lights button.is-active { color: #06211d; }
+html[data-theme="light"] .accent-hint { color: #716c6a; }
+html[data-theme="light"] .sequence-now-playing { border-color: #c9bdf5; background: #ece7ff; color: #4d3fa8; }
+html[data-theme="light"] .sequence-now-playing svg:first-child, html[data-theme="light"] .sequence-now-playing button { color: #6552c9; }
+html[data-theme="light"] .sequence-now-playing strong { color: #2a2420; }
+html[data-theme="light"] .sequence-now-playing button:hover { color: #2a2420; }
+html[data-theme="light"] .ramp-fields label { color: #5e5a5a; }
+html[data-theme="light"] .ramp-fields input[type="number"] { background: #fffdf9; border-color: #d9d2c8; color: #1d1b1b; }
+html[data-theme="light"] .ramp-fields svg { color: #8a8582; }
+html[data-theme="light"] .control-hint { color: #716c6a; }
+html[data-theme="light"] .metronome-sequences { background: var(--panel); border-color: var(--line); }
+html[data-theme="light"] .sequence-head p { color: #716c6a; }
+html[data-theme="light"] .sequence-chip { background: #fffdf9; border-color: #d9d2c8; color: #4f4b49; }
+html[data-theme="light"] .sequence-chip:hover { border-color: #a695e6; color: #4d3fa8; }
+html[data-theme="light"] .sequence-chip small { color: #8a8582; }
+html[data-theme="light"] .sequence-chip.is-active { border-color: #6552c9; background: #ece7ff; color: #2a2420; }
+html[data-theme="light"] .sequence-builder { border-top-color: #e4ded5; }
+html[data-theme="light"] .sequence-builder-row select { background: #fffdf9; border-color: #d9d2c8; color: #1d1b1b; }
+html[data-theme="light"] .sequence-add { color: #007f6e; background: #e3f4f0; border-color: #9fcfc4; }
+html[data-theme="light"] .sequence-steps li { background: #f7f3ec; border-color: #e4ded5; color: #4f4b49; }
+html[data-theme="light"] .sequence-steps button { background: #fffdf9; border-color: #d9d2c8; color: #5e5a5a; }
+html[data-theme="light"] .sequence-loop { color: #5e5a5a; }
