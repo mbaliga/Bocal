@@ -4,6 +4,7 @@ import {
   Award,
   Activity,
   Archive,
+  ArrowRight,
   BellRing,
   BookOpen,
   Check,
@@ -13,23 +14,37 @@ import {
   Clock3,
   Gauge,
   Headphones,
+  ListMusic,
   Minus,
   Music2,
   Pause,
   Play,
   Plus,
+  Repeat,
   RotateCcw,
   Save,
   Share2,
   Sparkles,
   Target,
+  TrendingUp,
   UserRound,
   Volume2,
   Waves,
+  X,
   Zap,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import { addSongWish, COMPLETED_PRACTICE_STORAGE_KEY, parsePracticeActivities, parseSongWishlist, PRACTICE_ACTIVITY_STORAGE_KEY, recordPracticeActivity, SONG_WISHLIST_STORAGE_KEY, updateSongWish, type PracticeActivity, type PracticeActivityType, type SongWish } from "./practice-data";
+import {
+  cycleBeatMark,
+  defaultAccentPattern,
+  resizeAccentPattern,
+  schedulePulse,
+  type BeatMark,
+  type ClickVoice,
+  type PulsePlan,
+  type PulseSegment,
+} from "./pulse-schedule";
 import {
   calculateSkillRating,
   emptySkillEvidence,
@@ -66,14 +81,34 @@ const ACTIVITY_COLORS: Record<PracticeActivityType, string> = {
   session: "#8f8f93",
 };
 
-type ClickVoice = "pure" | "wood" | "beep" | "clave";
-type MetronomePreset = { id: string; name: string; bpm: number; beatsPerBar: number; subdivision: number; voice: ClickVoice; countInBars: number; muteEveryBars: number };
+type MetronomePreset = {
+  id: string;
+  name: string;
+  bpm: number;
+  beatsPerBar: number;
+  subdivision: number;
+  voice: ClickVoice;
+  countInBars: number;
+  muteEveryBars: number;
+  accentPattern: BeatMark[];
+};
 const METRONOME_PRESETS_KEY = "bocal-metronome-presets-v1";
 const DEFAULT_METRONOME_PRESETS: MetronomePreset[] = [
-  { id: "straight-4", name: "Straight 4/4", bpm: 92, beatsPerBar: 4, subdivision: 1, voice: "pure", countInBars: 1, muteEveryBars: 0 },
-  { id: "slow-landing", name: "Slow landing", bpm: 56, beatsPerBar: 4, subdivision: 2, voice: "wood", countInBars: 2, muteEveryBars: 0 },
-  { id: "silent-bar", name: "Silent bar", bpm: 80, beatsPerBar: 4, subdivision: 1, voice: "clave", countInBars: 1, muteEveryBars: 4 },
+  { id: "straight-4", name: "Straight 4/4", bpm: 92, beatsPerBar: 4, subdivision: 1, voice: "pure", countInBars: 1, muteEveryBars: 0, accentPattern: defaultAccentPattern(4) },
+  { id: "slow-landing", name: "Slow landing", bpm: 56, beatsPerBar: 4, subdivision: 2, voice: "wood", countInBars: 2, muteEveryBars: 0, accentPattern: defaultAccentPattern(4) },
+  { id: "silent-bar", name: "Silent bar", bpm: 80, beatsPerBar: 4, subdivision: 1, voice: "clave", countInBars: 1, muteEveryBars: 4, accentPattern: defaultAccentPattern(4) },
 ];
+
+/** Fills in accentPattern for presets saved before it existed, and keeps it sized to the meter. */
+function sanitizePreset(preset: Partial<MetronomePreset> & { id: string; name: string; bpm: number; beatsPerBar: number; subdivision: number; voice: ClickVoice; countInBars: number; muteEveryBars: number }): MetronomePreset {
+  const pattern = Array.isArray(preset.accentPattern) && preset.accentPattern.length > 0 ? preset.accentPattern : defaultAccentPattern(preset.beatsPerBar);
+  return { ...preset, accentPattern: resizeAccentPattern(pattern, preset.beatsPerBar) };
+}
+
+/** A named, ordered chain of saved presets -- Bocal's answer to TE's preset sequences. */
+type MetronomeSequenceStep = { presetId: string; bars: number };
+type MetronomeSequence = { id: string; name: string; steps: MetronomeSequenceStep[]; loop: boolean };
+const METRONOME_SEQUENCES_KEY = "bocal-metronome-sequences-v1";
 
 function audioClick(context: AudioContext, accent: boolean, subdivision: boolean, when: number, voice: ClickVoice) {
   const oscillator = context.createOscillator();
@@ -107,33 +142,107 @@ export function PulseView() {
   const [clickVoice, setClickVoice] = useState<ClickVoice>("pure");
   const [countInBars, setCountInBars] = useState(1);
   const [muteEveryBars, setMuteEveryBars] = useState(0);
+  const [accentPattern, setAccentPattern] = useState<BeatMark[]>(() => defaultAccentPattern(4));
+  const [rampEnabled, setRampEnabled] = useState(false);
+  const [rampToBpm, setRampToBpm] = useState(132);
+  const [rampBars, setRampBars] = useState(4);
   const [presets, setPresets] = useState<MetronomePreset[]>(() => {
     if (typeof window === "undefined") return DEFAULT_METRONOME_PRESETS;
     try {
       const saved = JSON.parse(localStorage.getItem(METRONOME_PRESETS_KEY) ?? "null");
-      return Array.isArray(saved) ? [...DEFAULT_METRONOME_PRESETS, ...saved].slice(0, 12) : DEFAULT_METRONOME_PRESETS;
+      const custom = Array.isArray(saved) ? saved.map((item) => sanitizePreset(item)) : [];
+      return [...DEFAULT_METRONOME_PRESETS, ...custom].slice(0, 12);
     } catch { return DEFAULT_METRONOME_PRESETS; }
   });
   const [presetName, setPresetName] = useState("");
+  const [sequences, setSequences] = useState<MetronomeSequence[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const saved = JSON.parse(localStorage.getItem(METRONOME_SEQUENCES_KEY) ?? "null");
+      return Array.isArray(saved) ? saved.slice(0, 9) : [];
+    } catch { return []; }
+  });
+  const [activeSequence, setActiveSequence] = useState<MetronomeSequence | null>(null);
+  const [activeSequenceStep, setActiveSequenceStep] = useState(0);
+  const [sequenceDraft, setSequenceDraft] = useState<MetronomeSequenceStep[]>([]);
+  const [draftPresetId, setDraftPresetId] = useState(DEFAULT_METRONOME_PRESETS[0].id);
+  const [draftBars, setDraftBars] = useState(4);
+  const [draftLoop, setDraftLoop] = useState(false);
+  const [sequenceName, setSequenceName] = useState("");
   const [currentBeat, setCurrentBeat] = useState(0);
   const [haptics, setHaptics] = useState(false);
   const [droneOn, setDroneOn] = useState(false);
   const [droneIndex, setDroneIndex] = useState(1);
+  const [liveBpm, setLiveBpm] = useState(bpm);
+  const [liveMeter, setLiveMeter] = useState<{ beatsPerBar: number; accentPattern: BeatMark[] } | null>(null);
   const contextRef = useRef<AudioContext | null>(null);
-  const tickRef = useRef(0);
   const tapsRef = useRef<number[]>([]);
   /** Audio-clock time of tick 0 for the current run; null when stopped. */
   const startAudioTimeRef = useRef<number | null>(null);
+  /** Audio-clock time of every beat scheduled so far in this run (subdivision ticks excluded), newest last. */
+  const scheduledBeatTimesRef = useRef<number[]>([]);
   const hapticsRef = useRef(false);
   const rhythmErrorsRef = useRef<number[]>([]);
   const [rhythmTapCount, setRhythmTapCount] = useState(0);
   const [rhythmFeedback, setRhythmFeedback] = useState("");
 
+  // Presets referenced by id so a sequence step can pull its full settings.
+  const presetsById = useMemo(() => new Map(presets.map((preset) => [preset.id, preset])), [presets]);
+  // Signatures, not the arrays/objects themselves, so an unrelated re-render
+  // (a new array identity with the same content) doesn't restart the
+  // scheduler underneath a run in progress.
+  const accentSignature = accentPattern.join(",");
+  const sequenceSignature = activeSequence ? `${activeSequence.id}:${activeSequence.loop}:${activeSequence.steps.map((step) => `${step.presetId}x${step.bars}`).join(",")}` : "";
+
   useEffect(() => {
     if (!playing) return;
     const context = contextRef.current ?? new AudioContext();
     contextRef.current = context;
-    tickRef.current = 0;
+
+    // Build this run's plan once, up front. A tempo ramp or a preset
+    // sequence both live entirely *inside* the plan -- schedulePulse()
+    // carries the audio-clock time forward tick by tick from the plan, so
+    // neither a ramp bar nor a sequence step needs this effect to restart
+    // (which would reset phase and glitch). The effect only restarts when a
+    // setting actually changes, and none of the settings below change on
+    // their own mid-run: bpm stays the ramp's *start* value throughout, and
+    // liveBpm/liveMeter (which do change every tick, for the readout and the
+    // beat lights) are deliberately not in this effect's dependency list.
+    const plan: PulsePlan = activeSequence
+      ? {
+          loop: activeSequence.loop,
+          segments: activeSequence.steps
+            .map((step) => presetsById.get(step.presetId))
+            .filter((preset): preset is MetronomePreset => Boolean(preset))
+            .map((preset, index): PulseSegment => ({
+              bpm: preset.bpm,
+              beatsPerBar: preset.beatsPerBar,
+              subdivision: preset.subdivision,
+              voice: preset.voice,
+              countInBars: preset.countInBars,
+              muteEveryBars: preset.muteEveryBars,
+              accentPattern: preset.accentPattern,
+              bars: activeSequence.steps[index].bars,
+              label: preset.name,
+            })),
+        }
+      : {
+          loop: false,
+          segments: [
+            {
+              bpm,
+              beatsPerBar,
+              subdivision,
+              voice: clickVoice,
+              countInBars,
+              muteEveryBars,
+              accentPattern,
+              bars: rampEnabled ? rampBars : undefined,
+              rampToBpm: rampEnabled ? rampToBpm : undefined,
+            },
+          ],
+        };
+    if (plan.segments.length === 0) return;
 
     // The metronome runs on the audio clock, not on setInterval. A timer
     // callback is only accurate to a handful of milliseconds and drifts
@@ -144,34 +253,36 @@ export function PulseView() {
     // audio hardware plays them on the sample. Only the on-screen beat dot
     // and the haptic pulse ride a plain timer, where a few milliseconds of
     // jitter is invisible.
-    const secondsPerTick = 60 / bpm / subdivision;
     const startTime = context.currentTime + 0.06;
     startAudioTimeRef.current = startTime;
+    scheduledBeatTimesRef.current = [];
+    const iterator = schedulePulse(plan, startTime);
+    let pending = iterator.next();
     const visualTimers: number[] = [];
 
     const schedule = () => {
-      while (startTime + tickRef.current * secondsPerTick < context.currentTime + SCHEDULE_AHEAD) {
-        const index = tickRef.current;
-        const when = startTime + index * secondsPerTick;
-        const subTick = index % subdivision;
-        const beat = Math.floor(index / subdivision) % beatsPerBar;
-        const bar = Math.floor(index / (subdivision * beatsPerBar));
-        const accent = beat === 0 && subTick === 0;
-        const inCountIn = bar < countInBars;
-        const mutedBar = muteEveryBars > 0 && !inCountIn && (bar - countInBars + 1) % muteEveryBars === 0;
-        if (!mutedBar) audioClick(context, accent, subTick !== 0, when, clickVoice);
-        if (subTick === 0) {
+      while (!pending.done && pending.value.when < context.currentTime + SCHEDULE_AHEAD) {
+        const tick = pending.value;
+        if (!tick.silent) audioClick(context, tick.accent, tick.subTick !== 0, tick.when, tick.voice);
+        if (tick.subTick === 0) {
+          const beatTimes = scheduledBeatTimesRef.current;
+          beatTimes.push(tick.when);
+          if (beatTimes.length > 64) beatTimes.shift();
           visualTimers.push(
             window.setTimeout(
               () => {
-                setCurrentBeat(beat);
-                if (hapticsRef.current && navigator.vibrate && !mutedBar) navigator.vibrate(accent ? 28 : 14);
+                setCurrentBeat(tick.beat);
+                setLiveBpm(tick.bpmNow);
+                const segment = plan.segments[tick.segmentIndex] ?? plan.segments[plan.segments.length - 1];
+                setLiveMeter({ beatsPerBar: tick.beatsPerBar, accentPattern: resizeAccentPattern(segment.accentPattern, tick.beatsPerBar) });
+                setActiveSequenceStep(tick.segmentIndex);
+                if (hapticsRef.current && navigator.vibrate && !tick.silent) navigator.vibrate(tick.accent ? 28 : 14);
               },
-              Math.max(0, (when - context.currentTime) * 1000),
+              Math.max(0, (tick.when - context.currentTime) * 1000),
             ),
           );
         }
-        tickRef.current += 1;
+        pending = iterator.next();
       }
     };
 
@@ -181,8 +292,10 @@ export function PulseView() {
       window.clearInterval(timer);
       visualTimers.forEach(window.clearTimeout);
       startAudioTimeRef.current = null;
+      scheduledBeatTimesRef.current = [];
     };
-  }, [beatsPerBar, bpm, clickVoice, countInBars, muteEveryBars, playing, subdivision]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- accentSignature/sequenceSignature stand in for accentPattern/activeSequence so identity churn doesn't restart a run in progress.
+  }, [beatsPerBar, bpm, clickVoice, countInBars, muteEveryBars, playing, subdivision, accentSignature, rampEnabled, rampToBpm, rampBars, sequenceSignature, presetsById]);
 
   useEffect(() => {
     if (!droneOn) return;
@@ -227,17 +340,24 @@ export function PulseView() {
     // Measured against the audio clock the clicks were scheduled on, not
     // against when the screen last updated. Grading someone's timing on a
     // clock looser than the error being measured would invent most of the
-    // number. Phase is taken from the run's start time, so it stays exact
-    // however long the metronome has been going.
+    // number. Older code took the phase from a fixed beat duration and the
+    // run's start time, which is exact for a constant tempo but wrong the
+    // moment a ramp or a sequence step changes the bpm mid-run. Scoring
+    // against the nearest *scheduled* beat time instead keeps this correct
+    // -- and is more accurate even off a ramp, since it never assumes the
+    // tempo held steady since tick 0.
     const context = contextRef.current;
     const startTime = startAudioTimeRef.current;
-    if (!context || startTime === null) return;
-    const beatDuration = 60_000 / bpm;
-    const elapsed = (context.currentTime - startTime) * 1000;
-    if (elapsed < 0) return;
-    const phase = ((elapsed % beatDuration) + beatDuration) % beatDuration;
-    const error = Math.min(phase, beatDuration - phase);
-    const nextErrors = [...rhythmErrorsRef.current, error].slice(-16);
+    const beatTimes = scheduledBeatTimesRef.current;
+    if (!context || startTime === null || beatTimes.length === 0) return;
+    const tapAt = context.currentTime;
+    let error = Math.abs(tapAt - beatTimes[0]);
+    for (const when of beatTimes) {
+      const diff = Math.abs(tapAt - when);
+      if (diff < error) error = diff;
+    }
+    const errorMs = error * 1000;
+    const nextErrors = [...rhythmErrorsRef.current, errorMs].slice(-16);
     rhythmErrorsRef.current = nextErrors;
     setRhythmTapCount(nextErrors.length);
     if (nextErrors.length < 16) return;
@@ -256,7 +376,7 @@ export function PulseView() {
       localStorage.setItem(SKILL_EVIDENCE_STORAGE_KEY, JSON.stringify(next));
       window.dispatchEvent(new Event("bocal-skill-evidence"));
       setRhythmFeedback(`Saved 16 attacks · ${Math.round(medianError)} ms median timing error.`);
-      recordPracticeActivity({ type: "rhythm", seconds: (60 / bpm) * 16, label: "Pulse accuracy" });
+      recordPracticeActivity({ type: "rhythm", seconds: (60 / liveBpm) * 16, label: "Pulse accuracy" });
     } catch {
       setRhythmFeedback(`Measured ${Math.round(medianError)} ms median timing error; device storage is unavailable.`);
     }
@@ -270,61 +390,172 @@ export function PulseView() {
       rhythmErrorsRef.current = [];
       setRhythmTapCount(0);
       setRhythmFeedback("Tap with the pulse 16 times to add measured rhythm evidence.");
+      setLiveBpm(bpm);
+      setLiveMeter(null);
+      setActiveSequenceStep(0);
     } else {
       startAudioTimeRef.current = null;
     }
     setPlaying((value) => !value);
   };
 
-  const tempoName = bpm < 60 ? "Largo" : bpm < 76 ? "Adagio" : bpm < 108 ? "Andante" : bpm < 120 ? "Moderato" : bpm < 168 ? "Allegro" : "Presto";
-  const resetMetronome = () => { setBpm(92); setSubdivision(1); setBeatsPerBar(4); setClickVoice("pure"); setCountInBars(1); setMuteEveryBars(0); };
+  const displayBpm = playing ? Math.round(liveBpm) : bpm;
+  const displayBeatsPerBar = playing && liveMeter ? liveMeter.beatsPerBar : beatsPerBar;
+  const displayAccentPattern = playing && liveMeter ? liveMeter.accentPattern : accentPattern;
+  const tempoName = displayBpm < 60 ? "Largo" : displayBpm < 76 ? "Adagio" : displayBpm < 108 ? "Andante" : displayBpm < 120 ? "Moderato" : displayBpm < 168 ? "Allegro" : "Presto";
+  const resetMetronome = () => {
+    setBpm(92); setSubdivision(1); setBeatsPerBar(4); setClickVoice("pure"); setCountInBars(1); setMuteEveryBars(0);
+    setAccentPattern(defaultAccentPattern(4)); setRampEnabled(false); setRampToBpm(132); setRampBars(4);
+    setActiveSequence(null);
+  };
+  const changeBeatsPerBar = (count: number) => {
+    setBeatsPerBar(count);
+    setAccentPattern((current) => resizeAccentPattern(current, count));
+  };
+  const toggleAccentMark = (index: number) => {
+    setAccentPattern((current) => current.map((mark, position) => (position === index ? cycleBeatMark(mark) : mark)));
+  };
   const applyPreset = (preset: MetronomePreset) => {
     setBpm(preset.bpm); setBeatsPerBar(preset.beatsPerBar); setSubdivision(preset.subdivision);
     setClickVoice(preset.voice); setCountInBars(preset.countInBars); setMuteEveryBars(preset.muteEveryBars);
+    setAccentPattern(resizeAccentPattern(preset.accentPattern, preset.beatsPerBar));
+    setActiveSequence(null);
   };
   const savePreset = () => {
     const name = presetName.trim().replace(/\s+/g, " ").slice(0, 36);
     if (!name) return;
-    const preset: MetronomePreset = { id: `preset-${Date.now()}`, name, bpm, beatsPerBar, subdivision, voice: clickVoice, countInBars, muteEveryBars };
+    const preset: MetronomePreset = { id: `preset-${Date.now()}`, name, bpm, beatsPerBar, subdivision, voice: clickVoice, countInBars, muteEveryBars, accentPattern };
     const custom = [...presets.filter((item) => !DEFAULT_METRONOME_PRESETS.some((defaultPreset) => defaultPreset.id === item.id)), preset].slice(-9);
     setPresets([...DEFAULT_METRONOME_PRESETS, ...custom]);
     setPresetName("");
     try { localStorage.setItem(METRONOME_PRESETS_KEY, JSON.stringify(custom)); } catch { /* Optional local preset storage. */ }
   };
 
+  const addSequenceStep = () => {
+    if (!draftPresetId) return;
+    setSequenceDraft((current) => [...current, { presetId: draftPresetId, bars: draftBars }].slice(0, 12));
+  };
+  const removeSequenceStep = (index: number) => {
+    setSequenceDraft((current) => current.filter((_, position) => position !== index));
+  };
+  const saveSequence = () => {
+    const name = sequenceName.trim().replace(/\s+/g, " ").slice(0, 36);
+    if (!name || sequenceDraft.length === 0) return;
+    const sequence: MetronomeSequence = { id: `sequence-${Date.now()}`, name, steps: sequenceDraft, loop: draftLoop };
+    const next = [...sequences, sequence].slice(-9);
+    setSequences(next);
+    setSequenceName("");
+    setSequenceDraft([]);
+    setDraftLoop(false);
+    try { localStorage.setItem(METRONOME_SEQUENCES_KEY, JSON.stringify(next)); } catch { /* Optional local sequence storage. */ }
+  };
+  const playSequence = (sequence: MetronomeSequence) => {
+    setActiveSequence(sequence);
+    setActiveSequenceStep(0);
+  };
+  const clearSequence = () => setActiveSequence(null);
+
   return (
     <div className="content-wrap pulse-view">
       <section className="section-heading">
-        <div><p className="eyebrow">Pulse · Metronome</p><h1>Set the pulse.</h1><p>Adjust the tempo, meter and subdivision, or add a tuning drone underneath.</p></div>
+        <div><p className="eyebrow">Pulse · Metronome</p><h1>Set the pulse.</h1><p>Adjust the tempo, meter and subdivision, ramp the tempo, accent or silence a beat, or chain presets into a routine.</p></div>
         <div className={`live-badge ${playing ? "metronome-live" : ""}`}><span className={playing ? "pulse-dot" : "quiet-dot"} /> {playing ? "In motion" : "Ready"}</div>
       </section>
 
       <div className="pulse-grid">
         <section className="metronome-card">
           <div className="metronome-top"><span><Waves size={15} /> {tempoName}</span><button onClick={resetMetronome}><RotateCcw size={14} /> Reset</button></div>
-          <div className="tempo-readout"><button onClick={() => setBpm((value) => Math.max(35, value - 1))}><Minus size={21} /></button><div><strong>{bpm}</strong><span>BPM</span></div><button onClick={() => setBpm((value) => Math.min(260, value + 1))}><Plus size={21} /></button></div>
-          <input className="tempo-slider" type="range" min="35" max="220" value={bpm} onChange={(event) => setBpm(Number(event.target.value))} aria-label="Tempo" />
-          <div className="beat-lights" aria-label={`Beat ${currentBeat + 1} of ${beatsPerBar}`}>
-            {Array.from({ length: beatsPerBar }, (_, index) => <i key={index} className={playing && currentBeat === index ? "is-active" : ""}><span>{index + 1}</span></i>)}
+          {activeSequence && (
+            <div className="sequence-now-playing">
+              <ListMusic size={13} />
+              <span><strong>{activeSequence.name}</strong> · step {Math.min(activeSequenceStep + 1, activeSequence.steps.length)}/{activeSequence.steps.length}</span>
+              <button type="button" onClick={clearSequence} aria-label="Stop using this sequence"><X size={12} /></button>
+            </div>
+          )}
+          <div className="tempo-readout"><button onClick={() => setBpm((value) => Math.max(35, value - 1))} disabled={!!activeSequence}><Minus size={21} /></button><div><strong>{displayBpm}</strong><span>BPM</span></div><button onClick={() => setBpm((value) => Math.min(260, value + 1))} disabled={!!activeSequence}><Plus size={21} /></button></div>
+          <input className="tempo-slider" type="range" min="35" max="220" value={bpm} onChange={(event) => setBpm(Number(event.target.value))} aria-label="Tempo" disabled={!!activeSequence} />
+          <div className="beat-lights" role="group" aria-label={`Beat ${currentBeat + 1} of ${displayBeatsPerBar}. Tap a beat to accent or silence it.`}>
+            {Array.from({ length: displayBeatsPerBar }, (_, index) => {
+              const mark: BeatMark = displayAccentPattern[index] ?? "normal";
+              return (
+                <button
+                  type="button"
+                  key={index}
+                  className={[playing && currentBeat === index ? "is-active" : "", mark === "accent" ? "is-accent" : "", mark === "silent" ? "is-silent" : ""].filter(Boolean).join(" ")}
+                  onClick={() => toggleAccentMark(index)}
+                  disabled={!!activeSequence}
+                  aria-label={`Beat ${index + 1}: ${mark}. Tap to change.`}
+                >
+                  <span>{index + 1}</span>
+                </button>
+              );
+            })}
           </div>
+          <p className="accent-hint">{activeSequence ? "Each step in the sequence keeps its own preset's accents." : "Tap a beat to cycle normal → accent → silent. Silent beats stay quiet but still keep the dot moving."}</p>
           <div className="pulse-primary-actions"><button className={`tap-button ${playing ? "is-assessing" : ""}`} onClick={handleTap}>{playing ? `Tap with pulse · ${rhythmTapCount}/16` : "Tap tempo"}</button><button className={`play-pulse ${playing ? "is-playing" : ""}`} onClick={togglePlaying}>{playing ? <Pause size={22} fill="currentColor" /> : <Play size={22} fill="currentColor" />}{playing ? "Pause" : "Start"}</button></div>
           {rhythmFeedback && <p className="rhythm-feedback"><Activity size={13} /> {rhythmFeedback}</p>}
         </section>
 
         <aside className="pulse-controls">
-          <article className="control-card"><div className="control-head"><span><Activity size={15} /> Meter</span><button>4/4 <ChevronDown size={13} /></button></div><div className="choice-row meter-choices">{[3,4,5,6].map((count) => <button key={count} className={beatsPerBar === count ? "is-active" : ""} onClick={() => setBeatsPerBar(count)}>{count}<small>/4</small></button>)}</div></article>
-          <article className="control-card"><div className="control-head"><span><Zap size={15} /> Subdivision</span><small>{subdivision === 1 ? "Quarter" : subdivision === 2 ? "Eighth" : "Sixteenth"}</small></div><div className="choice-row subdivision-choices">{[{v:1,l:"♩"},{v:2,l:"♫"},{v:4,l:"♬"}].map((item) => <button key={item.v} className={subdivision === item.v ? "is-active" : ""} onClick={() => setSubdivision(item.v)}>{item.l}</button>)}</div></article>
-          <article className="control-card"><div className="control-head"><span><Volume2 size={15} /> Click voice</span><small>Built-in synth</small></div><div className="choice-row voice-choices">{([{ id: "pure", label: "Pure" }, { id: "wood", label: "Wood" }, { id: "beep", label: "Beep" }, { id: "clave", label: "Clave" }] as { id: ClickVoice; label: string }[]).map((voice) => <button key={voice.id} className={clickVoice === voice.id ? "is-active" : ""} onClick={() => setClickVoice(voice.id)}>{voice.label}</button>)}</div></article>
-          <article className="control-card"><div className="control-head"><span><Clock3 size={15} /> Count-in</span><small>{countInBars ? `${countInBars} ${countInBars === 1 ? "bar" : "bars"}` : "Off"}</small></div><div className="choice-row"><button className={countInBars === 0 ? "is-active" : ""} onClick={() => setCountInBars(0)}>Off</button>{[1, 2, 4].map((count) => <button key={count} className={countInBars === count ? "is-active" : ""} onClick={() => setCountInBars(count)}>{count}</button>)}</div></article>
-          <article className="control-card"><div className="control-head"><span><Zap size={15} /> Silent-bar drill</span><small>{muteEveryBars ? `Every ${muteEveryBars} bars` : "Off"}</small></div><div className="choice-row"><button className={muteEveryBars === 0 ? "is-active" : ""} onClick={() => setMuteEveryBars(0)}>Off</button>{[2, 4, 8].map((count) => <button key={count} className={muteEveryBars === count ? "is-active" : ""} onClick={() => setMuteEveryBars(count)}>{count}</button>)}</div></article>
+          <article className={`control-card ${activeSequence ? "is-locked" : ""}`}><div className="control-head"><span><Activity size={15} /> Meter</span><button>4/4 <ChevronDown size={13} /></button></div><div className="choice-row meter-choices">{[3,4,5,6].map((count) => <button key={count} className={beatsPerBar === count ? "is-active" : ""} onClick={() => changeBeatsPerBar(count)} disabled={!!activeSequence}>{count}<small>/4</small></button>)}</div></article>
+          <article className={`control-card ${activeSequence ? "is-locked" : ""}`}><div className="control-head"><span><Zap size={15} /> Subdivision</span><small>{subdivision === 1 ? "Quarter" : subdivision === 2 ? "Eighth" : "Sixteenth"}</small></div><div className="choice-row subdivision-choices">{[{v:1,l:"♩"},{v:2,l:"♫"},{v:4,l:"♬"}].map((item) => <button key={item.v} className={subdivision === item.v ? "is-active" : ""} onClick={() => setSubdivision(item.v)} disabled={!!activeSequence}>{item.l}</button>)}</div></article>
+          <article className={`control-card ${activeSequence ? "is-locked" : ""}`}><div className="control-head"><span><Volume2 size={15} /> Click voice</span><small>Built-in synth</small></div><div className="choice-row voice-choices">{([{ id: "pure", label: "Pure" }, { id: "wood", label: "Wood" }, { id: "beep", label: "Beep" }, { id: "clave", label: "Clave" }] as { id: ClickVoice; label: string }[]).map((voice) => <button key={voice.id} className={clickVoice === voice.id ? "is-active" : ""} onClick={() => setClickVoice(voice.id)} disabled={!!activeSequence}>{voice.label}</button>)}</div></article>
+          <article className={`control-card ${activeSequence ? "is-locked" : ""}`}><div className="control-head"><span><Clock3 size={15} /> Count-in</span><small>{countInBars ? `${countInBars} ${countInBars === 1 ? "bar" : "bars"}` : "Off"}</small></div><div className="choice-row"><button className={countInBars === 0 ? "is-active" : ""} onClick={() => setCountInBars(0)} disabled={!!activeSequence}>Off</button>{[1, 2, 4].map((count) => <button key={count} className={countInBars === count ? "is-active" : ""} onClick={() => setCountInBars(count)} disabled={!!activeSequence}>{count}</button>)}</div></article>
+          <article className={`control-card ${activeSequence ? "is-locked" : ""}`}><div className="control-head"><span><Zap size={15} /> Silent-bar drill</span><small>{muteEveryBars ? `Every ${muteEveryBars} bars` : "Off"}</small></div><div className="choice-row"><button className={muteEveryBars === 0 ? "is-active" : ""} onClick={() => setMuteEveryBars(0)} disabled={!!activeSequence}>Off</button>{[2, 4, 8].map((count) => <button key={count} className={muteEveryBars === count ? "is-active" : ""} onClick={() => setMuteEveryBars(count)} disabled={!!activeSequence}>{count}</button>)}</div></article>
+          <article className={`control-card ramp-control ${activeSequence ? "is-locked" : ""}`}>
+            <div className="control-head"><span><TrendingUp size={15} /> Tempo ramp</span><button className={`toggle ${rampEnabled ? "is-on" : ""}`} onClick={() => setRampEnabled((value) => !value)} aria-pressed={rampEnabled} disabled={!!activeSequence}><i /></button></div>
+            {rampEnabled ? (
+              <>
+                <div className="ramp-fields">
+                  <label>From<input type="number" inputMode="numeric" min={35} max={260} value={bpm} onChange={(event) => { const next = Number(event.target.value); if (Number.isFinite(next)) setBpm(Math.min(260, Math.max(35, next))); }} aria-label="Ramp start tempo" disabled={!!activeSequence} /></label>
+                  <ArrowRight size={14} />
+                  <label>To<input type="number" inputMode="numeric" min={35} max={260} value={rampToBpm} onChange={(event) => { const next = Number(event.target.value); if (Number.isFinite(next)) setRampToBpm(Math.min(260, Math.max(35, next))); }} aria-label="Ramp end tempo" disabled={!!activeSequence} /></label>
+                </div>
+                <div className="choice-row ramp-bars-choices">{[2, 4, 8, 16].map((count) => <button key={count} className={rampBars === count ? "is-active" : ""} onClick={() => setRampBars(count)} disabled={!!activeSequence}>{count}<small>bars</small></button>)}</div>
+                <p className="control-hint">Steps to a new tempo once per bar over {rampBars} bars -- the same stepwise ramp TE’s click track uses, not a smooth sweep. Holds at {rampToBpm} BPM once it gets there.</p>
+              </>
+            ) : (
+              <p className="control-hint">Off. Turn on to work an accelerando or ritardando into the click, one tempo step per bar.</p>
+            )}
+          </article>
           <article className="control-card haptic-control"><div><span><BellRing size={15} /> Feel the beat</span><p>A tactile pulse keeps your eyes on the music.</p></div><button className={`toggle ${haptics ? "is-on" : ""}`} onClick={() => setHaptics((value) => !value)} aria-pressed={haptics}><i /></button></article>
         </aside>
       </div>
 
       <section className="metronome-presets" aria-labelledby="metronome-presets-title">
-        <div><span className="card-kicker"><Save size={14} /> Presets</span><h2 id="metronome-presets-title">Save the feel you’re working on.</h2><p>Count-ins and silent bars stay with each preset on this device.</p></div>
+        <div><span className="card-kicker"><Save size={14} /> Presets</span><h2 id="metronome-presets-title">Save the feel you’re working on.</h2><p>Count-ins, silent bars and per-beat accents all stay with each preset on this device.</p></div>
         <div className="preset-list">{presets.map((preset) => <button key={preset.id} className="preset-chip" onClick={() => applyPreset(preset)}><strong>{preset.name}</strong><small>{preset.bpm} BPM · {preset.beatsPerBar}/4{preset.muteEveryBars ? " · silent bar" : ""}</small></button>)}</div>
         <form className="preset-save" onSubmit={(event) => { event.preventDefault(); savePreset(); }}><input value={presetName} onChange={(event) => setPresetName(event.target.value)} placeholder="Name this preset" maxLength={36} aria-label="Preset name" /><button type="submit" disabled={!presetName.trim()}><Plus size={14} /> Save</button></form>
+      </section>
+
+      <section className="metronome-sequences" aria-labelledby="metronome-sequences-title">
+        <div className="sequence-head"><span className="card-kicker"><ListMusic size={14} /> Sequences</span><h2 id="metronome-sequences-title">Chain presets into a routine.</h2><p>Bocal steps to the next preset at the bar boundary, still on the audio clock -- no stutter between steps. Pick one below, then press Start.</p></div>
+
+        {sequences.length > 0 && (
+          <div className="sequence-list">{sequences.map((sequence) => <button key={sequence.id} className={`sequence-chip ${activeSequence?.id === sequence.id ? "is-active" : ""}`} onClick={() => playSequence(sequence)}><strong>{sequence.name}</strong><small>{sequence.steps.length} {sequence.steps.length === 1 ? "step" : "steps"}{sequence.loop ? " · loops" : ""}</small></button>)}</div>
+        )}
+
+        <div className="sequence-builder">
+          <div className="sequence-builder-row">
+            <select value={draftPresetId} onChange={(event) => setDraftPresetId(event.target.value)} aria-label="Preset for the next step">{presets.map((preset) => <option key={preset.id} value={preset.id}>{preset.name}</option>)}</select>
+            <div className="choice-row sequence-bars-choices">{[1, 2, 4, 8].map((count) => <button key={count} className={draftBars === count ? "is-active" : ""} onClick={() => setDraftBars(count)}>{count}<small>{count === 1 ? "bar" : "bars"}</small></button>)}</div>
+            <button type="button" className="sequence-add" onClick={addSequenceStep}><Plus size={14} /> Add step</button>
+          </div>
+          {sequenceDraft.length > 0 && (
+            <ol className="sequence-steps">
+              {sequenceDraft.map((step, index) => (
+                <li key={`${step.presetId}-${index}`}>
+                  <span>{index + 1}. {presetsById.get(step.presetId)?.name ?? "Unknown preset"} · {step.bars} {step.bars === 1 ? "bar" : "bars"}</span>
+                  <button type="button" aria-label={`Remove step ${index + 1}`} onClick={() => removeSequenceStep(index)}><Minus size={12} /></button>
+                </li>
+              ))}
+            </ol>
+          )}
+          <div className="sequence-builder-footer">
+            <span className="sequence-loop"><button type="button" className={`toggle ${draftLoop ? "is-on" : ""}`} onClick={() => setDraftLoop((value) => !value)} aria-pressed={draftLoop}><i /></button><Repeat size={13} /> Loop</span>
+            <form className="preset-save" onSubmit={(event) => { event.preventDefault(); saveSequence(); }}><input value={sequenceName} onChange={(event) => setSequenceName(event.target.value)} placeholder="Name this sequence" maxLength={36} aria-label="Sequence name" /><button type="submit" disabled={!sequenceName.trim() || sequenceDraft.length === 0}><Save size={14} /> Save</button></form>
+          </div>
+        </div>
       </section>
 
       <section className="drone-strip">

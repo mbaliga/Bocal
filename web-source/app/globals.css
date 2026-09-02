@@ -378,6 +378,34 @@ button:focus-visible, [role="button"]:focus-visible, a:focus-visible, input:focu
 .oboe-truth-card p { margin: 6px 0 0; color: #747478; font-size: 8px; line-height: 1.55; }
 .model-credit { margin-top: auto; padding-top: 18px; color: #78727f; display: flex; align-items: flex-start; gap: 7px; font-size: 8px; line-height: 1.45; text-decoration: none; }
 .model-credit:hover { color: #a69add; }
+
+/* 2D fingering charts (flute, clarinet, bassoon, and the oboe/cor-anglais
+   section beneath their 3D stage). Reuses the sax lab's note-browser,
+   pitch-pair, fingering-choices, finger-hint and pressed-section rules;
+   these are just the pieces those don't already cover. */
+.chart-review-badge { width: fit-content; margin-bottom: 14px; height: 30px; padding: 0 13px; border: 1px solid #3c3758; border-radius: 100px; background: #191727; color: #b9b1e8; display: inline-flex; align-items: center; gap: 7px; font-size: 9px; }
+.chart-review-badge svg { color: var(--violet); flex: 0 0 auto; }
+.chart-workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, .74fr); gap: 14px; }
+.chart-stage { position: relative; min-height: 470px; padding: 20px 14px 14px; border: 1px solid var(--line); border-radius: 22px; background: var(--panel); background-image: radial-gradient(circle at 52% 40%, rgba(142,123,255,.07) 0, rgba(11,11,12,0) 55%); display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.chart-staff-slot { color: var(--subtle); }
+.chart-svg { width: 100%; max-width: 340px; flex: 1 1 auto; min-height: 0; color: #4c4c53; }
+.chart-svg .chart-key-ring { stroke: currentColor; }
+.chart-svg .chart-key-fill { fill: var(--cyan); }
+.chart-spine { stroke: var(--line); stroke-width: 0.6; }
+.chart-legend { display: flex; gap: 14px; color: #77777c; font-size: 8px; }
+.chart-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.chart-legend i { width: 10px; height: 10px; border-radius: 50%; border: 1px solid #5a5a60; display: inline-block; }
+.chart-legend .legend-pressed { background: var(--cyan); border-color: var(--cyan); }
+.chart-legend .legend-half { background: linear-gradient(90deg, var(--cyan) 50%, transparent 50%); }
+.chart-panel { min-width: 0; padding: 26px; border: 1px solid var(--line); border-radius: 22px; background: var(--panel); display: flex; flex-direction: column; }
+.chart-key-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.chart-key-chip { padding: 5px 10px; border: 1px solid #1f5a51; border-radius: 100px; background: #11322e; color: var(--cyan); font-size: 8px; }
+.chart-key-chip.is-half { border-color: #3c3758; background: #191727; color: #b9b1e8; }
+.chart-lab-view .lab-header { margin-bottom: 20px; }
+.oboe-chart-section { margin-top: 14px; }
+.oboe-chart-heading { margin-bottom: 12px; }
+.oboe-chart-heading h2 { margin: 6px 0 0; font-size: 22px; letter-spacing: -.04em; }
+
 .fingering-panel { padding: 26px; display: flex; flex-direction: column; }
 .pitch-pair { display: grid; grid-template-columns: 1fr 20px 1fr; gap: 12px; align-items: center; padding-bottom: 22px; border-bottom: 1px solid var(--line); }
 .pitch-pair > div { display: grid; }
@@ -973,6 +1001,8 @@ button:focus-visible, [role="button"]:focus-visible, a:focus-visible, input:focu
   .oboe-inspector { min-height: 520px; }
   .model-stage { min-height: 510px; }
   .fingering-panel { min-height: 510px; }
+  .chart-workspace { grid-template-columns: 1fr; }
+  .chart-stage { min-height: 400px; }
   .note-browser { grid-template-columns: 40px minmax(0, 1fr) 40px; }
   .note-scroll button { flex-basis: 43px; }
   .colourway-quickbar { grid-template-columns: auto minmax(0, 1fr); padding-left: 11px; gap: 8px; }
@@ -1778,7 +1808,7 @@ button:focus-visible, [role="button"]:focus-visible, a:focus-visible, input:focu
 html[data-theme="light"] {
   --ink: #1d1b1b;
   --muted: #5e5a5a;
-  --subtle: #716c6a;
+  --subtle: #67615f;
   --black: #f5f1ea;
   --panel: #fffdf9;
   --panel-2: #f0ece5;
@@ -1859,7 +1889,7 @@ html[data-theme="light"] .calibration-toggle:hover { background: #f6f2eb; }
 html[data-theme="light"] .calibration-toggle svg:first-child { color: #5e5a5a; }
 html[data-theme="light"] .calibration-body { background: #f7f3ec; border: 1px solid #d9d2c8; box-shadow: inset 0 1px 0 rgba(255,255,255,.9); }
 html[data-theme="light"] .calibration-presets button { color: #3d3938; background: #fffdf9; border-color: #d9d2c8; }
-html[data-theme="light"] .calibration-presets button small { color: #716c6a; }
+html[data-theme="light"] .calibration-presets button small { color: #3d3938; }
 html[data-theme="light"] .calibration-value { color: #1d1b1b; }
 html[data-theme="light"] .tracker-diagnostics { background: #f7f3ec; border-color: #d9d2c8; }
 html[data-theme="light"] .tracker-diagnostics > div:first-child > i { background: #e4ded5; }
@@ -1872,3 +1902,573 @@ html[data-theme="light"] .notation-switch button:not(.is-active), html[data-them
   html[data-theme="light"] .mobile-dock::before { background: linear-gradient(180deg, rgba(245,241,234,0) 0%, rgba(245,241,234,.72) 20%, rgba(245,241,234,.97) 38%, var(--black) 55%); }
   html[data-theme="light"] .dock-side-button { color: #5b5552; }
 }
+
+/* ============================================================
+   Tone generator depth: sustain/hold, intervals, chords (with
+   just-intonation chord tuning) and the exercise player. Reuses the Hyle
+   crater/keycap vocabulary (.notation-switch) for small choice groups and
+   the existing .tone-controls select styling for longer option lists, so
+   the new controls read as the same instrument as the octave/voice/level
+   row above them rather than a bolted-on panel.
+   ============================================================ */
+.tone-shape-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+.tone-shape-switch button { font-size: 10px; padding: 6px 11px; }
+.tone-sustain-toggle { display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px; border-radius: 999px;
+  background: linear-gradient(180deg, #101012, #17171a); box-shadow: inset 0 1px 3px rgba(0,0,0,.6), inset 0 -1px 0 rgba(255,255,255,.04);
+  color: #a7a7a9; font-size: 9px; text-transform: uppercase; letter-spacing: .07em; cursor: pointer; }
+.tone-sustain-toggle svg { color: #85857f; flex: 0 0 auto; }
+.tone-sustain-toggle input { accent-color: var(--cyan); width: 13px; height: 13px; margin: 0; }
+.tone-sustain-toggle small { color: var(--cyan); font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: 0; }
+.tone-shape-options { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; margin-top: 12px; }
+.tone-shape-options label { display: grid; gap: 5px; color: #737378; font-size: 8px; text-transform: uppercase; letter-spacing: .09em; min-width: 132px; flex: 1 1 132px; }
+.tone-shape-options select { height: 34px; padding: 0 9px; border: 1px solid #303036; border-radius: 9px; background: #101013; color: #c1beb5; font: inherit; font-size: 9px; text-transform: none; letter-spacing: 0; width: 100%; }
+.tone-shape-options .notation-switch { flex: 0 0 auto; }
+.tone-shape-options .notation-switch button { font-size: 9px; padding: 6px 10px; }
+.tone-just-note { margin: 8px 0 0; font-size: 9.5px; line-height: 1.55; color: var(--muted); max-width: 60ch; }
+.tone-sounding { margin: 12px 0 0; font-size: 9.5px; line-height: 1.6; color: var(--subtle); min-height: 13px; overflow-wrap: anywhere; }
+.tone-keyboard button.is-exercise-current { border-color: var(--cyan); box-shadow: 0 0 0 2px rgba(8,254,213,.45), 0 0 18px rgba(8,254,213,.2); }
+
+.tone-exercise { margin-top: 18px; padding: 16px 15px; border-radius: 16px; border: 1px solid #262629;
+  background: linear-gradient(180deg, rgba(255,255,255,.015), rgba(0,0,0,.1)); }
+.tone-exercise-head { display: flex; flex-direction: column; gap: 4px; }
+.tone-exercise-head p { margin: 0; font-size: 10px; line-height: 1.5; color: var(--muted); }
+.tone-exercise-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin-top: 12px; }
+.tone-exercise-controls label { display: grid; gap: 5px; color: #737378; font-size: 8px; text-transform: uppercase; letter-spacing: .09em; }
+.tone-exercise-controls select { height: 32px; padding: 0 8px; border: 1px solid #303036; border-radius: 9px; background: #101013; color: #c1beb5; font: inherit; font-size: 9px; text-transform: none; letter-spacing: 0; }
+.tone-exercise-controls input[type="range"] { width: 100%; accent-color: var(--cyan); height: 32px; }
+.tone-exercise-controls small { color: #8b8b8f; font-size: 8.5px; text-transform: none; letter-spacing: 0; font-variant-numeric: tabular-nums; }
+.tone-exercise-actions { display: flex; align-items: center; gap: 8px; margin-top: 13px; flex-wrap: wrap; }
+.tone-exercise-play { height: 32px; padding: 0 14px; border: 0; border-radius: 9px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+  font-size: 10px; font-weight: 650; color: #043c35; background: radial-gradient(circle at 40% 32%, #e3fff8 0%, #4fd9c1 55%, #008f7b 100%);
+  box-shadow: inset 0 2px 2px rgba(255,255,255,.55), inset 0 -3px 6px rgba(0,58,47,.24), 0 2px 6px rgba(0,82,69,.22); }
+.tone-exercise-loop { height: 32px; padding: 0 11px; border: 1px solid #34343a; border-radius: 9px; background: #151518; color: #a7a7a9;
+  display: inline-flex; align-items: center; gap: 6px; font-size: 9.5px; cursor: pointer; }
+.tone-exercise-loop.is-active { border-color: #4c8e82; background: #132a26; color: var(--cyan); }
+.tone-exercise-status { font-size: 9.5px; color: var(--subtle); font-variant-numeric: tabular-nums; }
+
+@media (width<=440px) {
+  .tone-shape-options { flex-direction: column; align-items: stretch; }
+  .tone-shape-options label { min-width: 0; }
+  .tone-shape-options .notation-switch { align-self: flex-start; }
+  .tone-exercise-controls { grid-template-columns: 1fr; }
+}
+
+html[data-theme="light"] .tone-generator-card { background: linear-gradient(145deg, #f6faf8, #fffdf9); }
+html[data-theme="light"] .tone-generator-head p, html[data-theme="light"] .tone-exercise-head p { color: #645e59; }
+html[data-theme="light"] .tone-stop { color: #3d3938; background: linear-gradient(180deg, #fffefa, #eee8df); border-color: #d9d2c8; }
+html[data-theme="light"] .precision-picker select, html[data-theme="light"] .tone-controls select, html[data-theme="light"] .tone-shape-options select, html[data-theme="light"] .tone-exercise-controls select {
+  color: #1d1b1b; background: #fffdf9; border-color: #d9d2c8; }
+html[data-theme="light"] .tone-shape-options label, html[data-theme="light"] .tone-exercise-controls label { color: #716c6a; }
+html[data-theme="light"] .tone-keyboard button { background: linear-gradient(180deg, #fffdf9, #f0ece5); border-color: #d9d2c8; color: #4a453f; }
+html[data-theme="light"] .tone-keyboard button small { color: #837c76; }
+html[data-theme="light"] .tone-keyboard button svg { color: #9a938a; }
+html[data-theme="light"] .tone-keyboard button:hover, html[data-theme="light"] .tone-keyboard button.is-playing { border-color: #4fa896; background: #e5f2ed; color: #087e6d; box-shadow: 0 0 14px rgba(0,127,110,.14); }
+html[data-theme="light"] .tone-keyboard button.is-exercise-current { border-color: #087e6d; box-shadow: 0 0 0 2px rgba(0,127,110,.3), 0 0 14px rgba(0,127,110,.16); }
+html[data-theme="light"] .tone-sustain-toggle { color: #57524f; background: #f0ece5; box-shadow: inset 0 1px 0 rgba(255,255,255,.9); }
+html[data-theme="light"] .tone-sustain-toggle svg { color: #716c6a; }
+html[data-theme="light"] .tone-just-note, html[data-theme="light"] .tone-sounding, html[data-theme="light"] .tone-exercise-status { color: #5e5a5a; }
+html[data-theme="light"] .tone-exercise { border-color: #d9d2c8; background: linear-gradient(180deg, rgba(255,255,255,.5), rgba(0,0,0,.02)); }
+html[data-theme="light"] .tone-exercise-controls small { color: #6f6967; }
+html[data-theme="light"] .tone-exercise-loop { color: #3d3938; background: linear-gradient(180deg, #fffefa, #eee8df); border-color: #d9d2c8; }
+html[data-theme="light"] .tone-exercise-loop.is-active { border-color: #4fa896; background: #e5f2ed; color: #087e6d; }
+
+/* ---------------------------------------------------------------------- */
+/* Sax lab: altissimo register + review badge (feat/sax-altissimo)        */
+/* Styles for the Altissimo group divider in the note browser, the        */
+/* "Quiz altissimo too" challenge-mode toggle, and the unverified-fingering*/
+/* badge/truth-card. All colours are theme variables so this needs no      */
+/* separate light-mode block.                                              */
+/* ---------------------------------------------------------------------- */
+.lab-mode-controls { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.altissimo-challenge-toggle { display: inline-flex; align-items: center; gap: 6px; color: #77777a; font-size: 10px; cursor: pointer; user-select: none; }
+.altissimo-challenge-toggle input { accent-color: var(--cyan); width: 13px; height: 13px; cursor: pointer; }
+.altissimo-challenge-toggle:hover { color: var(--ink); }
+
+.note-scroll-divider { flex: 0 0 auto; align-self: center; padding: 0 4px; color: #58585b; font-size: 8px; text-transform: uppercase; letter-spacing: .11em; border-left: 1px dashed var(--line); padding-left: 10px; margin-left: 3px; white-space: nowrap; }
+
+.review-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border: 1px solid #6a4a1f; border-radius: 999px; background: rgba(255, 176, 32, .12); color: #e0a84a; font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; vertical-align: middle; }
+.review-badge svg { flex: 0 0 auto; }
+.choice-review-dot { display: inline-block; width: 5px; height: 5px; margin-left: 5px; border-radius: 50%; background: #e0a84a; vertical-align: middle; }
+.sax-review-tip svg { color: #e0a84a; }
+.sax-review-tip .review-badge { margin: 0 2px; }
+html[data-theme="light"] .review-badge { border-color: #d99a2b; background: rgba(217, 154, 43, .12); color: #8a5d10; }
+html[data-theme="light"] .sax-review-tip svg { color: #8a5d10; }
+html[data-theme="light"] .choice-review-dot { background: #8a5d10; }
+
+   Metronome depth: per-beat accent squares, the tempo-ramp card,
+   and preset sequences (Pulse / PulseView in PracticeTools.tsx).
+   Appended as one block so it merges cleanly against the rest of
+   the file. Reuses the existing dark palette (#151517 panels,
+   #303035 hairlines, --cyan/--violet accents) and the
+   choice-row / preset-list / preset-chip vocabulary already
+   established above rather than inventing a second one.
+   ============================================================ */
+
+/* The beat-lights row doubles as the accent-pattern editor: the same dots
+   that show the live beat now also cycle normal -> accent -> silent on tap.
+   Buttons, not the original <i> dots, so they need a full reset. */
+.beat-lights button { all: unset; box-sizing: border-box; width: 32px; height: 32px; border: 1px solid #323237; border-radius: 50%; display: grid; place-items: center; color: #5c5c5f; font-family: var(--font-geist-mono); font-size: 8px; cursor: pointer; transition: 120ms ease; }
+.beat-lights button:hover:not(:disabled) { border-color: #4c4c52; color: #9c9ca0; }
+.beat-lights button.is-accent { color: var(--violet); border-color: #544e79; background: #201c33; }
+.beat-lights button.is-silent { color: #4b4b4f; border-color: #2a2a2e; background: #101012; border-style: dashed; }
+.beat-lights button.is-active { color: #06211d; background: var(--cyan); border-color: var(--cyan); transform: scale(1.18); box-shadow: 0 0 0 7px rgba(8,254,213,.09); }
+.beat-lights button.is-active.is-accent, .beat-lights button.is-active.is-silent { color: #06211d; } /* the live-beat highlight always wins over the resting accent style */
+.beat-lights button:disabled { cursor: default; }
+.accent-hint { margin: 0 0 3px; text-align: center; color: #6d6d70; font-size: 8px; line-height: 1.5; }
+
+/* A saved sequence takes over the base tempo/meter/voice/count-in/silent-bar
+   controls -- dim them rather than hide them, so it stays visible that
+   they're the sequence's business now, not this run's. */
+.control-card.is-locked { opacity: .42; pointer-events: none; }
+.sequence-now-playing { display: flex; align-items: center; gap: 7px; margin: -2px 0 14px; padding: 8px 12px; border: 1px solid #3a3450; border-radius: 11px; background: #191530; color: #c7bfff; font-size: 9px; }
+.sequence-now-playing svg:first-child { color: var(--violet); flex: 0 0 auto; }
+.sequence-now-playing span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sequence-now-playing strong { color: var(--ink); }
+.sequence-now-playing button { border: 0; background: transparent; color: #9086c4; display: grid; place-items: center; cursor: pointer; }
+.sequence-now-playing button:hover { color: var(--ink); }
+
+/* Tempo ramp card: reuses .control-card/.toggle/.choice-row, adds its own
+   from/to fields and hint text. */
+.ramp-fields { display: flex; align-items: flex-end; gap: 9px; margin-bottom: 10px; }
+.ramp-fields svg { flex: 0 0 auto; margin-bottom: 9px; color: #5c5c5f; }
+.ramp-fields label { flex: 1; min-width: 0; display: grid; gap: 5px; color: #77777a; font-size: 8px; text-transform: uppercase; letter-spacing: .08em; }
+.ramp-fields input[type="number"] { width: 100%; height: 36px; padding: 0 9px; border: 1px solid #303035; border-radius: 9px; background: #151517; color: var(--ink); font: 13px var(--font-geist-mono); }
+.ramp-fields input[type="number"]:disabled { opacity: .5; }
+.ramp-bars-choices { grid-template-columns: repeat(4, 1fr); margin-bottom: 10px; }
+.ramp-bars-choices button { font-size: 12px; display: grid; gap: 2px; }
+.ramp-bars-choices button small { font-size: 7px; }
+.control-hint { margin: 0; color: #6d6d70; font-size: 9px; line-height: 1.5; }
+
+/* Sequences: an ordered chain of saved presets, styled after .metronome-presets. */
+.metronome-sequences { margin-top: 15px; padding: 19px 21px; border: 1px solid var(--line); border-radius: 19px; background: var(--panel); display: grid; gap: 14px; }
+.sequence-head p { margin: 6px 0 0; color: #737378; font-size: 9px; line-height: 1.5; max-width: 640px; }
+.sequence-head h2 { margin: 8px 0 0; font-size: 18px; letter-spacing: -.035em; }
+.sequence-list { display: flex; gap: 7px; overflow-x: auto; scrollbar-width: none; }
+.sequence-list::-webkit-scrollbar { display: none; }
+.sequence-chip { min-width: 125px; padding: 10px; border: 1px solid #303036; border-radius: 11px; background: #111114; color: #b4b2ab; display: grid; gap: 5px; text-align: left; cursor: pointer; }
+.sequence-chip:hover { border-color: #6c5eb0; color: var(--violet); }
+.sequence-chip strong { font-size: 9px; }
+.sequence-chip small { color: #68686d; font-size: 7px; }
+.sequence-chip.is-active { border-color: var(--violet); background: #201c33; color: var(--ink); }
+.sequence-builder { display: grid; gap: 10px; padding-top: 4px; border-top: 1px solid #26262b; }
+.sequence-builder-row { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.sequence-builder-row select { min-width: 0; height: 36px; padding: 0 9px; border: 1px solid #303035; border-radius: 9px; background: #151517; color: var(--ink); font-size: 9px; }
+.sequence-bars-choices { grid-template-columns: repeat(4, 1fr); }
+.sequence-bars-choices button { height: 36px; font-size: 10px; display: grid; gap: 1px; }
+.sequence-bars-choices button small { font-size: 6px; }
+.sequence-add { height: 36px; padding: 0 12px; border: 1px solid #35675e; border-radius: 9px; background: #132a26; color: var(--cyan); display: inline-flex; align-items: center; gap: 5px; font-size: 8px; white-space: nowrap; cursor: pointer; }
+.sequence-steps { display: grid; gap: 5px; margin: 0; padding: 0; list-style: none; }
+.sequence-steps li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; border: 1px solid #26262b; border-radius: 9px; background: #101012; color: #a9a9ac; font-size: 9px; }
+.sequence-steps button { flex: 0 0 auto; width: 22px; height: 22px; border: 1px solid #35353a; border-radius: 50%; background: #171719; color: #9a9a9e; display: grid; place-items: center; cursor: pointer; }
+.sequence-steps button:hover { color: var(--cyan); border-color: #3c6c64; }
+.sequence-builder-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.sequence-loop { display: inline-flex; align-items: center; gap: 7px; color: #9b9b9e; font-size: 9px; }
+.sequence-loop svg { color: var(--violet); }
+.sequence-builder-footer .preset-save { flex: 1; min-width: 220px; }
+
+@media (max-width: 680px) {
+  .sequence-builder-row { grid-template-columns: 1fr; }
+  .sequence-now-playing span { white-space: normal; }
+}
+
+html[data-theme="light"] .beat-lights button { border-color: #d9d2c8; color: #918c88; }
+html[data-theme="light"] .beat-lights button.is-accent { color: #4d3fa8; border-color: #b8acf0; background: #ece7ff; }
+html[data-theme="light"] .beat-lights button.is-silent { color: #a49e97; border-color: #d9d2c8; background: #efe9e0; }
+html[data-theme="light"] .beat-lights button.is-active { color: #06211d; }
+html[data-theme="light"] .accent-hint { color: #716c6a; }
+html[data-theme="light"] .sequence-now-playing { border-color: #c9bdf5; background: #ece7ff; color: #4d3fa8; }
+html[data-theme="light"] .sequence-now-playing svg:first-child, html[data-theme="light"] .sequence-now-playing button { color: #6552c9; }
+html[data-theme="light"] .sequence-now-playing strong { color: #2a2420; }
+html[data-theme="light"] .sequence-now-playing button:hover { color: #2a2420; }
+html[data-theme="light"] .ramp-fields label { color: #5e5a5a; }
+html[data-theme="light"] .ramp-fields input[type="number"] { background: #fffdf9; border-color: #d9d2c8; color: #1d1b1b; }
+html[data-theme="light"] .ramp-fields svg { color: #8a8582; }
+html[data-theme="light"] .control-hint { color: #716c6a; }
+html[data-theme="light"] .metronome-sequences { background: var(--panel); border-color: var(--line); }
+html[data-theme="light"] .sequence-head p { color: #716c6a; }
+html[data-theme="light"] .sequence-chip { background: #fffdf9; border-color: #d9d2c8; color: #4f4b49; }
+html[data-theme="light"] .sequence-chip:hover { border-color: #a695e6; color: #4d3fa8; }
+html[data-theme="light"] .sequence-chip small { color: #8a8582; }
+html[data-theme="light"] .sequence-chip.is-active { border-color: #6552c9; background: #ece7ff; color: #2a2420; }
+html[data-theme="light"] .sequence-builder { border-top-color: #e4ded5; }
+html[data-theme="light"] .sequence-builder-row select { background: #fffdf9; border-color: #d9d2c8; color: #1d1b1b; }
+html[data-theme="light"] .sequence-add { color: #007f6e; background: #e3f4f0; border-color: #9fcfc4; }
+html[data-theme="light"] .sequence-steps li { background: #f7f3ec; border-color: #e4ded5; color: #4f4b49; }
+html[data-theme="light"] .sequence-steps button { background: #fffdf9; border-color: #d9d2c8; color: #5e5a5a; }
+html[data-theme="light"] .sequence-loop { color: #5e5a5a; }
+
+/* ============================================================
+   Tuner depth: pitch history graph, the temperament select/custom
+   editor, and the Sensitivity/Damping controls added to the
+   Calibration disclosure. Appended as one block so it's easy to
+   merge -- everything here is new, nothing above was touched
+   except the two `.calibration-row-head` labels the temperament
+   select now sits under (unchanged) and the CalibrationPicker
+   markup itself (in page.tsx, not here).
+   ============================================================ */
+
+/* Pitch history: a scrolling cents-vs-time trace (or, in staff mode, a
+   scrolling stave) below the cents scale. Sits in its own bordered strip so
+   it doesn't blend into the scale above it, using the same panel language
+   (.calibration-body's recessed surface) rather than inventing a new one. */
+.pitch-history { position: relative; z-index: 1; margin-top: 14px; padding: 12px 12px 10px;
+  border-radius: 14px; background: var(--panel-2); border: 1px solid var(--line-soft); }
+.pitch-history-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.pitch-history-title { font-size: 11px; font-weight: 650; letter-spacing: .01em; color: var(--muted); }
+.pitch-history-controls { display: flex; align-items: center; gap: 8px; }
+.pitch-history-mode { padding: 3px; }
+.pitch-history-mode button { padding: 5px 10px; font-size: 11px; }
+.pitch-history-clear { display: inline-flex; align-items: center; gap: 5px; border: 0; border-radius: 8px;
+  padding: 6px 9px; font-size: 11px; font-weight: 600; color: var(--subtle); cursor: pointer;
+  background: linear-gradient(180deg, #0e0e10, #16161a); box-shadow: inset 0 1px 2px rgba(0,0,0,.6);
+  transition: color .16s ease; }
+.pitch-history-clear:hover { color: var(--ink); }
+.pitch-history-canvas { display: block; width: 100%; height: 104px; border-radius: 10px; background: var(--black); }
+.pitch-history-caption { margin: 8px 0 0; font-size: 10.5px; line-height: 1.5; color: var(--subtle); }
+
+/* Temperament select: replaces the old 4-button crater switch, which can't
+   hold eleven choices at 412px. Same recessed-track material as
+   .notation-tonic select, just full width and under its own label row. */
+.calibration-select { width: 100%; font: inherit; font-size: 13px; color: var(--ink); background: var(--panel-2);
+  border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; cursor: pointer; }
+
+/* Custom temperament editor: 12 small cent-offset fields, one per semitone
+   above the key centre. Four columns keeps three full rows at 412px with
+   room to spare; the tonic's field (always 0) is visibly disabled rather
+   than hidden, so the grid still reads as "one cell per degree". */
+.custom-temperament-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 6px; }
+.custom-temperament-cell { display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 6px 2px; border-radius: 9px; background: var(--panel-2); border: 1px solid var(--line-soft); }
+.custom-temperament-cell span { font-size: 9px; font-weight: 600; letter-spacing: .03em; color: var(--subtle); text-transform: uppercase; }
+.custom-temperament-cell input { width: 100%; min-width: 0; text-align: center; font: inherit; font-size: 12px;
+  font-variant-numeric: tabular-nums; color: var(--ink); background: var(--panel); border: 1px solid var(--line);
+  border-radius: 6px; padding: 4px 2px; }
+.custom-temperament-cell input:disabled { color: var(--subtle); opacity: .7; }
+
+@media (width<=440px) {
+  .pitch-history-title { display: none; }
+  .custom-temperament-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+html[data-theme="light"] .pitch-history { background: #f7f3ec; border-color: #d9d2c8; }
+html[data-theme="light"] .pitch-history-title, html[data-theme="light"] .pitch-history-caption { color: #6b6663; }
+html[data-theme="light"] .pitch-history-canvas { background: #fffdf9; }
+html[data-theme="light"] .pitch-history-clear { color: #3d3938; background: #fffdf9; border: 1px solid #d9d2c8; box-shadow: none; }
+html[data-theme="light"] .calibration-select { color: #1d1b1b; background: #fffdf9; border-color: #d9d2c8; }
+html[data-theme="light"] .custom-temperament-cell { background: #fffdf9; border-color: #d9d2c8; }
+html[data-theme="light"] .custom-temperament-cell input { background: #f7f3ec; border-color: #d9d2c8; color: #1d1b1b; }
+
+/* ==========================================================================
+   Analysis depth: Harmonics view (AnalysisView's third mode) and the pitch
+   trace over recorded takes (TakePitchTrace). One block, appended together,
+   so it merges cleanly against parallel work elsewhere in this file.
+   ========================================================================== */
+
+/* -- Harmonics mode -------------------------------------------------------- */
+.harmonics-overlay { position: absolute; inset: 0; padding: 14px 16px; display: flex; flex-direction: column;
+  gap: 10px; overflow-y: auto; }
+.harmonics-f0 { flex: 0 0 auto; font: 11px var(--font-geist-mono); color: var(--subtle); letter-spacing: .02em; }
+.harmonics-bars { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
+.harmonics-bars li { display: grid; grid-template-columns: 24px minmax(40px, 56px) minmax(48px, 1fr) 42px 48px;
+  align-items: center; gap: 7px; padding: 5px 7px; border-radius: 8px; background: rgba(255,255,255,.03); }
+.harmonic-index { font: 700 10px var(--font-geist-mono); color: #6e6e72; }
+.harmonic-note { font-size: 11px; font-weight: 650; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.harmonic-meter { position: relative; height: 6px; border-radius: 100px; background: #232328; overflow: hidden; }
+.harmonic-meter i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--cyan-deep), var(--cyan)); transition: width 120ms linear; }
+.harmonic-db { font: 9.5px var(--font-geist-mono); color: #6e6e72; text-align: right; white-space: nowrap; }
+.harmonic-cents { font: 10px var(--font-geist-mono); text-align: right; white-space: nowrap; color: var(--subtle); }
+.harmonics-bars li.is-true .harmonic-cents { color: #3ddc84; }
+.harmonics-bars li.is-true .harmonic-meter i { background: linear-gradient(90deg, #0f5c3c, #3ddc84); }
+.harmonics-bars li.is-near .harmonic-cents { color: #e5b95c; }
+.harmonics-bars li.is-near .harmonic-meter i { background: linear-gradient(90deg, #6b4e14, #e5b95c); }
+.harmonics-bars li.is-off .harmonic-cents { color: #e5615c; }
+.harmonics-bars li.is-off .harmonic-meter i { background: linear-gradient(90deg, #5c1f1c, #e5615c); }
+.harmonics-bars li.is-out-of-range { opacity: .45; }
+.harmonics-bars li.is-out-of-range .harmonic-cents { color: #5c5c60; }
+.harmonics-why { margin: -4px 0 0; padding-top: 11px; border-top: 1px solid var(--line-soft); font-size: 9.5px;
+  line-height: 1.6; color: var(--subtle); }
+
+/* -- Pitch trace over a take ------------------------------------------------ */
+.take-pitch-trace { position: relative; margin: 2px 0 3px; }
+.take-pitch-trace canvas { display: block; width: 100%; height: 96px; border: 1px solid var(--line-soft);
+  border-radius: 10px; background: var(--panel-2); }
+.take-pitch-progress { position: relative; margin-top: 6px; height: 20px; border-radius: 999px; overflow: hidden;
+  background: var(--panel-2); border: 1px solid var(--line-soft); }
+.take-pitch-progress i { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(90deg, var(--cyan-deep), var(--cyan)); transition: width .2s linear; }
+.take-pitch-progress span { position: relative; display: block; text-align: center; font-size: 9.5px; line-height: 20px; color: var(--ink); mix-blend-mode: difference; }
+.take-pitch-error { margin: 6px 0 0; font-size: 10.5px; color: var(--subtle); }
+.take-pitch-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin: 6px 0 0; font-size: 9px;
+  color: var(--subtle); }
+.legend-swatch { width: 8px; height: 8px; border-radius: 2px; margin-left: 6px; }
+.legend-swatch:first-child { margin-left: 0; }
+.legend-true { background: #3ddc84; }
+.legend-near { background: #e5b95c; }
+.legend-off { background: #e5615c; }
+.legend-gap { margin-left: 6px; }
+
+@media (width <= 720px) {
+  .harmonics-bars li { grid-template-columns: 20px minmax(34px, 48px) minmax(36px, 1fr) 36px 42px; gap: 5px; padding: 4px 6px; }
+  .harmonic-note { font-size: 10px; }
+  .harmonic-db { display: none; }
+  .take-pitch-trace canvas { height: 80px; }
+}
+
+html[data-theme="light"] .harmonics-bars li { background: rgba(0,0,0,.03); }
+html[data-theme="light"] .harmonic-index, html[data-theme="light"] .harmonic-db { color: #6f6968; }
+html[data-theme="light"] .harmonic-meter { background: #e4ded5; }
+html[data-theme="light"] .harmonics-bars li.is-out-of-range .harmonic-cents { color: #a29c96; }
+html[data-theme="light"] .take-pitch-trace canvas { background: var(--panel-2); border-color: var(--line); }
+html[data-theme="light"] .take-pitch-progress { background: #ebe4da; border-color: #ccc2b6; }
+
+/* ============================================================
+   Light theme, part 2: Pulse, Analyze and the Lab.
+   Tune (above) and the arc-nav dock were already carried to light.
+   Everything below was still wearing its dark-theme skin: most of
+   Pulse's and the Lab's controls, and every card in this file's
+   shared "cinematic" recipe, hard-code a dark background or a grey
+   tuned to sit on one. Two repeating shapes account for nearly all
+   of it, so fix the shape, not each instance:
+     1. cards built from the shared ::before (photo) / ::after (dark
+        scrim) pair -- the scrim never got a light variant, so every
+        card using it stayed a dark island over its own light panel;
+     2. small "chip" controls (badges, keycaps, toggles) whose dark
+        background and light-on-dark text were both literal hex,
+        not tokens, so flipping the page theme did nothing to them.
+   Each gets one shared fix below, then the one-off literal colours
+   still standing afterward are patched at their own selector.
+   Two colour helpers recur throughout: #00695c (teal ink for text
+   sitting on a light or mint chip) and #009683 (a lightened --cyan
+   for the reverse -- near-black text on a solid cyan chip, since
+   --cyan itself is too dark at 0.163 luminance to ever clear 4.5:1
+   under near-black text once the chip is the lighter of the two).
+   ============================================================ */
+
+/* Shared cinematic card recipe: recolour the dark scrim so cards
+   that use it (metronome, control, analysis, setup-explorer, the
+   lab footer trio, and the still-unvisited insight/today/skill/
+   focus/week/repertoire/lesson/equipment/oboe cards) read as light
+   panels instead of dark islands. The photo layer beneath needs no
+   change -- it now sits under an opaque-enough light scrim either
+   way, same as .sax-card::after already does for the single-card
+   case this generalises. */
+html[data-theme="light"] :where(.insight-card, .today-strip, .analysis-card, .analysis-side > article, .metronome-card, .control-card, .drone-strip, .skill-rating-card, .focus-plan, .week-card, .repertoire-card, .lesson-card, .equipment-card, .oboe-inspector, .setup-explorer, .lab-footer-cards article)::after {
+  background: linear-gradient(92deg, rgba(255,253,249,.98) 0 46%, rgba(255,253,249,.92) 70%, rgba(255,253,249,.72));
+}
+html[data-theme="light"] .lab-footer-cards article::after { background: linear-gradient(90deg, rgba(255,253,249,.98), rgba(255,253,249,.76)); }
+html[data-theme="light"] .lab-footer-cards p { color: #5e5a5a; }
+
+/* -- Pulse: metronome card -- */
+html[data-theme="light"] .metronome-top button { color: #716c6a; }
+html[data-theme="light"] .tempo-readout > button { border-color: #d9d2c8; background: #fffdf9; color: #57524f; }
+html[data-theme="light"] .tempo-readout span { color: #716c6a; }
+html[data-theme="light"] .tempo-slider { background: #e4ded5; }
+html[data-theme="light"] .beat-lights i { border-color: #d9d2c8; color: #918c89; }
+html[data-theme="light"] .tap-button { color: #57524f; background: #fffdf9; border-color: #d9d2c8; }
+html[data-theme="light"] .tap-button.is-assessing { color: #00695c; border-color: #92c4b9; background: #e5f2ed; }
+html[data-theme="light"] .rhythm-feedback { color: #716c6a; }
+
+/* -- Pulse: control cards (Meter, Subdivision, Click voice, Count-in,
+   Silent-bar drill, Feel the beat) -- headings and choice buttons were
+   coloured for the dark scrim above; the buttons' own dark background
+   is separate from it and needs its own light surface. */
+html[data-theme="light"] .control-head > span, html[data-theme="light"] .haptic-control > div > span { color: #3d3938; }
+html[data-theme="light"] .control-head > span svg, html[data-theme="light"] .haptic-control > div > span svg { color: #654bd0; }
+html[data-theme="light"] .control-head > button { color: #5e5a5a; }
+html[data-theme="light"] .control-head > small { color: #716c6a; }
+html[data-theme="light"] .choice-row button { border-color: #d9d2c8; background: #fffdf9; color: #57524f; }
+html[data-theme="light"] .choice-row button small { color: #918c89; }
+html[data-theme="light"] .choice-row button.is-active { color: #1d1b1b; border-color: #b6a7ec; background: #e7e1ff; }
+html[data-theme="light"] .haptic-control p { color: #716c6a; }
+
+/* -- Pulse: presets and drone strip -- */
+html[data-theme="light"] .preset-chip { border-color: #d9d2c8; background: #fffdf9; color: #3d3938; }
+html[data-theme="light"] .preset-chip small { color: #6b6663; }
+html[data-theme="light"] .preset-save input { border-color: #d9d2c8; background: #fffdf9; color: #1d1b1b; }
+html[data-theme="light"] .preset-save button { border-color: #92c4b9; background: #e5f2ed; color: #00695c; }
+html[data-theme="light"] .drone-icon { background: #ece7ff; }
+html[data-theme="light"] .drone-strip small { color: #5e5a5a; }
+html[data-theme="light"] .drone-controls select, html[data-theme="light"] .drone-controls button { border-color: #d9d2c8; background: #fffdf9; color: #57524f; }
+html[data-theme="light"] .drone-controls button.is-on { color: #00695c; border-color: #92c4b9; background: #e5f2ed; }
+
+/* -- Analyze -- */
+html[data-theme="light"] .analysis-card > header > span { color: #5e5a5a; }
+html[data-theme="light"] .analysis-tabs { background: #f0ece5; border-color: #d9d2c8; }
+html[data-theme="light"] .analysis-tabs button { color: #5e5a5a; }
+html[data-theme="light"] .analysis-tabs button.is-active { background: #009683; color: #04140f; }
+/* The canvas stage stays a deliberately dark scope, like the Tune tab's
+   instrument photography -- the waveform/spectrum canvas itself paints
+   its own dark background directly (AnalysisView's fillStyle #0b0b0d),
+   so the surrounding CSS shell matches it and the empty-state ink and
+   the peak readout are lightened to read on that dark surface instead. */
+html[data-theme="light"] .analysis-empty { color: #d9d4ca; }
+html[data-theme="light"] .analysis-empty strong { color: #f5f3eb; }
+html[data-theme="light"] .peak-readout { background: rgba(245,241,234,.92); border-color: #d9d2c8; color: #3d3938; }
+html[data-theme="light"] .analysis-actions button { background: #fffdf9; border-color: #d9d2c8; color: #3d3938; }
+html[data-theme="light"] .analysis-actions button.primary-analysis { background: #009683; border-color: #009683; color: #04140f; }
+html[data-theme="light"] .analysis-actions button.recording { background: #fbe3e3; border-color: #e2a9a9; color: #8a2323; }
+html[data-theme="light"] .analysis-actions button:disabled { color: #b8afa5; }
+html[data-theme="light"] .analysis-side p { color: #5e5a5a; }
+html[data-theme="light"] .analysis-metrics strong { color: #1d1b1b; }
+html[data-theme="light"] .analysis-metrics small { color: #716c6a; }
+html[data-theme="light"] .no-take { border-color: #d9d2c8; color: #5e5a5a; }
+html[data-theme="light"] .no-take p { color: #5e5a5a; }
+html[data-theme="light"] .take-card > a,
+html[data-theme="light"] .take-actions a, html[data-theme="light"] .take-actions button, html[data-theme="light"] .no-take button {
+  background: #e5f2ed; border-color: #92c4b9; color: #00695c;
+}
+html[data-theme="light"] .metric span { color: #6b6663; }
+html[data-theme="light"] .metric small { color: #6b6663; }
+html[data-theme="light"] .metric-icon { background: #ece7ff; }
+
+/* -- Lab: header strip, note browser, pitch panel -- */
+html[data-theme="light"] .reference-model-strip { background: #f0ece5; color: #5e5a5a; }
+html[data-theme="light"] .reference-model-strip a { color: #4d3fa8; }
+html[data-theme="light"] .lab-instrument-notice { background: #ece7ff; border-color: #cfc3f5; }
+html[data-theme="light"] .lab-instrument-notice p { color: #4b4082; }
+html[data-theme="light"] .note-arrow { background: #f0ece5; color: #57524f; }
+html[data-theme="light"] .note-arrow:hover { background: #e5ded4; }
+html[data-theme="light"] .note-scroll button { color: #716c6a; }
+html[data-theme="light"] .note-scroll button sup { color: #918c89; }
+html[data-theme="light"] .note-scroll button:hover { background: #e5ded4; }
+html[data-theme="light"] .note-scroll button.is-active { background: #009683; color: #04140f; }
+html[data-theme="light"] .note-scroll button.is-active sup { color: #04231d; }
+html[data-theme="light"] .pitch-pair small { color: #5e5a5a; }
+html[data-theme="light"] .pitch-pair > svg { color: #918c89; }
+html[data-theme="light"] .finger-hint { border-color: #cfc3f5; background: #ece7ff; color: #4b4082; }
+html[data-theme="light"] .fingering-choices > small { color: #716c6a; }
+html[data-theme="light"] .fingering-choices button { border-color: #d9d2c8; background: #fffdf9; color: #57524f; }
+html[data-theme="light"] .fingering-choices button.is-active { background: #009683; border-color: #009683; color: #04140f; }
+html[data-theme="light"] .fingering-choices > p { color: #5e5a5a; }
+html[data-theme="light"] .pressed-heading span { color: #5e5a5a; }
+html[data-theme="light"] .pressed-heading strong { background: #cdebe3; color: #00695c; }
+html[data-theme="light"] .hand-map-note { color: #716c6a; }
+html[data-theme="light"] .key-column > small { color: #716c6a; }
+html[data-theme="light"] .key-chip { border-top-color: #e8e1d7; }
+html[data-theme="light"] .key-chip > i { background: #cdebe3; border-color: #92c4b9; color: #00695c; }
+html[data-theme="light"] .key-chip > span { color: #1d1b1b; }
+html[data-theme="light"] .key-chip > span small { color: #716c6a; }
+html[data-theme="light"] .no-key { color: #918c89; }
+html[data-theme="light"] .open-fingering { border-color: #d9d2c8; color: #57524f; }
+html[data-theme="light"] .open-fingering span { color: #1d1b1b; }
+html[data-theme="light"] .linked-pad-trace { background: #f7f3ec; border-color: #d9d2c8; }
+html[data-theme="light"] .linked-pad-trace summary { color: #3d3938; }
+html[data-theme="light"] .linked-pad-trace summary span { background: #cdebe3; color: #00695c; }
+html[data-theme="light"] .linked-pad-trace > div { border-top-color: #e8e1d7; }
+html[data-theme="light"] .linked-pad-trace article { border-bottom-color: #e8e1d7; }
+html[data-theme="light"] .linked-pad-trace article > i { background: #cdebe3; border-color: #92c4b9; color: #00695c; }
+html[data-theme="light"] .linked-pad-trace article strong { color: #1d1b1b; }
+html[data-theme="light"] .linked-pad-trace article span { color: #5e5a5a; }
+html[data-theme="light"] .linked-pad-trace article small { color: #716c6a; }
+html[data-theme="light"] .lab-tip { color: #5e5a5a; }
+html[data-theme="light"] .lab-tip strong { color: #1d1b1b; }
+html[data-theme="light"] .answer-state.correct { color: #00695c; background: #cdebe3; border-color: #92c4b9; }
+html[data-theme="light"] .answer-state.retry { color: #7a5a00; background: #fff3d6; border-color: #e8c98a; }
+
+/* -- Lab: setup explorer (finish / neck / mouthpiece / reed / ligature) -- */
+html[data-theme="light"] .setup-explorer > header > a { color: #5e5a5a; border-color: #d9d2c8; }
+html[data-theme="light"] .setup-explorer > header > a:hover { border-color: #b8afa5; }
+html[data-theme="light"] .setup-part-tabs { background: #f0ece5; border-color: #d9d2c8; }
+html[data-theme="light"] .setup-part-tabs button { color: #5e5a5a; }
+html[data-theme="light"] .setup-part-tabs button:hover { background: #e5ded4; }
+html[data-theme="light"] .setup-part-tabs button.is-active { background: #fffdf9; }
+html[data-theme="light"] .setup-part-tabs small { color: #5e5a5a; }
+html[data-theme="light"] .setup-part-intro > div { background: #f7f3ec; border-color: #d9d2c8; }
+html[data-theme="light"] .setup-part-intro p { color: #5e5a5a; }
+html[data-theme="light"] .setup-part-intro > div:last-child { background: #ece7ff; border-color: #cfc3f5; }
+html[data-theme="light"] .setup-part-intro > div:last-child p { color: #4b4082; }
+html[data-theme="light"] .finish-grid button { border-color: #d9d2c8; background: #fffdf9; color: #57524f; }
+html[data-theme="light"] .finish-grid button:hover { border-color: #b8afa5; }
+html[data-theme="light"] .finish-grid button.is-active { border-color: #92c4b9; background: #e5f2ed; }
+html[data-theme="light"] .finish-grid button > span { box-shadow: inset 0 0 0 3px #fffdf9; }
+html[data-theme="light"] .finish-grid button strong { color: #1d1b1b; }
+html[data-theme="light"] .finish-grid button small { color: #3d3938; }
+/* Same coverflow-dimming reasoning as the setup variant cards above:
+   the finish coverflow's non-active buttons need more opacity headroom
+   under a light backdrop to keep their (now-darkened) description text
+   legible. */
+html[data-theme="light"] .finish-grid.visual-coverflow button { opacity: .84; }
+html[data-theme="light"] .compare-status { background: #f0ece5; border-color: #d9d2c8; }
+html[data-theme="light"] .compare-status > span { color: #00695c; }
+html[data-theme="light"] .compare-status p { color: #3d3938; }
+html[data-theme="light"] .compare-status small { color: #5e5a5a; }
+html[data-theme="light"] .back-link { color: #57524f; }
+html[data-theme="light"] .coverflow-heading span { color: #716c6a; }
+html[data-theme="light"] .coverflow-heading button { border-color: #d9d2c8; background: #fffdf9; color: #57524f; }
+html[data-theme="light"] .variant-card { border-color: #d9d2c8; background: #fffdf9; }
+html[data-theme="light"] .variant-card.is-compared { border-color: #7fb8ab; }
+html[data-theme="light"] .visual-coverflow .variant-card.is-featured { border-color: #cbc0b3; }
+html[data-theme="light"] .variant-card h3 { color: #1d1b1b; }
+html[data-theme="light"] .variant-card > p { color: #3d3938; }
+html[data-theme="light"] .variant-card > ul li { border-color: #d9d2c8; color: #3d3938; }
+html[data-theme="light"] .compare-toggle { border-color: #d9d2c8; background: #fffdf9; color: #57524f; }
+html[data-theme="light"] .compare-toggle[aria-pressed="true"] { color: #004f45; border-color: #7fb8ab; background: #cdebe3; }
+html[data-theme="light"] .attribute-stack { border-color: #e8e1d7; }
+html[data-theme="light"] .attribute-row strong { color: #3d3938; }
+html[data-theme="light"] .attribute-row span { color: #3d3938; }
+html[data-theme="light"] .attribute-row > i { background: #e4ded5; }
+html[data-theme="light"] .variant-use p { color: #3d3938; }
+html[data-theme="light"] .variant-card > footer button { background: #00a894; color: #011008; }
+html[data-theme="light"] .variant-card > footer a { color: #3d3938; }
+html[data-theme="light"] .variant-card > footer a:hover { color: #1d1b1b; }
+html[data-theme="light"] .variant-card h3 { color: #1d1b1b; }
+html[data-theme="light"] .variant-card > header small { color: #4d3fa8; }
+/* The coverflow's non-featured neighbour cards are intentionally dimmed
+   (opacity .58) to read as background depth, a dark-theme value that
+   blends dark-tuned text down toward its own near-black backdrop. Against
+   a light backdrop the same fraction blends every ink toward white
+   instead, and no grey dark enough to stay legible as "de-emphasised
+   text" survives that blend at 4.5:1 -- only literal black would, which
+   defeats the de-emphasis. Keep the depth cue but shallow enough that the
+   now-darkened inks above (#1d1b1b / #3d3938) clear it. */
+html[data-theme="light"] .visual-coverflow .variant-card { opacity: .84; }
+/* Part illustrations (neck/mouthpiece/reed/ligature) stay a small dark
+   "photographic" stage on purpose, same reasoning as the analysis canvas
+   above -- only the index badge sitting on it needs a light-mode ink. */
+html[data-theme="light"] .variant-visual > span { color: #d9d4ca; }
+
+/* -- Lab: the 3D model dock and its floating badges sit directly on the
+   WebGL viewport's own dark fog/lighting, so -- same call as the
+   analysis canvas above -- the dock keeps its dark surface and only its
+   ink is relit for light mode. */
+html[data-theme="light"] .experience-dock-summary small { color: #d9d4ca; }
+html[data-theme="light"] .experience-legend span { color: #d9d4ca; }
+html[data-theme="light"] .experience-dock-actions button { color: #d9d4ca; }
+html[data-theme="light"] .experience-view-presets button { color: #d9d4ca; }
+html[data-theme="light"] .experience-view-presets button.is-active { background: #009683; color: #04140f; }
+html[data-theme="light"] .model-note-badge small { color: #d9d4ca; }
+html[data-theme="light"] .model-note-badge strong { color: #f5f3eb; }
+html[data-theme="light"] .model-note-badge span { color: #d9d4ca; }
+html[data-theme="light"] .model-accuracy-label { color: #d9d4ca; }
+html[data-theme="light"] .model-toolbar span, html[data-theme="light"] .model-toolbar button, html[data-theme="light"] .drag-hint { color: #d9d4ca; }
+
+/* -- Tune: the tone generator card had its own literal dark gradient,
+   independent of the shared card recipe fixed above. */
+html[data-theme="light"] .tone-generator-card { background: linear-gradient(145deg, #fbf9f4, #f2ede4); }
+html[data-theme="light"] .tone-generator-card::before { background: radial-gradient(circle at 86% 0%, rgba(0,127,110,.1), transparent 31%), radial-gradient(circle at 12% 110%, rgba(101,75,208,.09), transparent 40%); }
+html[data-theme="light"] .tone-stop { border-color: #d9d2c8; background: #fffdf9; color: #57524f; }
+html[data-theme="light"] .tone-controls label { color: #5e5a5a; }
+html[data-theme="light"] .tone-controls select { border-color: #d9d2c8; background: #fffdf9; color: #1d1b1b; }
+html[data-theme="light"] .tone-keyboard button { border-color: #d9d2c8; background: linear-gradient(180deg, #fffefa, #f0eadf); color: #57524f; }
+html[data-theme="light"] .tone-keyboard button:hover, html[data-theme="light"] .tone-keyboard button.is-playing { border-color: #92c4b9; background: #e5f2ed; color: #00695c; }
+html[data-theme="light"] .tone-keyboard button small, html[data-theme="light"] .tone-keyboard button svg { color: #837d7a; }
+html[data-theme="light"] .eyebrow { color: #00695c !important; }
+html[data-theme="light"] .model-loading, html[data-theme="light"] .model-fallback { color: #d9d4ca; }
+
+
+/* ============================================================
+   Light theme, part 3: the controls that landed after part 2 was
+   cut (exercise player, tempo ramp, preset sequences, altissimo
+   quiz toggle). Same recipe: light surface, --muted ink at 4.5:1
+   or better on it. The exercise card drops its translucent gradient
+   for a flat surface so the contrast is the same everywhere on it.
+   ============================================================ */
+html[data-theme="light"] .tone-exercise { background: #f7f3ec; }
+html[data-theme="light"] .tone-exercise-controls label { color: #5e5a5a; }
+html[data-theme="light"] .tone-exercise-controls small { color: #5e5a5a; }
+html[data-theme="light"] .tone-exercise-head p { color: #57524f; }
+html[data-theme="light"] .tone-exercise-status { color: #4f4b49; }
+html[data-theme="light"] .tone-exercise-loop.is-active { color: #066b5c; }
+html[data-theme="light"] .choice-row button small { color: #5e5a5a; }
+html[data-theme="light"] .choice-row button.is-active small { color: #3f3382; }
+html[data-theme="light"] .sequence-add { color: #066b5c; }
+html[data-theme="light"] .altissimo-challenge-toggle { color: #5e5a5a; }

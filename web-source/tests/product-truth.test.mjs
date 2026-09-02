@@ -4,8 +4,16 @@ import test from "node:test";
 
 test("tuner starts blank and exposes its lock policy", async () => {
   const source = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  const engine = await readFile(new URL("../app/pitch-engine.ts", import.meta.url), "utf8");
   assert.match(source, /useState<PitchReading \| null>\(null\)/);
-  assert.match(source, /Noise gate · 3-frame lock · 550 ms dropout hold/);
+  // The lock policy line used to be a fixed "3-frame lock · 550 ms dropout
+  // hold". It now reflects the player's Sensitivity/Damping choice, so the
+  // check is that the readout is wired to those presets (and that their
+  // *default* choice -- medium/normal -- still resolves to the same numbers
+  // the tuner always shipped with) rather than a literal string match.
+  assert.match(source, /Noise gate · \{SENSITIVITY_PRESETS\[sensitivity\]\.acquireFrames\}-frame lock · \{DAMPING_PRESETS\[damping\]\.holdMs\} ms dropout hold/);
+  assert.match(engine, /medium: \{ acquireFrames: 3, switchFrames: 3, minimumConfidence: 0\.88 \}/);
+  assert.match(engine, /normal: \{ holdMs: 550, smoothingAlpha: 0\.22, smoothingAlphaHigh: 0\.34 \}/);
   assert.doesNotMatch(source, /You tend to arrive slightly flat/);
   assert.doesNotMatch(source, /hz: 261\.1/);
 });
@@ -68,13 +76,15 @@ test("first run uses an immersive instrument gallery and replayable onboarding",
   assert.match(page, /InstrumentPickerExperience/);
   assert.match(page, /Replay the onboarding guide/);
   assert.match(experience, /What are you playing today\?/);
-  // Every gallery entry has to say what a player actually gets. Instruments
-  // without a licensed model are still fully playable in the tuner and the
-  // practice tools, so they say so and name the part that is missing; the
-  // clarinet, which is not shipping at all, says that instead.
-  assert.match(experience, /Tuner \+ practice · lab pending/);
-  assert.match(experience, /Not shipping · commercial licence required/);
-  assert.doesNotMatch(experience, /availableId: "clarinet"/);
+  // Every gallery entry has to say what a player actually gets. Flute and
+  // bassoon have a 2D fingering chart but no licensed 3D model, and say so;
+  // the clarinet now ships the same way -- its old "Not shipping" status
+  // was already false the day the chart made it a real instrument in the
+  // app, since a 2D chart needs no licensed model at all.
+  assert.match(experience, /Fingering chart · no 3D model yet/);
+  assert.match(experience, /Fingering chart · 3D model not licensed/);
+  assert.doesNotMatch(experience, /Not shipping · commercial licence required/);
+  assert.match(experience, /availableId: "clarinet"/);
   assert.match(experience, /Watch the right keys light up/);
   assert.doesNotMatch(experience, /ghost-palm|Hand guide|See the grip/);
 });

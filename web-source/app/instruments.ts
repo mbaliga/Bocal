@@ -6,21 +6,43 @@ export type InstrumentId =
   | "tenor-sax"
   | "bari-sax"
   | "flute"
+  | "clarinet"
   | "oboe"
+  | "cor-anglais"
   | "bassoon"
   | "guitar";
 
 /**
- * What Bocal can show for an instrument inside the 3D lab.
+ * What Bocal can show for an instrument inside the lab.
  *
- * This is gated on assets, not on code. A lab tab needs a model Bocal is
- * licensed to ship and, for "fingering", a chart that a teacher has actually
- * checked -- publishing a wrong fingering to a beginner is worse than
- * publishing none. Everything else in the app (tuner, pulse, analysis,
- * practice logging) needs neither, so instruments without a model are fully
- * usable rather than hidden.
+ * This is gated on assets, not on code. A 3D tab needs a model Bocal is
+ * licensed to ship. Everything else in the app (tuner, pulse, analysis,
+ * practice logging) needs neither a model nor a chart, so instruments
+ * without either asset are fully usable rather than hidden.
+ *
+ *   "fingering" -- 3D model + interactive fingering trainer (sax family).
+ *   "anatomy"   -- 3D model, no fingering content of its own (oboe / cor
+ *                  anglais get a fingering chart too, see below, but that's
+ *                  layered on top of "anatomy" rather than changing it).
+ *   "chart"     -- no 3D model, but a 2D fingering chart (see
+ *                  app/fingering-charts/): flute, clarinet, bassoon.
+ *   "none"      -- neither. Tuner and practice tools only (guitar).
+ *
+ * "chart" is a new tier rather than a flag on "anatomy" and "fingering"
+ * because a chart is orthogonal to a 3D model: oboe has both an anatomy
+ * preview and a chart (see `FINGERING_CHARTS` in app/fingering-charts/,
+ * which oboe and cor-anglais appear in despite being "anatomy" tier), while
+ * flute, clarinet and bassoon have a chart and nothing else. Overloading
+ * "anatomy" to secretly also mean "and maybe a chart" would have made the
+ * router's actual behaviour unreadable from this type alone.
+ *
+ * Every chart shipped is method-book consensus checked against two
+ * published references, not a teacher's review -- see the `review` field on
+ * each chart in app/fingering-charts/ and the badge it renders as. That is a
+ * lower bar than "checked by a teacher," and the UI says so plainly rather
+ * than borrowing the confidence a 3D model's finish might otherwise imply.
  */
-export type LabTier = "fingering" | "anatomy" | "none";
+export type LabTier = "fingering" | "anatomy" | "chart" | "none";
 
 export type InstrumentProfile = {
   id: InstrumentId;
@@ -99,8 +121,20 @@ export const INSTRUMENTS: Record<InstrumentId, InstrumentProfile> = {
     writtenOffset: 0,
     clef: "treble",
     tunerDescription: "The flute is a concert-pitch instrument, so written and sounding notes match.",
-    labTier: "none",
-    labStatus: "Tuner and practice tools ready · 3D model not yet licensed",
+    labTier: "chart",
+    labStatus: "Fingering chart · no 3D model yet",
+  },
+  clarinet: {
+    id: "clarinet",
+    name: "Clarinet",
+    shortName: "Clarinet",
+    family: "Single reed",
+    pitchLabel: "B♭",
+    writtenOffset: 2,
+    clef: "treble",
+    tunerDescription: "Your written note is shown first. Bocal handles the B♭ transposition.",
+    labTier: "chart",
+    labStatus: "Fingering chart · 3D model not licensed",
   },
   oboe: {
     id: "oboe",
@@ -112,7 +146,20 @@ export const INSTRUMENTS: Record<InstrumentId, InstrumentProfile> = {
     clef: "treble",
     tunerDescription: "The oboe is a concert-pitch instrument, so written and sounding notes match.",
     labTier: "anatomy",
-    labStatus: "3D anatomy preview",
+    labStatus: "3D anatomy preview + fingering chart",
+  },
+  "cor-anglais": {
+    id: "cor-anglais",
+    name: "Cor anglais",
+    shortName: "Cor anglais",
+    family: "Double reed",
+    pitchLabel: "F",
+    // A perfect fifth below written pitch: written C5 (72) sounds concert F4 (65).
+    writtenOffset: 7,
+    clef: "treble",
+    tunerDescription: "Your written note is shown first. Bocal handles the F transposition.",
+    labTier: "anatomy",
+    labStatus: "3D anatomy preview, shown on the oboe model + oboe fingering chart",
   },
   bassoon: {
     id: "bassoon",
@@ -125,8 +172,8 @@ export const INSTRUMENTS: Record<InstrumentId, InstrumentProfile> = {
     // student meets first and the one the tuner readout is most useful in.
     clef: "bass",
     tunerDescription: "The bassoon is a concert-pitch instrument, so written and sounding notes match.",
-    labTier: "none",
-    labStatus: "Tuner and practice tools ready · 3D model not yet licensed",
+    labTier: "chart",
+    labStatus: "Fingering chart · no 3D model yet",
   },
   guitar: {
     id: "guitar",
@@ -148,7 +195,9 @@ export const INSTRUMENT_ORDER: InstrumentId[] = [
   "soprano-sax",
   "bari-sax",
   "oboe",
+  "cor-anglais",
   "flute",
+  "clarinet",
   "bassoon",
   "guitar",
 ];

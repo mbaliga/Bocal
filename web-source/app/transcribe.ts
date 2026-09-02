@@ -191,16 +191,19 @@ function smoothPitchTrack(frames: Frame[]) {
   });
 }
 
-export async function transcribeBuffer(
-  samples: Float32Array,
-  onProgress?: TranscribeProgress,
-): Promise<TranscriptionResult> {
-  const durationSec = samples.length / ANALYSIS_RATE;
+/**
+ * The one detection loop: YIN plus the Goertzel harmonic-support check, one
+ * frame per HOP, sliced with a yield between chunks so the tab keeps painting
+ * and a progress callback is honest rather than decorative.
+ *
+ * Both `pitchTrackFrames` and `transcribeBuffer` are built on this. YIN and
+ * the harmonic-support check are the expensive part of the pipeline; neither
+ * caller re-runs them.
+ */
+async function computeRawFrames(samples: Float32Array, onProgress?: TranscribeProgress): Promise<Frame[]> {
   const frameCount = Math.max(0, Math.floor((samples.length - WINDOW) / HOP) + 1);
   const frames: Frame[] = new Array(frameCount);
 
-  // Analysed in slices with a yield between them so the tab keeps painting
-  // and the progress bar is honest rather than decorative.
   const SLICE = 96;
   for (let start = 0; start < frameCount; start += SLICE) {
     const end = Math.min(frameCount, start + SLICE);
@@ -218,28 +221,82 @@ export async function transcribeBuffer(
     onProgress?.(end / Math.max(frameCount, 1));
     await new Promise((resolve) => setTimeout(resolve, 0));
   }
+  return frames;
+}
+
+const isSinglePitch = (frame: Frame) =>
+  frame.midi !== null && frame.confidence >= MIN_CONFIDENCE && frame.support >= MIN_HARMONIC_SUPPORT;
+
+/**
+ * The noise floor is taken from the recording itself. A phone memo in a
+ * practice room and a close-miked studio take have wildly different floors,
+ * and a fixed threshold gets one of them wrong.
+ *
+ * The floor estimate is only trustworthy when there is silence to measure.
+ * A continuous solo -- a scale, a long-tone study, anything played straight
+ * through -- has almost none, and a low percentile then lands on playing
+ * rather than on room tone. Clamping the floor-derived term to a fraction of
+ * the peak keeps a dense recording from gating itself into silence.
+ */
+function audibleGate(frames: Frame[]) {
+  const sortedRms = frames.map((frame) => frame.rms).sort((left, right) => left - right);
+  const floor = percentile(sortedRms, 0.1);
+  const peak = percentile(sortedRms, 0.95);
+  return Math.max(0.004, peak * 0.05, Math.min(floor * 2.5, peak * 0.25));
+}
+
+export type PitchTrackFrame = {
+  timeSec: number;
+  /** Concert-pitch MIDI, equal-tempered against A440 -- same basis as
+   *  TranscribedNote.concertMidi. Null on a frame that doesn't pass the same
+   *  audibility gate and harmonic-support rule the note segmenter uses below. */
+  midi: number | null;
+  /** This frame's own deviation from the nearest equal-tempered semitone, in
+   *  cents. 0 on an unvoiced frame. */
+  cents: number;
+  confidence: number;
+  rms: number;
+};
+
+/**
+ * The raw per-frame pitch track behind transcribeBuffer's notes, exposed for
+ * a caller that wants the frame-by-frame curve rather than the segmented
+ * notes -- a pitch-vs-time overlay drawn over a waveform, say. Same gate,
+ * same harmonic-support rule, same median smoothing as the note segmenter;
+ * a frame that wouldn't count toward a note there comes back with midi: null
+ * here too, so the overlay's gaps land in the same places a transcription
+ * would have stayed silent.
+ */
+export async function pitchTrackFrames(
+  samples: Float32Array,
+  onProgress?: TranscribeProgress,
+): Promise<PitchTrackFrame[]> {
+  const raw = await computeRawFrames(samples, onProgress);
+  if (raw.length === 0) return [];
+  const gate = audibleGate(raw);
+  const smoothed = smoothPitchTrack(raw);
+  return smoothed.map((frame, index) => {
+    const voiced = frame.rms >= gate && isSinglePitch(frame);
+    const midi = voiced ? (frame.midi as number) : null;
+    const cents = midi === null ? 0 : Math.round((midi - Math.round(midi)) * 100);
+    return { timeSec: (index * HOP) / ANALYSIS_RATE, midi, cents, confidence: frame.confidence, rms: frame.rms };
+  });
+}
+
+export async function transcribeBuffer(
+  samples: Float32Array,
+  onProgress?: TranscribeProgress,
+): Promise<TranscriptionResult> {
+  const durationSec = samples.length / ANALYSIS_RATE;
+  const raw = await computeRawFrames(samples, onProgress);
+  const frameCount = raw.length;
 
   if (frameCount === 0) {
     return { notes: [], durationSec, clarity: 0, likelyPolyphonic: false };
   }
 
-  // The noise floor is taken from the recording itself. A phone memo in a
-  // practice room and a close-miked studio take have wildly different floors,
-  // and a fixed threshold gets one of them wrong.
-  //
-  // The floor estimate is only trustworthy when there is silence to measure.
-  // A continuous solo -- a scale, a long-tone study, anything played straight
-  // through -- has almost none, and a low percentile then lands on playing
-  // rather than on room tone. Clamping the floor-derived term to a fraction of
-  // the peak keeps a dense recording from gating itself into silence.
-  const sortedRms = frames.map((frame) => frame.rms).sort((left, right) => left - right);
-  const floor = percentile(sortedRms, 0.1);
-  const peak = percentile(sortedRms, 0.95);
-  const gate = Math.max(0.004, peak * 0.05, Math.min(floor * 2.5, peak * 0.25));
-
-  const smoothed = smoothPitchTrack(frames);
-  const isSinglePitch = (frame: Frame) =>
-    frame.midi !== null && frame.confidence >= MIN_CONFIDENCE && frame.support >= MIN_HARMONIC_SUPPORT;
+  const gate = audibleGate(raw);
+  const smoothed = smoothPitchTrack(raw);
 
   const audible = smoothed.filter((frame) => frame.rms >= gate);
   const voiced = audible.filter(isSinglePitch);
