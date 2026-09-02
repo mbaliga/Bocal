@@ -21,15 +21,22 @@ import { octaveOf, spellingFor } from "./notation";
 
 export type Clef = "treble" | "bass";
 
-/** Staff line spacing. Lines sit at y = 0, 10, 20, 30, 40. */
-const S = 10;
+/**
+ * Staff line spacing. Lines sit at y = 0, 10, 20, 30, 40. Exported so the
+ * tuner's pitch-history graph (pitch-history-canvas.ts) can lay out its
+ * scrolling staff-mode view using the same proportions as this component
+ * instead of guessing at its own.
+ */
+export const STAFF_LINE_SPACING = 10;
+const S = STAFF_LINE_SPACING;
 
 /**
  * Diatonic index of each clef's bottom line: E4 for treble, G2 for bass.
  * Diatonic index counts letter-steps, so an octave is 7 and one staff step
- * (half a line spacing) is 1.
+ * (half a line spacing) is 1. Exported for the same reason as S above.
  */
-const BOTTOM_LINE: Record<Clef, number> = { treble: 30, bass: 18 };
+export const STAFF_BOTTOM_LINE: Record<Clef, number> = { treble: 30, bass: 18 };
+const BOTTOM_LINE = STAFF_BOTTOM_LINE;
 
 // Drawn from the bottom tail terminal, up the stem, round the top curl, down
 // into the big loop and spiralling in to the terminal on the G line -- the

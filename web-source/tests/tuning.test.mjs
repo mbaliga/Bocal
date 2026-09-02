@@ -12,7 +12,14 @@ async function loadModule() {
   return import(`data:text/javascript;base64,${Buffer.from(outputText).toString("base64")}`);
 }
 
-const { targetHzFor, readingFor, TEMPERAMENTS } = await loadModule();
+const {
+  targetHzFor,
+  readingFor,
+  TEMPERAMENTS,
+  TEMPERAMENT_ORDER,
+  loadCustomTemperamentCents,
+  serializeCustomTemperamentCents,
+} = await loadModule();
 
 const equalAt440 = { referenceHz: 440, temperament: "equal", keyPc: 0 };
 
@@ -73,4 +80,97 @@ test("nearest-note selection crosses a semitone boundary correctly under meanton
   const reading = readingFor(hz, meantoneInC);
   assert.equal(reading.concertMidi, 69, `expected the boundary tone to resolve to A4, got midi ${reading.concertMidi}`);
   assert.ok(Math.abs(reading.cents - -41) <= 1, `expected roughly -41 cents, got ${reading.cents}`);
+});
+
+// --- New temperament tables ------------------------------------------------
+
+const NEW_TEMPERAMENTS = [
+  "meantone-sixth",
+  "meantone-third",
+  "werckmeister3",
+  "kirnberger3",
+  "vallotti",
+  "young1799",
+];
+
+test("every temperament table (built-in and newly added) has 12 entries with a 0 tonic offset", () => {
+  for (const id of Object.keys(TEMPERAMENTS)) {
+    const table = TEMPERAMENTS[id];
+    assert.equal(table.length, 12, `${id}: expected 12 entries, got ${table.length}`);
+    assert.equal(table[0], 0, `${id}: expected the tonic (degree 0) to read 0 cents from equal`);
+  }
+});
+
+test("TEMPERAMENT_ORDER lists every named temperament plus custom, each with a table or the custom slot", () => {
+  for (const id of TEMPERAMENT_ORDER) {
+    if (id === "custom") continue;
+    assert.ok(id in TEMPERAMENTS, `${id} is listed in TEMPERAMENT_ORDER but has no cents table`);
+  }
+  for (const id of NEW_TEMPERAMENTS) assert.ok(TEMPERAMENT_ORDER.includes(id), `${id} missing from TEMPERAMENT_ORDER`);
+});
+
+test("Werckmeister III in the key of C puts G at 696.09 cents from C (-3.91 from equal)", () => {
+  const werckmeisterInC = { referenceHz: 440, temperament: "werckmeister3", keyPc: 0 };
+  const gHz = targetHzFor(67, werckmeisterInC); // G4, the fifth above C
+  const gEqualHz = 440 * 2 ** ((67 - 69) / 12);
+  const gCents = 1200 * Math.log2(gHz / gEqualHz);
+  assert.ok(Math.abs(gCents - -3.91) < 0.05, `expected -3.91 cents, got ${gCents}`);
+  assert.ok(Math.abs(TEMPERAMENTS.werckmeister3[7] - -3.91) < 0.01);
+  // Absolute cents from C (i.e. what a tuning reference tabulates): 700 - 3.91 = 696.09.
+  assert.ok(Math.abs(700 + TEMPERAMENTS.werckmeister3[7] - 696.09) < 0.01);
+});
+
+test("Vallotti's C-G fifth is 698.04 cents (-1.96 from equal)", () => {
+  const vallottiInC = { referenceHz: 440, temperament: "vallotti", keyPc: 0 };
+  const gHz = targetHzFor(67, vallottiInC);
+  const gEqualHz = 440 * 2 ** ((67 - 69) / 12);
+  const gCents = 1200 * Math.log2(gHz / gEqualHz);
+  assert.ok(Math.abs(gCents - -1.96) < 0.05, `expected -1.96 cents, got ${gCents}`);
+  assert.ok(Math.abs(TEMPERAMENTS.vallotti[7] - -1.96) < 0.01);
+  assert.ok(Math.abs(700 + TEMPERAMENTS.vallotti[7] - 698.04) < 0.01);
+});
+
+test("a tone exactly at a Kirnberger III / Young (1799) target reads 0 cents", () => {
+  for (const id of ["kirnberger3", "young1799", "meantone-sixth", "meantone-third"]) {
+    const options = { referenceHz: 440, temperament: id, keyPc: 0 };
+    for (const midi of [60, 62, 64, 67, 69]) {
+      const target = targetHzFor(midi, options);
+      const reading = readingFor(target, options);
+      assert.equal(reading.concertMidi, midi, `${id} midi ${midi}: expected exact target to read back as itself`);
+      assert.equal(reading.cents, 0, `${id} midi ${midi}: expected exact target to read 0 cents`);
+    }
+  }
+});
+
+// --- Custom temperament persistence ----------------------------------------
+
+test("loadCustomTemperamentCents falls back to all-zero for missing or malformed input", () => {
+  assert.deepEqual(loadCustomTemperamentCents(null), new Array(12).fill(0));
+  assert.deepEqual(loadCustomTemperamentCents(undefined), new Array(12).fill(0));
+  assert.deepEqual(loadCustomTemperamentCents("not json"), new Array(12).fill(0));
+  assert.deepEqual(loadCustomTemperamentCents(JSON.stringify([1, 2, 3])), new Array(12).fill(0));
+});
+
+test("custom temperament cents round-trip through the persistence helpers", () => {
+  const original = [0, -10, -8, -6, -10, -2, -12, -4, -8, -12, -4, -8];
+  const serialized = serializeCustomTemperamentCents(original);
+  const restored = loadCustomTemperamentCents(serialized);
+  assert.deepEqual(restored, original);
+});
+
+test("custom temperament persistence clamps extreme values and always zeros the tonic", () => {
+  const serialized = serializeCustomTemperamentCents([37, 500, -500, 12.5, 0, 0, 0, 0, 0, 0, 0, 0]);
+  const restored = loadCustomTemperamentCents(serialized);
+  assert.equal(restored[0], 0, "the tonic must always read 0, even if a caller tries to set it");
+  assert.equal(restored[1], 100, "values are clamped to +100 cents");
+  assert.equal(restored[2], -100, "values are clamped to -100 cents");
+  assert.equal(restored[3], 12.5);
+});
+
+test("readingFor works against a custom temperament passed via customCents", () => {
+  const custom = { referenceHz: 440, temperament: "custom", keyPc: 0, customCents: [0, 0, 0, 0, -14, 0, 0, 2, 0, 0, 0, 0] };
+  const eHz = targetHzFor(64, custom); // E4
+  const eEqualHz = 440 * 2 ** ((64 - 69) / 12);
+  const eCents = 1200 * Math.log2(eHz / eEqualHz);
+  assert.ok(Math.abs(eCents - -14) < 0.01, `expected the custom -14 cent offset to apply, got ${eCents}`);
 });

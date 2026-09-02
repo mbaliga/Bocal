@@ -25,6 +25,15 @@ export type StablePitchTrackerOptions = {
   switchFrames?: number;
   holdMs?: number;
   clearMs?: number;
+  /**
+   * Base smoothing rate applied to the displayed cents-from-lock value (0-1,
+   * higher means it snaps to a new reading faster / smooths less). Used for
+   * frames below the high-confidence threshold. Together with
+   * `smoothingAlphaHigh` this is the tuner's "Damping" control.
+   */
+  smoothingAlpha?: number;
+  /** Smoothing rate used once a frame's confidence reaches 0.96 or above. */
+  smoothingAlphaHigh?: number;
 };
 
 const clamp = (value: number, minimum: number, maximum: number) => Math.min(maximum, Math.max(minimum, value));
@@ -126,6 +135,8 @@ export class StablePitchTracker {
   private readonly switchFrames: number;
   private readonly holdMs: number;
   private readonly clearMs: number;
+  private readonly smoothingAlpha: number;
+  private readonly smoothingAlphaHigh: number;
   private noiseFloor = 0.0035;
   private startedAt: number | null = null;
   private lockedMidi: number | null = null;
@@ -147,6 +158,8 @@ export class StablePitchTracker {
     this.switchFrames = options.switchFrames ?? 3;
     this.holdMs = options.holdMs ?? 550;
     this.clearMs = options.clearMs ?? 1200;
+    this.smoothingAlpha = options.smoothingAlpha ?? 0.22;
+    this.smoothingAlphaHigh = options.smoothingAlphaHigh ?? 0.34;
   }
 
   reset() {
@@ -203,7 +216,7 @@ export class StablePitchTracker {
       this.lastReliableAt = nowMs;
       this.pushCents(centsFromLock);
       const target = median(this.centsHistory.slice(-5));
-      const alpha = candidate.confidence >= 0.96 ? 0.34 : 0.22;
+      const alpha = candidate.confidence >= 0.96 ? this.smoothingAlphaHigh : this.smoothingAlpha;
       this.smoothedCents += (target - this.smoothedCents) * alpha;
       return this.lockedReading(candidate.hz, candidate.confidence, rms, gate, true);
     }
@@ -284,3 +297,63 @@ export class StablePitchTracker {
     return { state: "silence", hz: null, rawHz: candidate?.hz ?? null, confidence: candidate?.confidence ?? 0, rms, gate, accepted: false };
   }
 }
+
+// Sensitivity and Damping: the two player-facing controls the Calibration
+// disclosure exposes over this tracker. They're presented as short named
+// choices (matching TE's wind-mode sensitivity and damping controls) rather
+// than raw numeric fields, and each choice maps to a fixed set of
+// constructor options below. All of `acquireFrames`, `switchFrames`,
+// `minimumConfidence`, `holdMs`, `smoothingAlpha` and `smoothingAlphaHigh`
+// are read-only after construction (see the private readonly fields above),
+// so switching either control has to build a new StablePitchTracker rather
+// than reconfigure the running one -- see the tracker-recreation effect in
+// page.tsx for where that happens and why that's an acceptable trade.
+
+export type Sensitivity = "wide" | "medium" | "fine" | "ultra-fine";
+export type Damping = "slow" | "normal" | "fast";
+
+export const SENSITIVITY_ORDER: Sensitivity[] = ["wide", "medium", "fine", "ultra-fine"];
+export const DAMPING_ORDER: Damping[] = ["slow", "normal", "fast"];
+
+export const SENSITIVITY_LABELS: Record<Sensitivity, string> = {
+  wide: "Wide",
+  medium: "Medium",
+  fine: "Fine",
+  "ultra-fine": "Ultra-fine",
+};
+export const DAMPING_LABELS: Record<Damping, string> = { slow: "Slow", normal: "Normal", fast: "Fast" };
+
+export const SENSITIVITY_HINTS: Record<Sensitivity, string> = {
+  wide: "Locks fast on a looser match. Good for a noisy room or a less steady tone.",
+  medium: "Bocal's default balance of speed and precision.",
+  fine: "Waits for a steadier tone before it locks, for more critical listening.",
+  "ultra-fine": "Requires the steadiest, most confident tone before it commits. For meticulous intonation work.",
+};
+export const DAMPING_HINTS: Record<Damping, string> = {
+  slow: "Holds the last note longer through brief dropouts and eases into pitch changes gradually.",
+  normal: "Bocal's default response time.",
+  fast: "Responds to a new pitch and drops the lock quickly. Good for fast passages.",
+};
+
+// "Wide" trades the lock threshold down and the frame count down together --
+// it commits sooner and on a weaker match, mirroring TE's "wide" sensitivity.
+// "Ultra-fine" pushes both up, waiting for more frames at a stricter
+// confidence bar before it will call a note locked.
+export const SENSITIVITY_PRESETS: Record<
+  Sensitivity,
+  Pick<StablePitchTrackerOptions, "acquireFrames" | "switchFrames" | "minimumConfidence">
+> = {
+  wide: { acquireFrames: 2, switchFrames: 2, minimumConfidence: 0.8 },
+  medium: { acquireFrames: 3, switchFrames: 3, minimumConfidence: 0.88 },
+  fine: { acquireFrames: 4, switchFrames: 4, minimumConfidence: 0.92 },
+  "ultra-fine": { acquireFrames: 6, switchFrames: 6, minimumConfidence: 0.96 },
+};
+
+export const DAMPING_PRESETS: Record<
+  Damping,
+  Pick<StablePitchTrackerOptions, "holdMs" | "smoothingAlpha" | "smoothingAlphaHigh">
+> = {
+  slow: { holdMs: 900, smoothingAlpha: 0.14, smoothingAlphaHigh: 0.22 },
+  normal: { holdMs: 550, smoothingAlpha: 0.22, smoothingAlphaHigh: 0.34 },
+  fast: { holdMs: 300, smoothingAlpha: 0.34, smoothingAlphaHigh: 0.5 },
+};
