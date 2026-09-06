@@ -1,0 +1,114 @@
+/* Tone generator: layout fixes and additions on top of the base rules that
+ * still live in globals.css (owned by WP6 this wave -- see the WP3 report
+ * for the exact old selectors that become redundant once this file lands).
+ * Everything here is token-driven; no literal hex for text or surfaces. */
+
+/* --- Full chromatic octave on a phone -------------------------------- */
+/* The base .tone-keyboard grid (globals.css) is repeat(12, minmax(48px,1fr))
+ * with overflow-x:auto and, under the phone media query, a fixed
+ * repeat(12, 56px) -- both wider than a 412px viewport, so only ~5 keys are
+ * visible with no scroll affordance. Two rows of six fits the full octave
+ * with no clipped key and no horizontal scroll. */
+@media (max-width: 680px) {
+  .tone-generator-card .tone-keyboard {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-auto-rows: minmax(52px, auto);
+    overflow-x: visible;
+  }
+}
+
+/* Sub-labels (the solfège/sargam/written name under each key) were 7px,
+ * under the ~11px microcopy floor in both themes. Scoped through the card
+ * (rather than a bare .tone-keyboard) so this wins over globals.css's later,
+ * equal-specificity rule in the cascade. */
+.tone-generator-card .tone-keyboard button small {
+  font-size: 10px;
+}
+
+/* --- Octave stepper ---------------------------------------------------- */
+/* Replaces the plain <select> for the main keyboard's octave with -/+
+ * buttons beside a live readout, so a lip-slur across an octave break is one
+ * tap instead of a select interaction. */
+.tone-octave-field {
+  display: grid;
+  gap: 5px;
+}
+.tone-octave-stepper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+}
+.tone-octave-stepper button {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-2);
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+.tone-octave-stepper button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.tone-octave-stepper output {
+  flex: 1 1 auto;
+  text-align: center;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+/* --- Follow-my-pitch toggle --------------------------------------------- */
+.tone-follow-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--muted);
+  grid-column: 1 / -1;
+}
+.tone-follow-toggle input {
+  accent-color: var(--cyan);
+  width: 13px;
+  height: 13px;
+  margin: 0;
+}
+
+.tone-skip-fundamental {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 9px;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--muted);
+  align-self: end;
+  height: 32px;
+}
+.tone-skip-fundamental input {
+  accent-color: var(--cyan);
+  width: 13px;
+  height: 13px;
+  margin: 0;
+}
+
+/* --- Column layout fix -------------------------------------------------- */
+/* globals.css's phone media query switches .tone-shape-options to a column
+ * flex container but left each label's flex-basis at 132px -- in a column
+ * container that basis sets *height*, not width, stretching the 8px caption
+ * across a 132px-tall label and pushing the select ~60px below where it
+ * belongs. flex-basis:auto (with the width already unconstrained by
+ * min-width:0) restores a normal label height. */
+@media (max-width: 680px) {
+  .tone-generator-card .tone-shape-options label {
+    flex-basis: auto;
+    min-width: 0;
+  }
+}
