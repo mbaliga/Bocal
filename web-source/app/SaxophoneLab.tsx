@@ -519,15 +519,30 @@ function SaxFingeringLab({ onBack, instrumentId }: { onBack: () => void; instrum
     const next = SAXOPHONE_FINGERINGS[wrapped];
     setSelectedIndex(wrapped);
     chooseChoice(next, 0);
-  }, [chooseChoice]);
+    // Browsing notes while a challenge is active used to leave the on-screen
+    // note and keys pointing at whatever was clicked while `checkChallenge`
+    // kept comparing against the original target -- an unwinnable desync.
+    // Retarget the challenge to the browsed note instead, the same way
+    // `startChallenge` sets one up.
+    if (trainerMode === "challenge") {
+      setChallenge(next);
+      setFeedback("idle");
+      challengeEvidenceRecordedRef.current = false;
+    }
+  }, [chooseChoice, trainerMode]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "ArrowRight") chooseNote(selectedIndex + 1);
-      if (event.key === "ArrowLeft") chooseNote(selectedIndex - 1);
+      if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
+      // The page-level workspace shortcut also listens for these on
+      // `window`; without stopping propagation here it unmounts the lab and
+      // switches to the next workspace instead of stepping notes.
+      event.preventDefault();
+      event.stopPropagation();
+      chooseNote(selectedIndex + (event.key === "ArrowRight" ? 1 : -1));
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("keydown", onKey, { capture: true });
+    return () => window.removeEventListener("keydown", onKey, { capture: true });
   }, [chooseNote, selectedIndex]);
 
   const findMatch = useCallback((next: Set<SaxKeyId>) => {
@@ -597,11 +612,15 @@ function SaxFingeringLab({ onBack, instrumentId }: { onBack: () => void; instrum
 
     const weights = [1, 0.36 + profile.brightness * 0.22, 0.17 + profile.brightness * 0.25, 0.08 + profile.brightness * 0.2, 0.04 + profile.brightness * 0.14];
     const normalizer = weights.reduce((sum, weight) => sum + weight, 0);
+    // Drive the fundamental from the selected written note (clamped to a
+    // comfortable range) instead of a fixed 220 Hz, so a bari player hears
+    // something in their own register rather than the alto's A3 sketch.
+    const fundamentalHz = Math.min(440, Math.max(110, soundingHz));
     weights.forEach((weight, index) => {
       const oscillator = context.createOscillator();
       const gain = context.createGain();
       oscillator.type = "sine";
-      oscillator.frequency.value = 220 * (index + 1);
+      oscillator.frequency.value = fundamentalHz * (index + 1);
       oscillator.detune.value = index > 0 ? (index % 2 === 0 ? 1.5 : -1.5) : 0;
       gain.gain.value = weight / normalizer;
       oscillator.connect(gain).connect(filter);
@@ -614,8 +633,10 @@ function SaxFingeringLab({ onBack, instrumentId }: { onBack: () => void; instrum
   };
 
   const startChallenge = () => {
+    // Every standard-range note is fair game, including the low pinky-table
+    // notes (Bb3-C#4) that a silent `.slice(4)` used to drop from the pool --
+    // those are exactly what a beginner needs to drill.
     const pool = SAXOPHONE_FINGERINGS
-      .slice(4)
       .filter((fingering) => includeAltissimoInChallenge || fingering.level !== "Altissimo");
     const next = pool[Math.floor(Math.random() * pool.length)];
     setTrainerMode("challenge");

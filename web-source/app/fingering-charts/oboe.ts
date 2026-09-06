@@ -19,10 +19,10 @@ import type { Fingering, FingeringChart } from "./types";
  *
  * Range shipped: B♭3 (the oboe's lowest note) to F6, exactly the brief's
  * target and the Woodwind Fingering Guide's own "third octave" chart
- * boundary. E6 and F6 both rely on a combined G♯/E♭ left-hand key
- * (`lhGsharpEb` below) that not every oboe has wired the same way, so if
- * your reed doesn't want to speak on either of those two, that combined key
- * is the first thing to check with a teacher.
+ * boundary. E6 and F6 use the ordinary G♯ and left-hand E♭ pinky keys
+ * together (WFG ob_bas_3: `I 023 G# Eb|-23`) -- both keys are already drawn
+ * separately in this layout for the lower notes; there is no combined
+ * "G♯/E♭" key on a conservatoire oboe.
  *
  * Left out: forked/resonance alternates and the open-hole vs closed-hole
  * trill variants the source lists for several throat and third-octave notes
@@ -36,16 +36,15 @@ const keys: FingeringChart["keys"] = [
   { id: "lh1", label: "1", hand: "L", x: 50, y: 17 },
   { id: "lh2", label: "2", hand: "L", x: 50, y: 26 },
   { id: "lh3", label: "3", hand: "L", x: 50, y: 35 },
-  { id: "lhBb", label: "B♭", hand: "L", x: 68, y: 13, r: 3.6 },
-  { id: "lhB", label: "B", hand: "L", x: 68, y: 19, r: 3.6 },
-  { id: "lhEb", label: "E♭", hand: "L", x: 68, y: 25, r: 3.6 },
-  { id: "lhF", label: "F", hand: "L", x: 68, y: 31, r: 3.6 },
-  { id: "lhGsharp", label: "G♯", hand: "L", x: 32, y: 39, shape: "lever", r: 3.8 },
-  { id: "lhGsharpEb", label: "G♯/E♭", hand: "L", x: 32, y: 45, shape: "lever", r: 3.8 },
+  { id: "lhBb", label: "B♭ (L pinky)", hand: "L", x: 30, y: 38, shape: "lever", r: 3.6 },
+  { id: "lhB", label: "B (L pinky)", hand: "L", x: 30, y: 44, shape: "lever", r: 3.6 },
+  { id: "lhEb", label: "E♭ (L pinky)", hand: "L", x: 30, y: 50, shape: "lever", r: 3.6 },
+  { id: "lhF", label: "F (L pinky)", hand: "L", x: 30, y: 56, shape: "lever", r: 3.6 },
+  { id: "lhGsharp", label: "G♯ (L pinky)", hand: "L", x: 30, y: 62, shape: "lever", r: 3.8 },
   { id: "rh1", label: "4", hand: "R", x: 50, y: 49 },
   { id: "rh2", label: "5", hand: "R", x: 50, y: 58 },
   { id: "rh3", label: "6", hand: "R", x: 50, y: 67 },
-  { id: "fRes", label: "F resonance", hand: "R", x: 34, y: 61, r: 3.4 },
+  { id: "fRes", label: "F key (RH ring)", hand: "R", x: 60, y: 63, r: 3.4 },
   { id: "rhC", label: "C", hand: "R", x: 68, y: 73, shape: "lever", r: 3.8 },
   { id: "rhCsharp", label: "C♯", hand: "R", x: 68, y: 79, shape: "lever", r: 3.8 },
   { id: "rhEb", label: "E♭", hand: "R", x: 68, y: 85, shape: "lever", r: 3.8 },
@@ -80,10 +79,10 @@ const fingerings: Fingering[] = [
   { id: "b5", writtenMidi: 83, keys: ["octave2", "lh1"], hint: "Second octave key and the left index finger alone." },
   { id: "c6", writtenMidi: 84, keys: ["octave2", "lh1", "rh1"], hint: "Second octave key, left and right index fingers." },
   { id: "cs6", writtenMidi: 85, keys: ["lh2", "lh3", "rh1", "rhC"], hint: "No octave key: left middle and ring fingers, right index, and the pinky C key." },
-  { id: "d6", writtenMidi: 86, halfKeys: ["lh1"], keys: ["lh2", "lh3", "rh1", "rhC"], hint: "Half-hole the left index, left middle and ring down, right index, pinky C key." },
+  { id: "d6", writtenMidi: 86, halfKeys: ["lh1"], keys: ["lh2", "lh3", "rhC"], hint: "Half-hole the left index, left middle and ring down, right hand open, pinky C key." },
   { id: "eb6", writtenMidi: 87, halfKeys: ["lh1"], keys: ["lh2", "lh3", "rh2", "rh3", "rhEb"], hint: "Half-hole the left index, left middle and ring down, right middle and ring, pinky E♭ key." },
-  { id: "e6", writtenMidi: 88, keys: ["octave1", "lh2", "lh3", "lhGsharpEb", "rh2", "rh3"], halfKeys: ["lh1"], hint: "First octave key, half-hole the left index, and the combined G♯/E♭ key." },
-  { id: "f6", writtenMidi: 89, keys: ["octave1", "lh2", "lhGsharpEb", "rh2", "rh3"], halfKeys: ["lh1"], hint: "Same shape as E6, left ring finger lifts off." },
+  { id: "e6", writtenMidi: 88, keys: ["octave1", "lh2", "lh3", "lhGsharp", "lhEb", "rh2", "rh3"], halfKeys: ["lh1"], hint: "First octave key, half-hole the left index, and the G♯ and E♭ pinky keys together." },
+  { id: "f6", writtenMidi: 89, keys: ["octave1", "lh2", "lhGsharp", "lhEb", "rh2", "rh3"], halfKeys: ["lh1"], hint: "Same shape as E6, left ring finger lifts off." },
 ];
 
 export const OBOE_CHART: FingeringChart = {
