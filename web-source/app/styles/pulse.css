@@ -1,0 +1,78 @@
+/* Pulse (PulseView) additions on top of the existing rules in globals.css --
+   metronome depth: count-in, swing, polyrhythm, delete affordances and the
+   calibrated drone. Token-driven, no literal hex, so both themes fall out of
+   the tokens globals.css already defines. */
+
+.pulse-plan-message {
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--subtle);
+  font-size: 13px;
+}
+
+.count-in-banner {
+  color: var(--cyan);
+}
+.count-in-banner strong {
+  color: var(--ink);
+}
+
+.swing-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--subtle);
+}
+.swing-row input[type="range"] {
+  flex: 1;
+  accent-color: var(--cyan);
+}
+.swing-row small {
+  min-width: 44px;
+  text-align: right;
+  color: var(--muted);
+}
+
+.preset-chip-wrap,
+.sequence-chip-wrap {
+  position: relative;
+  display: inline-flex;
+}
+.chip-delete {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--subtle);
+  cursor: pointer;
+  padding: 0;
+}
+.chip-delete:hover {
+  color: var(--ink);
+  border-color: var(--cyan);
+}
+
+/* The drone strip grew a second select (pitch class + octave) and an Hz
+   readout; let the row wrap on narrow phones instead of overflowing. */
+.drone-controls {
+  flex-wrap: wrap;
+  row-gap: 8px;
+}
+
+.drone-hz {
+  font-size: 12px;
+  color: var(--subtle);
+  white-space: nowrap;
+  align-self: center;
+}
