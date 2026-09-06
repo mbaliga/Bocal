@@ -110,6 +110,12 @@ test("analysis exposes local waveform, spectrum, and take recording without fake
   assert.match(source, /stay in this browser/i);
 });
 
+test("harmonics view no longer claims tone quality (embouchure/reed) from partial cents drift", async () => {
+  const source = await readFile(new URL("../app/AnalysisView.tsx", import.meta.url), "utf8");
+  assert.doesNotMatch(source, /embouchure/i);
+  assert.doesNotMatch(source, /reed fighting/i);
+});
+
 test("tuner exposes a calibrated tone generator and precision choices", async () => {
   const source = await readFile(new URL("../app/ToneGenerator.tsx", import.meta.url), "utf8");
   const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");

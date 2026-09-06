@@ -16,10 +16,17 @@ async function transpile(relativePath, fileName, rewrites = {}) {
 }
 
 const engineUrl = await transpile("../app/pitch-engine.ts", "pitch-engine.ts");
-const transcribeUrl = await transpile("../app/transcribe.ts", "transcribe.ts", { "./pitch-engine": engineUrl });
+const tuningUrl = await transpile("../app/tuning.ts", "tuning.ts");
+const transcribeUrl = await transpile("../app/transcribe.ts", "transcribe.ts", {
+  "./pitch-engine": engineUrl,
+  "./tuning": tuningUrl,
+});
 const harmonicsUrl = await transpile("../app/harmonics.ts", "harmonics.ts");
+const toneStatsUrl = await transpile("../app/tone-stats.ts", "tone-stats.ts", { "./transcribe": transcribeUrl });
 const { pitchTrackFrames } = await import(transcribeUrl);
-const { findHarmonicPeaks } = await import(harmonicsUrl);
+const { findHarmonicPeaks, advanceHarmonicSmoothing, decimateLinear, isModulating } = await import(harmonicsUrl);
+const { computeToneStats, MIN_SEGMENT_MS } = await import(toneStatsUrl);
+const { detectPitchYin } = await import(engineUrl);
 
 function midiToHz(midi) {
   return 440 * 2 ** ((midi - 69) / 12);
@@ -181,4 +188,101 @@ test("pitchTrackFrames leaves a gap where a steady tone drops into noise", async
 
   assert.ok(toneFrames.some((frame) => frame.midi !== null && Math.round(frame.midi) === 67), "the tone should be read as G4 somewhere");
   assert.ok(noiseFrames.every((frame) => frame.midi === null), "quiet noise after the tone should not read as a pitch");
+});
+
+test("advanceHarmonicSmoothing EMA-smooths toward each new peak and clears dropped partials", () => {
+  const peaksA = [{ n: 1, targetHz: 100, measuredHz: 100, cents: 0, level: -10 }, null];
+  const stateA = advanceHarmonicSmoothing([null, null], peaksA);
+  assert.equal(stateA[0].levelDb, -10);
+  assert.equal(stateA[1], null);
+
+  const peaksB = [{ n: 1, targetHz: 100, measuredHz: 100, cents: 0, level: 0 }, null];
+  const stateB = advanceHarmonicSmoothing(stateA, peaksB, 0.5);
+  assert.equal(stateB[0].levelDb, -5); // halfway from -10 toward 0 at alpha 0.5
+  assert.equal(stateB[1], null);
+});
+
+test("decimateLinear halves the sample count and preserves a steady tone's period", () => {
+  const sampleRate = 16000;
+  const hz = 220;
+  const samples = new Float32Array(4096);
+  for (let index = 0; index < samples.length; index += 1) samples[index] = Math.sin((2 * Math.PI * hz * index) / sampleRate);
+
+  const decimated = decimateLinear(samples, 2);
+  assert.equal(decimated.length, 2048);
+  const decimatedRate = sampleRate / 2;
+  const pitch = detectPitchYin(decimated, decimatedRate, 100, 400);
+  assert.ok(pitch, "decimated buffer should still yield a pitch");
+  assert.ok(Math.abs(pitch.hz - hz) < 2, `expected ~${hz} Hz after decimation, got ${pitch.hz}`);
+
+  assert.equal(decimateLinear(samples, 1), samples, "factor 1 is a no-op");
+});
+
+test("isModulating flags a moved fundamental and ignores a steady one", () => {
+  assert.equal(isModulating(440, 440), false);
+  assert.equal(isModulating(440, 440.2), false, "well under the 4-cent threshold");
+  assert.equal(isModulating(440, 445), true, "~20 cents apart should register as modulation");
+  assert.equal(isModulating(0, 440), false, "an invalid measurement should never itself flag modulation");
+});
+
+test("an exactly harmonic tone (no vibrato) never classifies a partial as off, referenced to measured H1", () => {
+  const sampleRate = 48000;
+  const fftSize = 8192;
+  const f0 = 440;
+  const samples = new Float32Array(fftSize);
+  for (let index = 0; index < fftSize; index += 1) {
+    const t = index / sampleRate;
+    let value = 0;
+    for (let n = 1; n <= 8; n += 1) value += (1 / n) * Math.sin(2 * Math.PI * f0 * n * t);
+    samples[index] = value * 0.3;
+  }
+  const binHz = sampleRate / fftSize;
+  const maxBin = Math.ceil((f0 * 9) / binHz);
+  const spectrum = magnitudeSpectrumDb(samples, fftSize, maxBin);
+  const nyquistLimit = (sampleRate / 2) * 0.9;
+
+  const h1 = findHarmonicPeaks(spectrum, binHz, f0, 1, nyquistLimit)[0];
+  const peaks = findHarmonicPeaks(spectrum, binHz, h1.measuredHz, 8, nyquistLimit);
+  for (const peak of peaks) {
+    assert.ok(peak, "every partial up to 8 should be found on an exact harmonic series at 440 Hz");
+    assert.ok(Math.abs(peak.cents) < 5, `partial ${peak.n} read ${peak.cents} cents off an exact harmonic series`);
+  }
+
+  const firstHalf = detectPitchYin(samples.subarray(0, fftSize / 2), sampleRate, 100, 1500);
+  const secondHalf = detectPitchYin(samples.subarray(fftSize / 2), sampleRate, 100, 1500);
+  assert.ok(firstHalf && secondHalf);
+  assert.equal(isModulating(firstHalf.hz, secondHalf.hz), false, "a steady tone must not be flagged as vibrato");
+});
+
+test("computeToneStats reports near-zero mean cents and no vibrato on a steady in-tune segment", () => {
+  const hopSec = 256 / 16000;
+  const frames = [];
+  for (let index = 0; index < 40; index += 1) {
+    frames.push({ timeSec: index * hopSec, midi: 69, cents: 0, confidence: 0.9, rms: 0.2 });
+  }
+  const stats = computeToneStats(frames);
+  assert.equal(stats.length, 1);
+  assert.ok(Math.abs(stats[0].meanCents) < 1);
+  assert.equal(stats[0].stdDevCents, 0);
+  assert.equal(stats[0].vibratoRateHz, null);
+});
+
+test("computeToneStats detects a ~6 Hz vibrato's rate and drops segments shorter than MIN_SEGMENT_MS", () => {
+  const hopMs = (256 / 16000) * 1000;
+  const vibratoHz = 6;
+  const totalMs = 800;
+  const frameCount = Math.round(totalMs / hopMs);
+  const frames = [];
+  for (let index = 0; index < frameCount; index += 1) {
+    const t = (index * hopMs) / 1000;
+    const cents = 15 * Math.sin(2 * Math.PI * vibratoHz * t);
+    frames.push({ timeSec: t, midi: 69, cents, confidence: 0.9, rms: 0.2 });
+  }
+  const stats = computeToneStats(frames);
+  assert.equal(stats.length, 1);
+  assert.ok(stats[0].vibratoRateHz !== null, "an 800ms segment with clear oscillation should yield a vibrato rate");
+  assert.ok(Math.abs(stats[0].vibratoRateHz - vibratoHz) < 2, `expected ~${vibratoHz} Hz, got ${stats[0].vibratoRateHz}`);
+
+  const shortFrames = frames.slice(0, Math.round((MIN_SEGMENT_MS - 50) / hopMs));
+  assert.equal(computeToneStats(shortFrames).length, 0, "a segment shorter than MIN_SEGMENT_MS must be dropped");
 });
