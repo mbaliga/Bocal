@@ -85,7 +85,18 @@ test("first run uses an immersive instrument gallery and replayable onboarding",
   assert.match(experience, /Fingering chart · 3D model not licensed/);
   assert.doesNotMatch(experience, /Not shipping · commercial licence required/);
   assert.match(experience, /availableId: "clarinet"/);
+  // The "Learn" onboarding step used to show identical "rotate the
+  // instrument" / "3D key map" copy to every instrument, including the ones
+  // with only a 2D chart or no model at all. It is now a function of
+  // labTier: assert that all four tier variants exist and that the old
+  // universal copy is gone, rather than pinning one literal string for
+  // every instrument.
+  assert.match(experience, /LEARN_STEP_BY_TIER/);
   assert.match(experience, /Watch the right keys light up/);
+  assert.match(experience, /See exactly which keys to press on a chart/);
+  assert.match(experience, /Turn the model and tap a part to learn it/);
+  assert.match(experience, /Tune each string, then follow colour-coded chords/);
+  assert.match(experience, /onboarding-whats-inside/);
   assert.doesNotMatch(experience, /ghost-palm|Hand guide|See the grip/);
 });
 
@@ -131,6 +142,27 @@ test("practice tools include measured metronome drills, goals, coach mode and so
   assert.match(source, /Export brief/);
   assert.match(source, /onProgress/);
   assert.match(data, /updateSongWish/);
+});
+
+test("the served handoff describes exactly as many instruments as the app ships", async () => {
+  const instrumentsSource = await readFile(new URL("../app/instruments.ts", import.meta.url), "utf8");
+  const orderMatch = instrumentsSource.match(/export const INSTRUMENT_ORDER: InstrumentId\[\] = \[([\s\S]*?)\];/);
+  assert.ok(orderMatch, "INSTRUMENT_ORDER must be found in instruments.ts");
+  const instrumentCount = orderMatch[1].split(",").map((entry) => entry.trim()).filter(Boolean).length;
+
+  const handoff = await readFile(new URL("../public/downloads/BOCAL_HANDOFF.md", import.meta.url), "utf8");
+  // Count instrument rows in the §2 table (every row has either "Yes" or
+  // "String tuner" in the Tuner column) rather than pinning a literal
+  // instrument count in prose, so this test breaks the moment the table and
+  // the app's real instrument list diverge again.
+  const tableRows = handoff.split("\n").filter((line) => /^\|.*\|\s*(Yes|String tuner)\s*\|/.test(line));
+  assert.equal(tableRows.length, instrumentCount);
+  assert.ok(instrumentCount >= 10, "sanity: the app should still list at least the ten known instruments");
+
+  // The handoff served in-app must be the same document as the canonical one
+  // in docs/, not a third divergent copy.
+  const docsHandoff = await readFile(new URL("../../docs/BOCAL_HANDOFF.md", import.meta.url), "utf8");
+  assert.equal(handoff, docsHandoff);
 });
 
 test("analysis keeps more than one take and supports local take management", async () => {
