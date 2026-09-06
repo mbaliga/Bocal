@@ -98,6 +98,27 @@ export function detectPitchYin(
   if (selectedTau < 0 && bestValue < 0.2) selectedTau = bestTau;
   if (selectedTau < 0) return null;
 
+  // Octave-error guard: a harmonic-rich tone's second period (tau/2, one
+  // octave up) can also sit below threshold and, for a high, thin-sounding
+  // note near the top of a widened search range, come out with a lower
+  // normalized value than the true fundamental. If halving the candidate
+  // period still lands on a comparably good minimum, prefer it -- this is
+  // what a flute's A6/C7 needs once maxHz is raised past 1600 Hz (tuner.md
+  // finding 1): the previous code had no way to tell "true 1760 Hz" from
+  // "880 Hz octave error that also fits" apart from maxHz happening to
+  // exclude the higher answer.
+  const halfTau = selectedTau / 2;
+  if (halfTau >= minimumTau) {
+    const lower = Math.floor(halfTau);
+    const upper = Math.min(maximumTau, lower + 1);
+    const halfValue = lower === upper
+      ? normalized[lower]
+      : normalized[lower] + (normalized[upper] - normalized[lower]) * (halfTau - lower);
+    if (Number.isFinite(halfValue) && halfValue <= normalized[selectedTau] * 1.05) {
+      selectedTau = Math.round(halfTau);
+    }
+  }
+
   const left = normalized[Math.max(1, selectedTau - 1)];
   const center = normalized[selectedTau];
   const right = normalized[Math.min(maximumTau, selectedTau + 1)];
@@ -126,17 +147,17 @@ function median(values: number[]) {
 }
 
 export class StablePitchTracker {
-  private readonly minHz: number;
-  private readonly maxHz: number;
-  private readonly yinThreshold: number;
-  private readonly minimumConfidence: number;
-  private readonly calibrationMs: number;
-  private readonly acquireFrames: number;
-  private readonly switchFrames: number;
-  private readonly holdMs: number;
-  private readonly clearMs: number;
-  private readonly smoothingAlpha: number;
-  private readonly smoothingAlphaHigh: number;
+  private minHz: number;
+  private maxHz: number;
+  private yinThreshold: number;
+  private minimumConfidence: number;
+  private calibrationMs: number;
+  private acquireFrames: number;
+  private switchFrames: number;
+  private holdMs: number;
+  private clearMs: number;
+  private smoothingAlpha: number;
+  private smoothingAlphaHigh: number;
   private noiseFloor = 0.0035;
   private startedAt: number | null = null;
   private lockedMidi: number | null = null;
@@ -160,6 +181,29 @@ export class StablePitchTracker {
     this.clearMs = options.clearMs ?? 1200;
     this.smoothingAlpha = options.smoothingAlpha ?? 0.22;
     this.smoothingAlphaHigh = options.smoothingAlphaHigh ?? 0.34;
+  }
+
+  /**
+   * Updates the tunable options in place -- unlike replacing the tracker
+   * with `new StablePitchTracker(options)`, this leaves `noiseFloor`,
+   * `startedAt`, `lockedMidi` and `centsHistory` untouched, so switching
+   * Sensitivity, Damping or the instrument's frequency range mid-session
+   * doesn't drop an active lock or restart the 320ms room calibration (see
+   * tuner.md finding "Changing Sensitivity or Damping mid-session rebuilds
+   * the tracker").
+   */
+  configure(options: StablePitchTrackerOptions) {
+    if (options.minHz !== undefined) this.minHz = options.minHz;
+    if (options.maxHz !== undefined) this.maxHz = options.maxHz;
+    if (options.yinThreshold !== undefined) this.yinThreshold = options.yinThreshold;
+    if (options.minimumConfidence !== undefined) this.minimumConfidence = options.minimumConfidence;
+    if (options.calibrationMs !== undefined) this.calibrationMs = options.calibrationMs;
+    if (options.acquireFrames !== undefined) this.acquireFrames = options.acquireFrames;
+    if (options.switchFrames !== undefined) this.switchFrames = options.switchFrames;
+    if (options.holdMs !== undefined) this.holdMs = options.holdMs;
+    if (options.clearMs !== undefined) this.clearMs = options.clearMs;
+    if (options.smoothingAlpha !== undefined) this.smoothingAlpha = options.smoothingAlpha;
+    if (options.smoothingAlphaHigh !== undefined) this.smoothingAlphaHigh = options.smoothingAlphaHigh;
   }
 
   reset() {

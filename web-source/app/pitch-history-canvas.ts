@@ -11,7 +11,15 @@
 
 import { octaveOf, spellingFor } from "./notation";
 import { detectStableSegments, type PitchHistoryBuffer } from "./pitch-history";
-import { STAFF_BOTTOM_LINE, type Clef } from "./StaffNote";
+import {
+  BASS_CLEF,
+  FLAT_GLYPH_PATH,
+  SHARP_GLYPH_PATHS,
+  STAFF_BOTTOM_LINE,
+  STAFF_LINE_SPACING,
+  TREBLE_CLEF,
+  type Clef,
+} from "./StaffNote";
 
 export type PitchHistoryMode = "line" | "staff";
 
@@ -92,7 +100,11 @@ export type DrawPitchHistoryOptions = {
  * approach -- there's no partial state to keep in sync.
  */
 export function drawPitchHistory(canvas: HTMLCanvasElement, buffer: PitchHistoryBuffer, options: DrawPitchHistoryOptions) {
-  const dpr = clamp(window.devicePixelRatio || 1, 1, 2);
+  // Clamped at 3 rather than 2 -- the canvas is a small, fixed 320x104 CSS-px
+  // area, so even 3x stays well under 1 MP, and 2x left the 9.5px axis
+  // labels and 1.7px trace noticeably soft on the 2.6-3.5x phones the
+  // 412x915 target represents (tuner.md finding "DPR capped at 2").
+  const dpr = clamp(window.devicePixelRatio || 1, 1, 3);
   const cssWidth = canvas.clientWidth || 320;
   const cssHeight = canvas.clientHeight || 96;
   const targetWidth = Math.max(1, Math.round(cssWidth * dpr));
@@ -204,12 +216,31 @@ function drawStaffMode(
     ctx.stroke();
   }
 
-  ctx.fillStyle = theme.muted;
-  ctx.font = `${Math.round(spacing * 1.7)}px system-ui, sans-serif`;
-  ctx.textAlign = "left";
-  ctx.textBaseline = "middle";
-  ctx.fillText(clef === "treble" ? "𝄞" : "𝄢", 2, top + spacing * 2);
+  // Path-based clef, scaled from StaffNote's own 10px-spacing geometry down
+  // to this graph's (smaller, variable) spacing -- drawing the same
+  // hand-authored strokes StaffNote.tsx uses rather than the Unicode 𝄞/𝄢
+  // glyphs, which tuner.md flags as a coin-flip on Android WebView (the
+  // component this module borrows the geometry from explicitly avoids them
+  // for that reason).
+  const clefScale = spacing / STAFF_LINE_SPACING;
+  ctx.save();
+  ctx.translate(6, top + spacing * 3);
+  ctx.scale(clefScale, clefScale);
+  ctx.strokeStyle = theme.muted;
+  ctx.lineWidth = 2.6 / clefScale;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.stroke(new Path2D(clef === "treble" ? TREBLE_CLEF : BASS_CLEF));
+  if (clef === "bass") {
+    ctx.fillStyle = theme.muted;
+    ctx.beginPath();
+    ctx.arc(18, 5, 1.9, 0, Math.PI * 2);
+    ctx.arc(18, 15, 1.9, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
 
+  const FOLD_LIMIT = 12;
   const segments = detectStableSegments(samples);
   for (const segment of segments) {
     const startSample = samples[segment.startIndex];
@@ -219,7 +250,15 @@ function drawStaffMode(
     const xEnd = timeToX(endSample.tMs);
     const xCenter = (xStart + xEnd) / 2;
 
-    const step = octaveOf(segment.midi) * 7 + spellingFor(segment.midi).letter - bottom;
+    const rawStep = octaveOf(segment.midi) * 7 + spellingFor(segment.midi).letter - bottom;
+    // Fold notes far outside the staff back an octave with an 8va/8vb badge
+    // rather than drawing them off the top/bottom of a fixed-height canvas
+    // (tuner.md: "any step >= 13 ... lands at y < 0 and is drawn outside the
+    // canvas"), the same fix StaffNote.tsx applies to the live readout.
+    let step = rawStep;
+    let octaveTag: "8va" | "8vb" | null = null;
+    while (step > FOLD_LIMIT) { step -= 7; octaveTag = "8va"; }
+    while (step < -FOLD_LIMIT) { step += 7; octaveTag = "8vb"; }
     const y = stepToY(step);
 
     // Ledger lines above or below the staff, same construction StaffNote.tsx
@@ -240,6 +279,29 @@ function drawStaffMode(
       }
     }
 
+    // Accidental, drawn immediately left of the notehead when the written
+    // spelling calls for one -- previously omitted entirely, so an adjacent
+    // sharp/natural or flat/natural pair (e.g. F#/F, Bb/B) drew identical
+    // noteheads on the same line (tuner.md: "the staff history cannot tell
+    // a player which of two adjacent semitones they were on").
+    const accidental = spellingFor(segment.midi).accidental;
+    if (accidental !== 0) {
+      const glyphScale = spacing / STAFF_LINE_SPACING;
+      ctx.save();
+      ctx.translate(xCenter - Math.max(9, spacing * 0.9), y);
+      ctx.scale(glyphScale, glyphScale);
+      ctx.strokeStyle = theme.ink;
+      ctx.lineWidth = (accidental > 0 ? 1.5 : 1.6) / glyphScale;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      if (accidental > 0) {
+        for (const d of SHARP_GLYPH_PATHS) ctx.stroke(new Path2D(d));
+      } else {
+        ctx.stroke(new Path2D(FLAT_GLYPH_PATH));
+      }
+      ctx.restore();
+    }
+
     // Sharp/flat shading, TE's "Note Staff" behaviour: a notehead sitting
     // right on target reads neutral, and leans warm/cool the further off it is.
     const color = Math.abs(segment.meanCents) < 3 ? theme.ink : segment.meanCents > 0 ? theme.sharp : theme.flat;
@@ -247,5 +309,13 @@ function drawStaffMode(
     ctx.beginPath();
     ctx.ellipse(xCenter, y, Math.max(3.2, spacing * 0.42), Math.max(2.4, spacing * 0.32), -0.35, 0, Math.PI * 2);
     ctx.fill();
+
+    if (octaveTag) {
+      ctx.fillStyle = theme.muted;
+      ctx.font = `italic ${Math.max(8, Math.round(spacing * 0.85))}px system-ui, sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(octaveTag, xCenter, octaveTag === "8va" ? y - spacing * 1.6 : y + spacing * 1.6);
+    }
   }
 }

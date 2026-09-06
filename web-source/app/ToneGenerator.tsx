@@ -60,13 +60,25 @@ export function ToneGenerator({
   temperamentKeyPc,
   notation,
   saTonic,
+  // TODO(WP3 tone-generator-2): wire this into `tuningOptions` below (add
+  // `customCents` to the object at this component's tuningOptions literal)
+  // so the synth voice follows a custom temperament the same way the tuner
+  // readout already does -- see tuner.md finding "Tone generator ignores the
+  // custom temperament while the tuner reads against it". WP1 (tuner
+  // fidelity) only adds the prop and passes it through from page.tsx so
+  // TypeScript stays clean ahead of WP3's fuller pass at this component;
+  // deliberately no behaviour change here to avoid conflicting with that
+  // work in flight.
+  customCents,
 }: {
   referenceHz: number;
   temperament: TemperamentId;
   temperamentKeyPc: number;
   notation: NotationSystem;
   saTonic: number;
+  customCents?: number[];
 }) {
+  void customCents;
   const [octave, setOctave] = useState(4);
   const [waveform, setWaveform] = useState<Waveform>("sine");
   const [volume, setVolume] = useState(0.12);

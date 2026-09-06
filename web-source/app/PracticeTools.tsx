@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import { addSongWish, COMPLETED_PRACTICE_STORAGE_KEY, parsePracticeActivities, parseSongWishlist, PRACTICE_ACTIVITY_STORAGE_KEY, recordPracticeActivity, SONG_WISHLIST_STORAGE_KEY, updateSongWish, type PracticeActivity, type PracticeActivityType, type SongWish } from "./practice-data";
+import type { TuningOptions } from "./tuning";
 import {
   cycleBeatMark,
   defaultAccentPattern,
@@ -134,7 +135,17 @@ const SCHEDULE_AHEAD = 0.12;
 /** How often the scheduler wakes to top up the queue. */
 const SCHEDULER_TICK_MS = 25;
 
-export function PulseView() {
+export function PulseView({
+  // TODO(WP4 metronome-2): wire this into the drone's tuning (12 pitch
+  // classes x octave picker, referenceHz/temperament instead of a fixed
+  // A440-equal drone) once the drone feature lands -- see PLAN.md's
+  // "WP4 metronome-2" item 4. WP1 (tuner fidelity) only adds the optional
+  // prop and passes the tuner's live tuningOptions through from page.tsx so
+  // TypeScript stays clean ahead of that work; deliberately no behaviour
+  // change here.
+  tuningOptions,
+}: { tuningOptions?: TuningOptions } = {}) {
+  void tuningOptions;
   const [bpm, setBpm] = useState(92);
   const [playing, setPlaying] = useState(false);
   const [beatsPerBar, setBeatsPerBar] = useState(4);
