@@ -3,7 +3,22 @@
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import {
+  DEFAULT_HIGHLIGHT,
+  ENVIRONMENTS,
+  OBOE_KEY_FINISHES,
+  OBOE_WOOD_TYPES,
+  SAX_BODY_FINISHES,
+  SAX_KEYWORK_FINISHES,
+  SAX_LIGATURE_OPTIONS,
+  SAX_MOUTHPIECE_OPTIONS,
+  classifyOboePart,
+  classifySaxPart,
+  type ModelId,
+  type ModelLook,
+} from "./model-looks";
 
 export type InstrumentViewId = "front" | "left" | "right" | "back";
 
@@ -36,6 +51,8 @@ const VIEW_POSITIONS: Record<InstrumentViewId, [number, number, number]> = {
   back: [0, 0.2, -12.2],
 };
 
+const PLAYER_POV_POSITION: [number, number, number] = [0, -1.6, 4.4];
+
 function cleanPartName(name: string) {
   return name
     .replace(/_My_Oboe_0$/i, "")
@@ -53,7 +70,24 @@ function markerBelongsInView(marker: FingeringMarker, view: InstrumentViewId) {
   return marker.side !== "back";
 }
 
-export function classifyInstrumentPart(name: string) {
+/** Ancestor chain (immediate parent first) up to the model root, by name. */
+function ancestorNames(object: THREE.Object3D, root: THREE.Object3D | null, limit = 6): string[] {
+  const names: string[] = [];
+  let current: THREE.Object3D | null = object.parent;
+  let steps = 0;
+  while (current && steps < limit) {
+    names.push(current.name);
+    if (current === root) break;
+    current = current.parent;
+    steps += 1;
+  }
+  return names;
+}
+
+export function classifyInstrumentPart(name: string, ancestors: string[] = []) {
+  if (ancestors.includes("Moving")) return "Key / lever (moves)";
+  if (ancestors.includes("Static")) return "Post, pillar or spring (fixed)";
+  if (ancestors.includes("Oboe_Base")) return "Body";
   const value = name.toLowerCase();
   if (value.includes("padandrod") || value.includes("pad and rod")) return "Key and pad assembly";
   if (value.includes("spring")) return "Spring";
@@ -64,6 +98,14 @@ export function classifyInstrumentPart(name: string) {
   return "Instrument component";
 }
 
+/**
+ * The pre-look default material: a single legible "bronze study" finish
+ * (body vs. keywork) used before a ModelLook is applied, and as the
+ * fallback whenever a mesh cannot be classified. `0xd7a94d` (keywork) and
+ * `0xa66d2d` (body) are the honest, unmodified reference colours -- kept as
+ * literal defaults here rather than only in model-looks.ts so the rendering
+ * layer always has a legible fallback with no external data dependency.
+ */
 function bronzeStudyMaterial(meshName: string, source: THREE.Material) {
   const signature = `${meshName} ${source.name}`.toLowerCase();
   const namedKeywork = /(key|rod|spring|lever|cap|ring|guard|brace|pad|pearl|metal)/.test(signature);
@@ -87,6 +129,89 @@ function bronzeStudyMaterial(meshName: string, source: THREE.Material) {
   return material;
 }
 
+function saxLookMaterial(meshName: string, source: THREE.Material, look: ModelLook) {
+  const role = classifySaxPart(meshName);
+  const body = SAX_BODY_FINISHES.find((f) => f.id === look.bodyFinish) ?? SAX_BODY_FINISHES[0];
+  const keywork = SAX_KEYWORK_FINISHES.find((f) => f.id === look.keyworkFinish) ?? SAX_KEYWORK_FINISHES[0];
+  const mouthpiece = SAX_MOUTHPIECE_OPTIONS.find((m) => m.id === look.mouthpiece) ?? SAX_MOUTHPIECE_OPTIONS[0];
+  const ligature = SAX_LIGATURE_OPTIONS.find((l) => l.id === look.ligature) ?? SAX_LIGATURE_OPTIONS[0];
+
+  let color = body.body;
+  let metalness = 0.76;
+  let roughness = 0.36;
+  if (role === "keywork") {
+    color = keywork.keywork;
+    metalness = keywork.id === "black-nickel" ? 0.7 : 0.9;
+    roughness = keywork.id === "black-nickel" ? 0.35 : 0.2;
+  } else if (role === "mouthpiece") {
+    color = mouthpiece.color;
+    metalness = mouthpiece.metallic ? 0.85 : 0.05;
+    roughness = mouthpiece.metallic ? 0.25 : 0.55;
+  } else if (role === "ligature") {
+    color = ligature.color;
+    metalness = 0.82;
+    roughness = 0.24;
+  }
+
+  const material = new THREE.MeshPhysicalMaterial({
+    color,
+    metalness,
+    roughness,
+    clearcoat: 0.5,
+    clearcoatRoughness: 0.3,
+    side: source.side,
+  });
+  material.name = `Bocal look · ${role} · ${meshName}`;
+  material.userData.bocalLookRole = role;
+  return material;
+}
+
+async function oboeLookMaterial(
+  meshName: string,
+  source: THREE.MeshStandardMaterial,
+  ancestors: string[],
+  look: ModelLook,
+  parser: { getDependency: (type: string, index: number) => Promise<unknown> } | null,
+  goldTextureCache: { current: THREE.Texture | null | undefined },
+) {
+  const role = classifyOboePart(ancestors);
+  const wood = OBOE_WOOD_TYPES.find((w) => w.id === look.bodyFinish) ?? OBOE_WOOD_TYPES[0];
+  const keyFinish = OBOE_KEY_FINISHES.find((k) => k.id === look.keyworkFinish) ?? OBOE_KEY_FINISHES[0];
+
+  const material = new THREE.MeshStandardMaterial({
+    map: source.map ?? null,
+    normalMap: source.normalMap ?? null,
+    roughnessMap: source.roughnessMap ?? null,
+    metalnessMap: source.metalnessMap ?? null,
+    metalness: role === "keywork" ? 0.85 : 0.15,
+    roughness: role === "keywork" ? 0.32 : 0.55,
+    side: source.side,
+  });
+
+  if (role === "body") {
+    material.color.setHex(wood.tint);
+  } else if (keyFinish.useGoldTexture) {
+    if (goldTextureCache.current === undefined && parser) {
+      try {
+        goldTextureCache.current = (await parser.getDependency("texture", 3)) as THREE.Texture;
+      } catch {
+        goldTextureCache.current = null;
+      }
+    }
+    if (goldTextureCache.current) {
+      material.map = goldTextureCache.current;
+      material.color.setHex(0xffffff);
+    } else {
+      material.color.setHex(0xc8922f);
+    }
+  } else {
+    material.color.setHex(keyFinish.tint);
+  }
+  material.name = `Bocal look · ${role} · ${meshName}`;
+  material.userData.bocalLookRole = role;
+  return material;
+}
+
 export function ImportedInstrumentCanvas({
   src,
   label,
@@ -99,6 +224,8 @@ export function ImportedInstrumentCanvas({
   activeMarkerIds,
   showFingeringGuides = false,
   onMarkerToggle,
+  modelId,
+  look,
 }: {
   src: string;
   label: string;
@@ -111,6 +238,8 @@ export function ImportedInstrumentCanvas({
   activeMarkerIds?: ReadonlySet<string>;
   showFingeringGuides?: boolean;
   onMarkerToggle?: (id: string) => void;
+  modelId?: ModelId;
+  look?: ModelLook;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -121,6 +250,10 @@ export function ImportedInstrumentCanvas({
   const activeMarkerIdsRef = useRef(activeMarkerIds);
   const showFingeringGuidesRef = useRef(showFingeringGuides);
   const viewPresetRef = useRef(viewPreset);
+  const lookRef = useRef(look);
+  const needsRenderRef = useRef(true);
+  const applyLookRef = useRef<(() => void) | null>(null);
+  const applyEnvironmentRef = useRef<(() => void) | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error" | "no-webgl">("loading");
 
   useEffect(() => { markerToggleRef.current = onMarkerToggle; }, [onMarkerToggle]);
@@ -130,27 +263,47 @@ export function ImportedInstrumentCanvas({
     activeMarkerIdsRef.current = activeMarkerIds;
     showFingeringGuidesRef.current = showFingeringGuides;
     viewPresetRef.current = viewPreset;
+    const highlight = lookRef.current?.highlight ?? DEFAULT_HIGHLIGHT;
     markerVisualsRef.current.forEach((visual, id) => {
       const active = activeMarkerIds?.has(id) ?? false;
       visual.group.visible = (active || showFingeringGuides) && markerBelongsInView(visual.marker, viewPreset);
       visual.group.scale.setScalar(active ? 1.04 : 0.72);
-      visual.contactMaterial.color.setHex(active ? 0x08fed5 : 0x2a261d);
-      visual.contactMaterial.emissive.setHex(active ? 0x075f52 : 0x000000);
+      visual.contactMaterial.color.setHex(active ? highlight : 0x2a261d);
+      visual.contactMaterial.emissive.setHex(active ? highlight : 0x000000);
       visual.contactMaterial.emissiveIntensity = active ? 2.4 : 0;
       visual.contactMaterial.opacity = active ? 0.92 : 0.18;
-      visual.ringMaterial.color.setHex(active ? 0x08fed5 : 0xc99837);
+      visual.ringMaterial.color.setHex(active ? highlight : 0xc99837);
       visual.ringMaterial.opacity = active ? 1 : 0.36;
       visual.haloMaterial.opacity = active ? 0.72 : 0.08;
       visual.halo.scale.setScalar(active ? 0.74 : 0.42);
     });
-  }, [activeMarkerIds, showFingeringGuides, viewPreset]);
+    needsRenderRef.current = true;
+  }, [activeMarkerIds, showFingeringGuides, viewPreset, look?.highlight]);
 
   useEffect(() => {
     if (!cameraRef.current || !controlsRef.current) return;
-    cameraRef.current.position.set(...VIEW_POSITIONS[viewPreset]);
+    let position = VIEW_POSITIONS[viewPreset];
+    if (look?.cameraPreset === "mirrored") position = [-position[0], position[1], position[2]];
+    if (look?.cameraPreset === "player-pov") position = PLAYER_POV_POSITION;
+    cameraRef.current.position.set(...position);
     controlsRef.current.target.set(0, 0, 0);
     controlsRef.current.update();
-  }, [resetView, viewPreset]);
+    needsRenderRef.current = true;
+  }, [resetView, viewPreset, look?.cameraPreset]);
+
+  // Apply look (finish/keywork/mouthpiece/ligature/exploded) to the already
+  // loaded model in place -- never remounts the renderer.
+  useEffect(() => {
+    lookRef.current = look;
+    applyLookRef.current?.();
+    needsRenderRef.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally narrow: only re-applies material work when a material-affecting field changes, not on every look identity change (environment/background/cameraPreset/highlight are handled by their own effects).
+  }, [look?.bodyFinish, look?.keyworkFinish, look?.mouthpiece, look?.ligature, look?.exploded]);
+
+  useEffect(() => {
+    applyEnvironmentRef.current?.();
+    needsRenderRef.current = true;
+  }, [look?.environment]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -180,8 +333,14 @@ export function ImportedInstrumentCanvas({
     renderer.setClearColor(0x000000, 0);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.82;
+    const baseExposure = 1.82;
+    renderer.toneMappingExposure = baseExposure;
     container.appendChild(renderer.domElement);
+
+    const pmremGenerator = new THREE.PMREMGenerator(renderer);
+    const roomEnvironment = new RoomEnvironment();
+    const envMap = pmremGenerator.fromScene(roomEnvironment, 0.04).texture;
+    scene.environment = envMap;
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
@@ -192,6 +351,7 @@ export function ImportedInstrumentCanvas({
     controls.target.set(0, 0, 0);
     controls.update();
     controlsRef.current = controls;
+    controls.addEventListener("change", () => { needsRenderRef.current = true; });
 
     scene.add(new THREE.AmbientLight(0xffffff, 1.25));
     scene.add(new THREE.HemisphereLight(0xf7f6ff, 0x33291c, 4.4));
@@ -204,9 +364,21 @@ export function ImportedInstrumentCanvas({
     const rimLight = new THREE.DirectionalLight(0x8e7bff, 5.1);
     rimLight.position.set(5, 2, -6);
     scene.add(rimLight);
-    const cyanLight = new THREE.PointLight(0x08fed5, 16, 9, 2);
+    const highlightAtMount = lookRef.current?.highlight ?? DEFAULT_HIGHLIGHT;
+    const cyanLight = new THREE.PointLight(highlightAtMount, 16, 9, 2);
     cyanLight.position.set(-2.5, -1.8, 3.2);
     scene.add(cyanLight);
+
+    applyEnvironmentRef.current = () => {
+      const envId = lookRef.current?.environment ?? "studio";
+      const environment = ENVIRONMENTS.find((e) => e.id === envId) ?? ENVIRONMENTS[0];
+      keyLight.color.setHex(environment.lightTint);
+      frontFill.color.setHex(environment.lightTint);
+      renderer.toneMappingExposure = baseExposure * environment.exposureScale;
+      const background = lookRef.current?.background ?? "dark";
+      container.dataset.modelBackground = background;
+    };
+    applyEnvironmentRef.current();
 
     const markerVisuals = new Map<string, MarkerVisual>();
     const markerHitTargets: THREE.Mesh[] = [];
@@ -227,13 +399,14 @@ export function ImportedInstrumentCanvas({
     glowTexture.colorSpace = THREE.SRGBColorSpace;
     for (const marker of fingeringMarkers) {
       const active = activeMarkerIdsRef.current?.has(marker.id) ?? false;
+      const highlight = lookRef.current?.highlight ?? DEFAULT_HIGHLIGHT;
       const group = new THREE.Group();
       group.position.set(...marker.position);
       group.visible = (active || showFingeringGuidesRef.current) && markerBelongsInView(marker, viewPresetRef.current);
 
       const contactMaterial = new THREE.MeshStandardMaterial({
-        color: active ? 0x08fed5 : 0x2a261d,
-        emissive: active ? 0x075f52 : 0x000000,
+        color: active ? highlight : 0x2a261d,
+        emissive: active ? highlight : 0x000000,
         emissiveIntensity: active ? 2.4 : 0,
         metalness: 0.08,
         roughness: 0.25,
@@ -247,7 +420,7 @@ export function ImportedInstrumentCanvas({
       group.add(contact);
 
       const ringMaterial = new THREE.MeshBasicMaterial({
-        color: active ? 0x08fed5 : 0xc99837,
+        color: active ? highlight : 0xc99837,
         transparent: true,
         opacity: active ? 0.98 : 0.44,
         depthTest: false,
@@ -258,7 +431,7 @@ export function ImportedInstrumentCanvas({
 
       const haloMaterial = new THREE.SpriteMaterial({
         map: glowTexture,
-        color: 0x08fed5,
+        color: highlight,
         transparent: true,
         opacity: active ? 0.72 : 0.08,
         depthTest: false,
@@ -287,32 +460,107 @@ export function ImportedInstrumentCanvas({
     let disposed = false;
     let importedRoot: THREE.Object3D | null = null;
     let selectionBox: THREE.BoxHelper | null = null;
+    const explodableMeshes: THREE.Mesh[] = [];
+    const goldTextureCache: { current: THREE.Texture | null | undefined } = { current: undefined };
     const loader = new GLTFLoader();
     loader.load(
       src,
       (gltf) => {
         if (disposed) return;
         importedRoot = isolateRootName ? gltf.scene.getObjectByName(isolateRootName) ?? gltf.scene : gltf.scene;
-        const firstBox = new THREE.Box3().setFromObject(importedRoot);
+        const root = importedRoot;
+        // P0 fix: reparent with scene.attach() (preserves matrixWorld) BEFORE
+        // measuring, so ancestor scale/rotation the isolated node relied on
+        // (e.g. the oboe FBX's 0.01 scale) is baked into its transform
+        // rather than silently dropped by a later scene.add(). Normalising
+        // on the largest extent (not always .y) protects a future
+        // horizontally-authored import from the same class of bug.
+        scene.attach(root);
+        const firstBox = new THREE.Box3().setFromObject(root);
         const size = firstBox.getSize(new THREE.Vector3());
-        const scale = 7.1 / Math.max(size.y, 0.001);
-        importedRoot.scale.multiplyScalar(scale);
-        const normalizedBox = new THREE.Box3().setFromObject(importedRoot);
+        const largestExtent = Math.max(size.x, size.y, size.z, 0.001);
+        const scale = 7.1 / largestExtent;
+        root.scale.multiplyScalar(scale);
+        const normalizedBox = new THREE.Box3().setFromObject(root);
         const center = normalizedBox.getCenter(new THREE.Vector3());
-        importedRoot.position.sub(center);
-        importedRoot.position.y += 0.05;
-        importedRoot.traverse((object) => {
+        root.position.sub(center);
+        root.position.y += 0.05;
+
+        const isOboe = modelId === "oboe";
+        const materialPromises: Promise<void>[] = [];
+        let explodeIndex = 0;
+        root.traverse((object) => {
           if (object instanceof THREE.Mesh) {
             object.castShadow = false;
             object.receiveShadow = false;
+            object.userData.basePosition = object.position.clone();
+            const ancestors = ancestorNames(object, root);
+            const role = isOboe ? classifyOboePart(ancestors) : classifySaxPart(object.name);
+            if (role === "keywork") {
+              explodeIndex += 1;
+              const sign = explodeIndex % 2 === 0 ? 1 : -1;
+              object.userData.explodeOffset = new THREE.Vector3(sign * (0.12 + 0.01 * explodeIndex), 0, 0);
+              explodableMeshes.push(object);
+            } else if (role === "mouthpiece" || role === "ligature") {
+              object.userData.explodeOffset = new THREE.Vector3(0, 0, role === "mouthpiece" ? -0.55 : -0.3);
+              explodableMeshes.push(object);
+            }
+
             const sourceMaterials = Array.isArray(object.material) ? object.material : [object.material];
-            const bronzeMaterials = sourceMaterials.map((material) => bronzeStudyMaterial(object.name, material));
-            object.material = Array.isArray(object.material) ? bronzeMaterials : bronzeMaterials[0];
+            const fallbackMaterials = sourceMaterials.map((material) => bronzeStudyMaterial(object.name, material));
+            object.material = Array.isArray(object.material) ? fallbackMaterials : fallbackMaterials[0];
             object.userData.bocalBronzeStudy = true;
+
+            const currentLook = lookRef.current;
+            if (currentLook) {
+              if (isOboe) {
+                const sourceForOboe = sourceMaterials[0] as THREE.MeshStandardMaterial;
+                materialPromises.push(
+                  oboeLookMaterial(object.name, sourceForOboe, ancestors, currentLook, gltf.parser as unknown as { getDependency: (type: string, index: number) => Promise<unknown> }, goldTextureCache).then((material) => {
+                    object.material = material;
+                  }),
+                );
+              } else {
+                const fallback = object.material;
+                object.material = saxLookMaterial(object.name, sourceMaterials[0], currentLook);
+                if (fallback instanceof THREE.Material) fallback.dispose();
+                else if (Array.isArray(fallback)) fallback.forEach((m) => m.dispose());
+              }
+            }
           }
         });
-        scene.add(importedRoot);
+        Promise.all(materialPromises).then(() => { needsRenderRef.current = true; });
+
+        applyLookRef.current = () => {
+          const currentLook = lookRef.current;
+          if (!currentLook || !importedRoot) return;
+          importedRoot.traverse((object) => {
+            if (!(object instanceof THREE.Mesh)) return;
+            if (isOboe) {
+              const sourceForOboe = object.material as THREE.MeshStandardMaterial;
+              void oboeLookMaterial(object.name, sourceForOboe, ancestorNames(object, importedRoot), currentLook, gltf.parser as unknown as { getDependency: (type: string, index: number) => Promise<unknown> }, goldTextureCache).then((material) => {
+                const previous = object.material;
+                object.material = material;
+                if (previous instanceof THREE.Material) previous.dispose();
+                needsRenderRef.current = true;
+              });
+            } else {
+              const previous = object.material;
+              object.material = saxLookMaterial(object.name, Array.isArray(previous) ? previous[0] : previous, currentLook);
+              if (previous instanceof THREE.Material) previous.dispose();
+              else if (Array.isArray(previous)) previous.forEach((m) => m.dispose());
+            }
+            const offset = object.userData.explodeOffset as THREE.Vector3 | undefined;
+            const base = object.userData.basePosition as THREE.Vector3 | undefined;
+            if (offset && base) {
+              object.position.copy(currentLook.exploded ? base.clone().add(offset) : base);
+            }
+          });
+        };
+
+        scene.add(root);
         setStatus("ready");
+        needsRenderRef.current = true;
       },
       undefined,
       () => {
@@ -348,12 +596,14 @@ export function ImportedInstrumentCanvas({
       }
       const rawName = hit.object.name || hit.object.parent?.name || "Instrument component";
       const name = cleanPartName(rawName);
-      partSelectRef.current?.({ name, category: classifyInstrumentPart(name) });
+      const ancestors = ancestorNames(hit.object, importedRoot);
+      partSelectRef.current?.({ name, category: classifyInstrumentPart(name, ancestors) });
       if (selectionBox) scene.remove(selectionBox);
-      selectionBox = new THREE.BoxHelper(hit.object, 0x08fed5);
+      selectionBox = new THREE.BoxHelper(hit.object, lookRef.current?.highlight ?? DEFAULT_HIGHLIGHT);
       selectionBox.material.transparent = true;
       selectionBox.material.opacity = 0.72;
       scene.add(selectionBox);
+      needsRenderRef.current = true;
     };
     let pointerDownPosition: { x: number; y: number } | null = null;
     const onPointerDown = (event: PointerEvent) => {
@@ -376,22 +626,42 @@ export function ImportedInstrumentCanvas({
       renderer.setSize(width, height, false);
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
+      needsRenderRef.current = true;
     };
     const observer = new ResizeObserver(resize);
     observer.observe(container);
     resize();
 
+    let visible = true;
+    const intersectionObserver = typeof IntersectionObserver !== "undefined"
+      ? new IntersectionObserver(
+          (entries) => {
+            visible = entries[0]?.isIntersecting ?? true;
+            if (visible) needsRenderRef.current = true;
+          },
+          { threshold: 0.01 },
+        )
+      : null;
+    intersectionObserver?.observe(container);
+
     let animationFrame = 0;
     const animate = () => {
-      controls.update();
-      selectionBox?.update();
-      const pulse = 1 + Math.sin(performance.now() * 0.004) * 0.08;
-      markerVisuals.forEach((visual, id) => {
-        visual.ring.lookAt(camera.position);
-        if (activeMarkerIdsRef.current?.has(id)) visual.halo.scale.setScalar(0.74 * pulse);
-      });
-      renderer.render(scene, camera);
       animationFrame = requestAnimationFrame(animate);
+      if (!visible) return;
+      controls.update();
+      const hasActiveMarker = Array.from(activeMarkerIdsRef.current ?? []).length > 0;
+      if (hasActiveMarker) {
+        const pulse = 1 + Math.sin(performance.now() * 0.004) * 0.08;
+        markerVisuals.forEach((visual, id) => {
+          visual.ring.lookAt(camera.position);
+          if (activeMarkerIdsRef.current?.has(id)) visual.halo.scale.setScalar(0.74 * pulse);
+        });
+        needsRenderRef.current = true;
+      }
+      selectionBox?.update();
+      if (!needsRenderRef.current) return;
+      renderer.render(scene, camera);
+      needsRenderRef.current = false;
     };
     animate();
 
@@ -399,10 +669,14 @@ export function ImportedInstrumentCanvas({
       disposed = true;
       cancelAnimationFrame(animationFrame);
       observer.disconnect();
+      intersectionObserver?.disconnect();
       renderer.domElement.removeEventListener("pointerdown", onPointerDown);
       renderer.domElement.removeEventListener("pointermove", onPointerMove);
       renderer.domElement.removeEventListener("pointerup", onPointerRelease);
       controls.dispose();
+      applyLookRef.current = null;
+      applyEnvironmentRef.current = null;
+      pmremGenerator.dispose();
       renderer.dispose();
       scene.traverse((object) => {
         if (object instanceof THREE.Mesh) {
@@ -417,7 +691,7 @@ export function ImportedInstrumentCanvas({
       markerVisualsRef.current = new Map();
       glowTexture.dispose();
     };
-  }, [fingeringMarkers, inspectParts, isolateRootName, src]);
+  }, [fingeringMarkers, inspectParts, isolateRootName, src, modelId]);
 
   return (
     <div className="imported-instrument-canvas" ref={containerRef} role="img" aria-label={label}>

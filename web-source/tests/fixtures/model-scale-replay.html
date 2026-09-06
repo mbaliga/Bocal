@@ -1,0 +1,41 @@
+<!doctype html><meta charset="utf-8">
+<script type="importmap">{"imports":{"three":"file:///home/user/Bocal/.claude/worktrees/agent-a6dba60102c976be4/web-source/node_modules/three/build/three.module.js","three/addons/":"file:///home/user/Bocal/.claude/worktrees/agent-a6dba60102c976be4/web-source/node_modules/three/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+// Replays the fixed normalisation algorithm from ImportedInstrumentCanvas.tsx:
+// scene.attach() (preserves matrixWorld) BEFORE measuring, then normalise on
+// the largest extent rather than always .y.
+window.replayFixedNormalisation = async (b64, isolateRootName) => {
+  try {
+    const bin = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)).buffer;
+    const gltf = await new Promise((resolve, reject) => new GLTFLoader().parse(bin, '', resolve, reject));
+    const scene = new THREE.Scene();
+    const importedRoot = isolateRootName ? gltf.scene.getObjectByName(isolateRootName) ?? gltf.scene : gltf.scene;
+
+    scene.attach(importedRoot);
+    const firstBox = new THREE.Box3().setFromObject(importedRoot);
+    const size = firstBox.getSize(new THREE.Vector3());
+    const largestExtent = Math.max(size.x, size.y, size.z, 0.001);
+    const scale = 7.1 / largestExtent;
+    importedRoot.scale.multiplyScalar(scale);
+
+    const normalizedBox = new THREE.Box3().setFromObject(importedRoot);
+    const center = normalizedBox.getCenter(new THREE.Vector3());
+    importedRoot.position.sub(center);
+    importedRoot.position.y += 0.05;
+
+    const afterBox = new THREE.Box3().setFromObject(importedRoot);
+    const afterSize = afterBox.getSize(new THREE.Vector3());
+    return {
+      firstSize: [size.x, size.y, size.z].map((v) => +v.toFixed(3)),
+      largestExtentAfter: +Math.max(afterSize.x, afterSize.y, afterSize.z).toFixed(4),
+      afterSize: [afterSize.x, afterSize.y, afterSize.z].map((v) => +v.toFixed(3)),
+    };
+  } catch (error) {
+    return { error: error?.message ?? String(error) };
+  }
+};
+window.ready = true;
+</script>

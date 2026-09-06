@@ -20,7 +20,10 @@ import { FingeringChart } from "./FingeringChart";
 import { FINGERING_CHARTS } from "./fingering-charts";
 import { ImportedInstrumentCanvas, type InstrumentViewId } from "./ImportedInstrumentCanvas";
 import { INSTRUMENTS, type InstrumentId } from "./instruments";
+import { ModelLookPanel } from "./ModelLookPanel";
+import { defaultOboeLook, loadModelLook, saveModelLook, type ModelLook } from "./model-looks";
 import type { NotationSystem } from "./notation";
+import "./styles/model-look.css";
 
 const OBOE_VIEWS: Array<{ id: InstrumentViewId; label: string }> = [
   { id: "front", label: "Front" },
@@ -55,6 +58,23 @@ export function OboeLab({
   const [immersive, setImmersive] = useState(false);
   const [selectedPart, setSelectedPart] = useState<{ name: string; category: string } | null>(null);
   const selectPart = useCallback((part: { name: string; category: string } | null) => setSelectedPart(part), []);
+  const [look, setLook] = useState<ModelLook>(() => loadModelLook(instrumentId, defaultOboeLook()));
+  const [lookInstrumentId, setLookInstrumentId] = useState(instrumentId);
+
+  // Re-hydrate the look when the instrument identity changes (adjusting
+  // state during render, not in an effect, so this never cascades).
+  if (instrumentId !== lookInstrumentId) {
+    setLookInstrumentId(instrumentId);
+    setLook(loadModelLook(instrumentId, defaultOboeLook()));
+  }
+
+  const updateLook = useCallback((next: Partial<ModelLook>) => {
+    setLook((current) => {
+      const merged = { ...current, ...next };
+      saveModelLook(instrumentId, merged);
+      return merged;
+    });
+  }, [instrumentId]);
 
   useEffect(() => {
     if (!immersive) return;
@@ -117,6 +137,8 @@ export function OboeLab({
               isolateRootName="Oboe"
               inspectParts
               onPartSelect={selectPart}
+              modelId="oboe"
+              look={look}
             />
             <div className="oboe-model-badge">
               <small>Reference instrument</small>
@@ -125,6 +147,7 @@ export function OboeLab({
             </div>
             <div className="drag-hint"><Rotate3D size={15} /> Drag to orbit</div>
           </section>
+          <ModelLookPanel look={look} onChange={updateLook} instrumentKind="oboe" />
         </div>
 
         <aside className="oboe-inspector">
