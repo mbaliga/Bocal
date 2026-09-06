@@ -1,23 +1,7 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import test from "node:test";
-import ts from "typescript";
-
-async function loadSaxData() {
-  const sourceUrl = new URL("../app/sax-data.ts", import.meta.url);
-  const source = await readFile(sourceUrl, "utf8");
-  const { outputText } = ts.transpileModule(source, {
-    compilerOptions: {
-      module: ts.ModuleKind.ESNext,
-      target: ts.ScriptTarget.ES2022,
-    },
-    fileName: "sax-data.ts",
-    reportDiagnostics: true,
-  });
-  return import(`data:text/javascript;base64,${Buffer.from(outputText).toString("base64")}`);
-}
-
-const data = await loadSaxData();
+import * as data from "../app/sax-data.ts";
+import { INSTRUMENTS } from "../app/instruments.ts";
 
 test("modern alto exposes every distinct player touch-piece", () => {
   const ids = data.SAX_KEYS.map((key) => key.id);
@@ -126,14 +110,6 @@ test("SAXOPHONE_FINGERINGS is the map and ALTO_FINGERINGS is a back-compat alias
 });
 
 test("written pitch transposes to the correct concert pitch on every saxophone", async () => {
-  const instrumentsSource = await readFile(new URL("../app/instruments.ts", import.meta.url), "utf8");
-  const { outputText } = ts.transpileModule(instrumentsSource, {
-    compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
-    fileName: "instruments.ts",
-    reportDiagnostics: true,
-  });
-  const { INSTRUMENTS } = await import(`data:text/javascript;base64,${Buffer.from(outputText).toString("base64")}`);
-
   // Written B♭3 (midi 58) is the same grip on every saxophone; only the
   // sounding (concert) pitch differs, by the instrument's writtenOffset.
   const writtenBb3 = 58;

@@ -44,6 +44,15 @@ export default defineConfig(async () => {
   const { cloudflare } = await import("@cloudflare/vite-plugin");
 
   return {
+    // `SaxophoneLab`/`ImportedInstrumentCanvas` load three.js, but only ever
+    // render behind `next/dynamic(..., { ssr: false })` -- the SSR bundle
+    // never executes that code, yet three.js was still being bundled into
+    // it (1.5+ MB, 77 WebGLRenderer references measured in engineering.md).
+    // Marking it external for the ssr environment keeps it out of that
+    // bundle; the client build is unaffected.
+    ssr: {
+      external: ["three"],
+    },
     server: {
       host: "0.0.0.0",
       allowedHosts: ["terminal.local"],

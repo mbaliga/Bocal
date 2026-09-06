@@ -7,11 +7,11 @@
 // codebase actually uses — React.lazy plus a loading fallback — without
 // touching app/page.tsx, which stays identical between the real deployable
 // build and this preview.
-import { lazy, Suspense, type ComponentType } from "react";
+import { lazy, Suspense, type ComponentType, type ReactNode } from "react";
 
 type DynamicOptions = {
   ssr?: boolean;
-  loading?: () => JSX.Element;
+  loading?: () => ReactNode;
 };
 
 export default function dynamic<P extends object>(

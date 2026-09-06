@@ -1,25 +1,7 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import test from "node:test";
-import ts from "typescript";
-
-async function transpile(relativePath, fileName, rewrites = {}) {
-  let source = await readFile(new URL(relativePath, import.meta.url), "utf8");
-  for (const [specifier, replacement] of Object.entries(rewrites)) {
-    source = source.replaceAll(`"${specifier}"`, `"${replacement}"`);
-  }
-  const { outputText } = ts.transpileModule(source, {
-    compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
-    fileName,
-  });
-  return `data:text/javascript;base64,${Buffer.from(outputText).toString("base64")}`;
-}
-
-const engineUrl = await transpile("../app/pitch-engine.ts", "pitch-engine.ts");
-const transcribeUrl = await transpile("../app/transcribe.ts", "transcribe.ts", { "./pitch-engine": engineUrl });
-const harmonicsUrl = await transpile("../app/harmonics.ts", "harmonics.ts");
-const { pitchTrackFrames } = await import(transcribeUrl);
-const { findHarmonicPeaks } = await import(harmonicsUrl);
+import { pitchTrackFrames } from "../app/transcribe.ts";
+import { findHarmonicPeaks } from "../app/harmonics.ts";
 
 function midiToHz(midi) {
   return 440 * 2 ** ((midi - 69) / 12);

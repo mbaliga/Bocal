@@ -1,26 +1,6 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import test from "node:test";
-import ts from "typescript";
-
-async function transpile(relativePath, fileName, rewrites = {}) {
-  let source = await readFile(new URL(relativePath, import.meta.url), "utf8");
-  for (const [specifier, replacement] of Object.entries(rewrites)) {
-    source = source.replaceAll(`"${specifier}"`, `"${replacement}"`);
-  }
-  const { outputText } = ts.transpileModule(source, {
-    compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
-    fileName,
-  });
-  return `data:text/javascript;base64,${Buffer.from(outputText).toString("base64")}`;
-}
-
-// transcribe.ts imports the pitch engine by relative path, which a data: URL
-// cannot resolve. Inline the engine as its own data URL and point the import
-// at it, so the module under test is the real source rather than a copy.
-const engineUrl = await transpile("../app/pitch-engine.ts", "pitch-engine.ts");
-const transcribeUrl = await transpile("../app/transcribe.ts", "transcribe.ts", { "./pitch-engine": engineUrl });
-const { transcribeBuffer } = await import(transcribeUrl);
+import { transcribeBuffer } from "../app/transcribe.ts";
 
 const RATE = 16000;
 

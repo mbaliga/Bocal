@@ -1,28 +1,6 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import path from "node:path";
 import test from "node:test";
-import ts from "typescript";
-
-// tone-math.ts imports from tuning.ts, so (unlike tuning.test.mjs, whose
-// module has no imports of its own) a single data: URI won't resolve the
-// relative specifier. Both get transpiled into a real temp directory instead,
-// so Node's normal relative-import resolution just works.
-async function loadToneMath() {
-  const dir = await mkdtemp(path.join(tmpdir(), "bocal-tone-math-"));
-  for (const name of ["tuning", "tone-math"]) {
-    const source = await readFile(new URL(`../app/${name}.ts`, import.meta.url), "utf8");
-    const { outputText } = ts.transpileModule(source, {
-      compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
-      fileName: `${name}.ts`,
-    });
-    await writeFile(path.join(dir, `${name}.mjs`), outputText.replace('from "./tuning"', 'from "./tuning.mjs"'));
-  }
-  return import(`file://${path.join(dir, "tone-math.mjs")}`);
-}
-
-const {
+import {
   INTERVALS,
   intervalById,
   intervalPartnerMidi,
@@ -31,7 +9,7 @@ const {
   chordFrequencies,
   EXERCISE_PATTERNS,
   exerciseMidis,
-} = await loadToneMath();
+} from "../app/tone-math.ts";
 
 // ---------------------------------------------------------------------------
 // Intervals

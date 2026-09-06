@@ -1,18 +1,6 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import test from "node:test";
-import ts from "typescript";
-
-async function loadModule() {
-  const source = await readFile(new URL("../app/pulse-schedule.ts", import.meta.url), "utf8");
-  const { outputText } = ts.transpileModule(source, {
-    compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
-    fileName: "pulse-schedule.ts",
-  });
-  return import(`data:text/javascript;base64,${Buffer.from(outputText).toString("base64")}`);
-}
-
-const { schedulePulse, defaultAccentPattern, resizeAccentPattern, cycleBeatMark } = await loadModule();
+import { schedulePulse, defaultAccentPattern, resizeAccentPattern, cycleBeatMark } from "../app/pulse-schedule.ts";
 
 function take(iterator, count) {
   const ticks = [];

@@ -1,27 +1,10 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import ts from "typescript";
-
-// Each chart file only ever imports *types* from sibling files (erased by
-// the transpiler below), so it can be loaded standalone the same way
-// tests/sax-data.test.mjs loads sax-data.ts -- no real module resolution
-// needed for a data: URI import.
-async function loadChartModule(name) {
-  const sourceUrl = new URL(`../app/fingering-charts/${name}.ts`, import.meta.url);
-  const source = await readFile(sourceUrl, "utf8");
-  const { outputText } = ts.transpileModule(source, {
-    compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
-    fileName: `${name}.ts`,
-    reportDiagnostics: true,
-  });
-  return import(`data:text/javascript;base64,${Buffer.from(outputText).toString("base64")}`);
-}
-
-const flute = await loadChartModule("flute");
-const clarinet = await loadChartModule("clarinet");
-const oboe = await loadChartModule("oboe");
-const bassoon = await loadChartModule("bassoon");
+import * as flute from "../app/fingering-charts/flute.ts";
+import * as clarinet from "../app/fingering-charts/clarinet.ts";
+import * as oboe from "../app/fingering-charts/oboe.ts";
+import * as bassoon from "../app/fingering-charts/bassoon.ts";
 
 const CHARTS = {
   flute: flute.FLUTE_CHART,
