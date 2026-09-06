@@ -2,6 +2,7 @@ package com.bocal.music.ui
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.webkit.PermissionRequest
@@ -12,8 +13,12 @@ import android.webkit.WebView
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -27,6 +32,9 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.webkit.WebViewAssetLoader
 import com.bocal.music.BuildConfig
 
@@ -46,18 +54,39 @@ import com.bocal.music.BuildConfig
  * serves local assets under a real `https` origin instead, which is the
  * documented way to keep the full web platform surface (mic capture
  * included) available to embedded content.
- *
- * The native Compose screens this replaces (BocalApp.kt and the audio
- * engines under audio/) are left in place rather than deleted: they still
- * compile, and this is a one-file swap in MainActivity to revert.
  */
 @Composable
 @SuppressLint("SetJavaScriptEnabled") // Required by the bundled app; all non-appassets requests are rejected below.
 fun WebAppScreen() {
     val context = LocalContext.current
+    val activity = context as Activity
+    val lifecycleOwner = LocalLifecycleOwner.current
     var renderGeneration by remember { mutableIntStateOf(0) }
     var pendingMicRequest by remember { mutableStateOf<PermissionRequest?>(null) }
     var pendingFileCallback by remember { mutableStateOf<ValueCallback<Array<Uri>>?>(null) }
+    var webViewRef by remember { mutableStateOf<WebView?>(null) }
+
+    // Stop capture (and the metronome/tone generator, via the same event) the
+    // moment the activity is paused; do not auto-restart on resume. See the
+    // native bridge contract: the web app listens for `bocal:host-pause`.
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            val webView = webViewRef ?: return@LifecycleEventObserver
+            when (event) {
+                Lifecycle.Event.ON_PAUSE -> {
+                    webView.onPause()
+                    webView.evaluateJavascript(
+                        "window.dispatchEvent(new Event('bocal:host-pause'))",
+                        null,
+                    )
+                }
+                Lifecycle.Event.ON_RESUME -> webView.onResume()
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     val micLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         val request = pendingMicRequest
@@ -84,12 +113,28 @@ fun WebAppScreen() {
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color(0xFF060607))
+                .windowInsetsPadding(WindowInsets.systemBars)
                 .semantics { contentDescription = "Bocal" },
             factory = { webContext ->
                 WebView(webContext).apply {
+                    webViewRef = this
                     WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
                     setBackgroundColor(android.graphics.Color.rgb(6, 6, 7))
                     settings.javaScriptEnabled = true
+                    // window.bocalHost -- see the shared native bridge
+                    // contract (setTheme/setKeepAwake/saveFile/openExternal).
+                    addJavascriptInterface(BocalHost(activity, this), "bocalHost")
+                    setDownloadListener { url, _, _, mimeType, _ ->
+                        // Fallback only: the web app prefers
+                        // window.bocalHost.saveFile when present. A blob: URL
+                        // reaching here means that bridge was unavailable, so
+                        // there is nothing more this listener can do without
+                        // the actual bytes -- it is a documented no-op.
+                        android.util.Log.w(
+                            "WebAppScreen",
+                            "Unhandled download: $url ($mimeType)",
+                        )
+                    }
                     // Onboarding completion, the chosen instrument, notation
                     // system and Sa tonic all persist through localStorage --
                     // off by default in WebView, unlike a normal browser tab.
@@ -149,7 +194,10 @@ fun WebAppScreen() {
                 }
             },
             update = {},
-            onRelease = { it.destroy() },
+            onRelease = {
+                webViewRef = null
+                it.destroy()
+            },
         )
     }
 }

@@ -19,7 +19,8 @@ ON YOUR DEVICE
 • No account, no ads, no analytics, no tracking.
 • Your practice history stays on your device.
 
-A microphone is required, because listening to you play is how the app works.
+Bocal needs your microphone to tune and analyse your playing; that is how the
+app works.
 
 This is an early release built from a prototype. Expect rough edges, and expect the
 practice content to grow.
