@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { schedulePulse, defaultAccentPattern, resizeAccentPattern, cycleBeatMark } from "../app/pulse-schedule.ts";
+import { schedulePulse, schedulePolyrhythm, defaultAccentPattern, resizeAccentPattern, cycleBeatMark } from "../app/pulse-schedule.ts";
 
 function take(iterator, count) {
   const ticks = [];
@@ -141,6 +141,55 @@ test("looping sequence restarts from the first segment", () => {
   assert.deepEqual(ticks.map((t) => t.segmentIndex), [0, 0, 1, 1, 0, 0]);
 });
 
+test("a ramp holds the start tempo during count-in bars, then ramps only over the bars actually played", () => {
+  // 1 bar count-in, then a ramp from 60->120 over 4 bars.
+  const segment = plainSegment({ bpm: 60, rampToBpm: 120, bars: 5, countInBars: 1 });
+  const plan = { segments: [segment], loop: false };
+  const ticks = take(schedulePulse(plan, 0), 4 * 5);
+
+  const byBar = (bar) => ticks.filter((t) => t.bar === bar);
+  assert.ok(byBar(0).every((t) => t.countIn && t.bpmNow === 60), "count-in bar should hold the start tempo, not already be ramping");
+  assert.equal(byBar(1)[0].bpmNow, 60, "the first played bar starts the ramp at the start tempo");
+  assert.equal(byBar(4)[0].bpmNow, 120, "the ramp still reaches its end tempo over its own 4 bars");
+});
+
+test("count-in ticks carry tick.countIn so the UI can play a distinct voice and show a readout", () => {
+  const segment = plainSegment({ beatsPerBar: 4, countInBars: 2 });
+  const plan = { segments: [segment], loop: false };
+  const ticks = take(schedulePulse(plan, 0), 4 * 3);
+  assert.ok(ticks.slice(0, 8).every((t) => t.countIn), "first two bars are count-in");
+  assert.ok(ticks.slice(8).every((t) => !t.countIn), "third bar is not count-in");
+});
+
+test("swing at subdivision 2 keeps the beat's total duration exact while reshaping the two eighths", () => {
+  const segment = plainSegment({ beatsPerBar: 1, subdivision: 2, bpm: 120, swingRatio: 0.67 });
+  const plan = { segments: [segment], loop: false };
+  const ticks = take(schedulePulse(plan, 0), 4); // 2 beats worth
+  const beatSeconds = 60 / 120;
+  assert.ok(Math.abs((ticks[1].when - ticks[0].when) - beatSeconds * 0.67) < 1e-9, "first eighth should take the swung fraction of the beat");
+  assert.ok(Math.abs((ticks[2].when - ticks[1].when) - beatSeconds * 0.33) < 1e-9, "second eighth should take the remaining fraction");
+  assert.ok(Math.abs((ticks[2].when - ticks[0].when) - beatSeconds) < 1e-9, "swing must not drift the next beat's time");
+});
+
+test("an invalid segment (zero beatsPerBar/subdivision/bpm) throws instead of hanging the generator", () => {
+  const plan = { segments: [plainSegment({ beatsPerBar: 0 })], loop: false };
+  assert.throws(() => take(schedulePulse(plan, 0), 1));
+  const plan2 = { segments: [plainSegment({ subdivision: 0 })], loop: false };
+  assert.throws(() => take(schedulePulse(plan2, 0), 1));
+  const plan3 = { segments: [plainSegment({ bpm: 0 })], loop: false };
+  assert.throws(() => take(schedulePulse(plan3, 0), 1));
+});
+
+test("schedulePolyrhythm divides each bar into N equal, drift-free parts independent of the main meter", () => {
+  const iterator = schedulePolyrhythm(3, { beats: 2, voice: "beep" }, 0, () => 120);
+  const ticks = take(iterator, 4); // 2 bars
+  const barSeconds = (60 / 120) * 3;
+  assert.ok(Math.abs(ticks[0].when - 0) < 1e-9);
+  assert.ok(Math.abs(ticks[1].when - barSeconds / 2) < 1e-9);
+  assert.ok(Math.abs(ticks[2].when - barSeconds) < 1e-9, "second bar starts exactly one bar later, no drift");
+  assert.ok(Math.abs(ticks[3].when - (barSeconds + barSeconds / 2)) < 1e-9);
+});
+
 test("silent-bar drill mutes whole bars after count-in, independent of the accent pattern", () => {
   const segment = plainSegment({ beatsPerBar: 2, countInBars: 1, muteEveryBars: 2 });
   const plan = { segments: [segment], loop: false };
@@ -153,4 +202,11 @@ test("silent-bar drill mutes whole bars after count-in, independent of the accen
   assert.ok(byBar(4).every((t) => t.mutedBar && t.silent));
   assert.ok(byBar(1).every((t) => !t.mutedBar));
   assert.ok(byBar(3).every((t) => !t.mutedBar));
+});
+
+test("PracticeTools no longer ships a fixed brand equipment record as if it were the player's own data", async () => {
+  const source = await readFile(new URL("../app/PracticeTools.tsx", import.meta.url), "utf8");
+  assert.ok(!source.includes("<strong>Vandoren"), "Vandoren Traditional must not be hard-coded as the player's reed");
+  assert.ok(!source.includes("<strong>Yamaha"), "Yamaha 4C must not be hard-coded as the player's mouthpiece");
+  assert.ok(source.includes("EQUIPMENT_LOG_KEY"), "expected a real, player-editable equipment log to replace it");
 });

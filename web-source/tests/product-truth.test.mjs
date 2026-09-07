@@ -127,11 +127,15 @@ test("tuner exposes a calibrated tone generator and precision choices", async ()
 });
 
 test("practice tools include measured metronome drills, goals, coach mode and song progress", async () => {
+  // PulseView (the metronome drills) moved out to its own module -- see
+  // PulseView.tsx -- so this reads both files rather than assuming
+  // everything still lives in PracticeTools.tsx.
   const source = await readFile(new URL("../app/PracticeTools.tsx", import.meta.url), "utf8");
+  const pulse = await readFile(new URL("../app/PulseView.tsx", import.meta.url), "utf8");
   const data = await readFile(new URL("../app/practice-data.ts", import.meta.url), "utf8");
-  assert.match(source, /Silent-bar drill/);
-  assert.match(source, /Count-in/);
-  assert.match(source, /Save the feel/);
+  assert.match(pulse, /Silent-bar drill/);
+  assert.match(pulse, /Count-in/);
+  assert.match(pulse, /Save the feel/);
   assert.match(source, /Gentle goal/);
   assert.match(source, /Coach mode/);
   assert.match(source, /Export brief/);
