@@ -1,18 +1,6 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import test from "node:test";
-import ts from "typescript";
-
-async function loadModule() {
-  const source = await readFile(new URL("../app/pitch-history.ts", import.meta.url), "utf8");
-  const { outputText } = ts.transpileModule(source, {
-    compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
-    fileName: "pitch-history.ts",
-  });
-  return import(`data:text/javascript;base64,${Buffer.from(outputText).toString("base64")}`);
-}
-
-const { PitchHistoryBuffer, detectStableSegments, MIN_STABLE_SEGMENT_FRAMES } = await loadModule();
+import { PitchHistoryBuffer, detectStableSegments, MIN_STABLE_SEGMENT_FRAMES } from "../app/pitch-history.ts";
 
 test("pushes samples in order and reports length", () => {
   const buffer = new PitchHistoryBuffer(5);

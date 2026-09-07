@@ -1,18 +1,6 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import test from "node:test";
-import ts from "typescript";
-
-async function loadModule() {
-  const source = await readFile(new URL("../app/pitch-engine.ts", import.meta.url), "utf8");
-  const { outputText } = ts.transpileModule(source, {
-    compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
-    fileName: "pitch-engine.ts",
-  });
-  return import(`data:text/javascript;base64,${Buffer.from(outputText).toString("base64")}`);
-}
-
-const pitch = await loadModule();
+import * as pitch from "../app/pitch-engine.ts";
 const sampleRate = 48_000;
 
 function sineFrame(hz, amplitude = 0.16, phase = 0, length = 4096) {
