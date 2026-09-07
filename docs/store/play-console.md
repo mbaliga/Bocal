@@ -55,8 +55,8 @@ description for it.
 
 The claim that matters: **audio is analysed in real time on the device. Recording
 happens only on explicit user action (pressing Record on the Analyze screen), the
-resulting take is held in memory only, and it is never persisted to storage or
-transmitted.** Play treats microphone access seriously, and a music app that
+resulting take is stored only in the app's private on-device storage, the user can
+delete it at any time, and it is never transmitted.** Play treats microphone access seriously, and a music app that
 records is a different Data safety answer from one that only listens. Make sure
 the code matches: if takes are ever persisted (e.g. to IndexedDB/OPFS), update
 this answer and the privacy policy together.
