@@ -1,4 +1,18 @@
 import { detectPitchYin, frameRms } from "./pitch-engine";
+import { readingFor, REFERENCE_HZ_DEFAULT, type TuningOptions } from "./tuning";
+
+/** Equal temperament, A440, key-agnostic -- the basis every caller used
+ *  before tuning options were threaded through, and still the default when
+ *  a caller doesn't have (or doesn't care about) the player's calibration. */
+export const DEFAULT_TUNING_OPTIONS: TuningOptions = { referenceHz: REFERENCE_HZ_DEFAULT, temperament: "equal", keyPc: 0 };
+
+/** Converts a plain-equal-temperament MIDI number (the basis `computeRawFrames`
+ *  and its median smoothing work in, since octave-error rejection doesn't
+ *  depend on the player's reference pitch) back to the Hz it stands for, so
+ *  it can be re-read against whatever tuning the caller actually wants. */
+function hzFromEqualMidi(midi: number) {
+  return 440 * 2 ** ((midi - 69) / 12);
+}
 
 /**
  * Offline note transcription for an uploaded recording.
@@ -200,12 +214,17 @@ function smoothPitchTrack(frames: Frame[]) {
  * the harmonic-support check are the expensive part of the pipeline; neither
  * caller re-runs them.
  */
-async function computeRawFrames(samples: Float32Array, onProgress?: TranscribeProgress): Promise<Frame[]> {
+async function computeRawFrames(
+  samples: Float32Array,
+  onProgress?: TranscribeProgress,
+  signal?: AbortSignal,
+): Promise<Frame[]> {
   const frameCount = Math.max(0, Math.floor((samples.length - WINDOW) / HOP) + 1);
   const frames: Frame[] = new Array(frameCount);
 
   const SLICE = 96;
   for (let start = 0; start < frameCount; start += SLICE) {
+    if (signal?.aborted) throw new DOMException("Transcription cancelled.", "AbortError");
     const end = Math.min(frameCount, start + SLICE);
     for (let index = start; index < end; index += 1) {
       const window = samples.subarray(index * HOP, index * HOP + WINDOW);
@@ -247,12 +266,13 @@ function audibleGate(frames: Frame[]) {
 
 export type PitchTrackFrame = {
   timeSec: number;
-  /** Concert-pitch MIDI, equal-tempered against A440 -- same basis as
+  /** Concert-pitch MIDI, read against the caller's TuningOptions (equal
+   *  temperament at A440 if none was given) -- same basis as
    *  TranscribedNote.concertMidi. Null on a frame that doesn't pass the same
    *  audibility gate and harmonic-support rule the note segmenter uses below. */
   midi: number | null;
-  /** This frame's own deviation from the nearest equal-tempered semitone, in
-   *  cents. 0 on an unvoiced frame. */
+  /** This frame's own deviation from its nearest target under the same
+   *  TuningOptions, in cents. 0 on an unvoiced frame. */
   cents: number;
   confidence: number;
   rms: number;
@@ -270,22 +290,31 @@ export type PitchTrackFrame = {
 export async function pitchTrackFrames(
   samples: Float32Array,
   onProgress?: TranscribeProgress,
+  options: TuningOptions = DEFAULT_TUNING_OPTIONS,
+  signal?: AbortSignal,
 ): Promise<PitchTrackFrame[]> {
-  const raw = await computeRawFrames(samples, onProgress);
+  const raw = await computeRawFrames(samples, onProgress, signal);
   if (raw.length === 0) return [];
   const gate = audibleGate(raw);
   const smoothed = smoothPitchTrack(raw);
   return smoothed.map((frame, index) => {
     const voiced = frame.rms >= gate && isSinglePitch(frame);
-    const midi = voiced ? (frame.midi as number) : null;
-    const cents = midi === null ? 0 : Math.round((midi - Math.round(midi)) * 100);
-    return { timeSec: (index * HOP) / ANALYSIS_RATE, midi, cents, confidence: frame.confidence, rms: frame.rms };
+    if (!voiced) return { timeSec: (index * HOP) / ANALYSIS_RATE, midi: null, cents: 0, confidence: frame.confidence, rms: frame.rms };
+    const reading = readingFor(hzFromEqualMidi(frame.midi as number), options);
+    return {
+      timeSec: (index * HOP) / ANALYSIS_RATE,
+      midi: reading.concertMidi,
+      cents: reading.cents,
+      confidence: frame.confidence,
+      rms: frame.rms,
+    };
   });
 }
 
 export async function transcribeBuffer(
   samples: Float32Array,
   onProgress?: TranscribeProgress,
+  options: TuningOptions = DEFAULT_TUNING_OPTIONS,
 ): Promise<TranscriptionResult> {
   const durationSec = samples.length / ANALYSIS_RATE;
   const raw = await computeRawFrames(samples, onProgress);
@@ -329,11 +358,12 @@ export async function transcribeBuffer(
     const durationOfNote = ((endIndex - currentStart) * HOP) / ANALYSIS_RATE;
     if (durationOfNote * 1000 >= MIN_NOTE_MS && currentSamples.length > 0) {
       const meanMidi = medianOf(currentSamples);
+      const reading = readingFor(hzFromEqualMidi(meanMidi), options);
       notes.push({
-        concertMidi: currentMidi,
+        concertMidi: reading.concertMidi,
         startSec: Number(startSec.toFixed(3)),
         durationSec: Number(durationOfNote.toFixed(3)),
-        cents: Math.round((meanMidi - currentMidi) * 100),
+        cents: reading.cents,
         confidence: Number(medianOf(currentConfidence).toFixed(2)),
       });
     }
@@ -402,7 +432,11 @@ export async function transcribeBuffer(
   return { notes, durationSec, clarity: Number(clarity.toFixed(2)), likelyPolyphonic };
 }
 
-export async function transcribeFile(file: File, onProgress?: TranscribeProgress): Promise<TranscriptionResult> {
+export async function transcribeFile(
+  file: File,
+  onProgress?: TranscribeProgress,
+  options: TuningOptions = DEFAULT_TUNING_OPTIONS,
+): Promise<TranscriptionResult> {
   const bytes = await file.arrayBuffer();
   const samples = await decodeToAnalysisBuffer(bytes);
   if (samples.length / ANALYSIS_RATE > MAX_INPUT_SECONDS) {
@@ -410,5 +444,5 @@ export async function transcribeFile(file: File, onProgress?: TranscribeProgress
       `That recording is longer than ${Math.round(MAX_INPUT_SECONDS / 60)} minutes. Trim it to the passage you want and try again.`,
     );
   }
-  return transcribeBuffer(samples, onProgress);
+  return transcribeBuffer(samples, onProgress, options);
 }
