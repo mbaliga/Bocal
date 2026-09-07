@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { chromium } from "/opt/node22/lib/node_modules/playwright/index.mjs";
+import { launchChromium } from "./browser.mjs";
 
 const REPLAY_HTML = new URL("./fixtures/model-scale-replay.html", import.meta.url);
 const SAX_GLB = new URL("../public/models/saxophone-alto.glb", import.meta.url);
@@ -18,8 +18,7 @@ const OBOE_GLB = new URL("../public/models/oboe-howarth-s20c.glb", import.meta.u
  * (scene.attach() before measuring, normalise on the largest extent).
  */
 test("both shipped models normalise to 7.1 +/- 0.05 on the largest extent after the fix", async () => {
-  const browser = await chromium.launch({
-    executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome",
+  const browser = await launchChromium({
     args: ["--allow-file-access-from-files", "--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
   });
   try {

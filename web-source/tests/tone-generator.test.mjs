@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { launchChromium } from "./browser.mjs";
 import {
   INTERVALS,
   intervalById,
@@ -190,14 +191,13 @@ test("every non-harmonic-series pattern sounds exactly at its labelled note (0 c
 // ---------------------------------------------------------------------------
 
 test("fixed playVoice + rescaleVoices sequence keeps the first 10ms peak below 1.5x the target level", async (t) => {
-  let chromium;
+  let browser;
   try {
-    ({ chromium } = await import("/opt/node22/lib/node_modules/playwright/index.mjs"));
+    browser = await launchChromium();
   } catch {
     t.skip("Playwright/Chromium not available in this environment");
     return;
   }
-  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
   try {
     const page = await browser.newPage();
     await page.setContent("<html><body></body></html>");

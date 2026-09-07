@@ -39,6 +39,7 @@ jobs:
           cache-dependency-path: web-source/package-lock.json
 
       - run: npm ci
+      - run: npx playwright install --with-deps chromium
 
       # `npm test` runs `tsc --noEmit` (clean since the Workers types were
       # generated) and the unit suite under the tsx loader, without a build.

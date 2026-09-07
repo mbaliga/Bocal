@@ -9,9 +9,8 @@ import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { chromium } from "/opt/node22/lib/node_modules/playwright/index.mjs";
+import { launchChromium } from "./browser.mjs";
 
-const CHROMIUM_PATH = "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PREVIEW_HTML = path.join(HERE, "..", "preview-dist", "index.html");
 
@@ -40,7 +39,7 @@ async function checkNoHorizontalOverflow(page, label) {
 }
 
 async function run() {
-  const browser = await chromium.launch({ executablePath: CHROMIUM_PATH });
+  const browser = await launchChromium();
   const failures = [];
 
   try {

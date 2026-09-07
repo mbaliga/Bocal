@@ -163,13 +163,10 @@ async function walkStates(page, theme, results) {
 // Playwright's Chromium build is provided by the harness rather than as a
 // package dependency here; fall back to the "playwright" package (e.g. a
 // CI image that installs it) if the sandbox path is not present.
-const PW_INDEX = "/opt/node22/lib/node_modules/playwright/index.mjs";
-const PW_CHROME = "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
-const { chromium } = existsSync(PW_INDEX) ? await import(PW_INDEX) : await import("playwright");
-const launchOpts = existsSync(PW_CHROME) ? { executablePath: PW_CHROME } : {};
+import { launchChromium } from "./browser.mjs";
 
 async function run() {
-  const browser = await chromium.launch(launchOpts);
+  const browser = await launchChromium();
   const failures = [];
   const counts = {}; // `${theme}/${instrument}/${state}` -> failure count
 
