@@ -33,7 +33,7 @@ import {
   Moon,
 } from "lucide-react";
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnalysisView } from "./AnalysisView";
 import {
   BOCAL_ONBOARDING_KEY,
@@ -59,7 +59,7 @@ import {
 } from "./pitch-engine";
 import { drawPitchHistory, readPitchHistoryTheme } from "./pitch-history-canvas";
 import { PitchHistoryBuffer } from "./pitch-history";
-import { INSTRUMENTS, isInstrumentId, type InstrumentId, type InstrumentProfile } from "./instruments";
+import { CORRECTION_COPY, INSTRUMENTS, isInstrumentId, type InstrumentId, type InstrumentProfile } from "./instruments";
 import StaffNote from "./StaffNote";
 import {
   fullNoteLabel,
@@ -90,10 +90,26 @@ import {
   REFERENCE_HZ_STEP,
   TEMPERAMENT_ORDER,
   TEMPERAMENT_PROFILES,
+  TEMPERAMENTS,
   type TemperamentId,
   type TuningOptions,
 } from "./tuning";
 import { recordPracticeActivity } from "./practice-data";
+
+// The Android WebView shell (WP7) exposes this bridge as `window.bocalHost`.
+// Declared here so the web app can call it defensively ahead of that work
+// landing -- every call is optional-chained, so nothing breaks in the
+// browser preview or before the native side ships the interface.
+declare global {
+  interface Window {
+    bocalHost?: {
+      setTheme(theme: "light" | "dark"): void;
+      setKeepAwake(on: boolean): void;
+      saveFile(name: string, mime: string, base64: string): boolean;
+      openExternal(url: string): boolean;
+    };
+  }
+}
 
 const SaxophoneLab = dynamic(
   () => import("./SaxophoneLab").then((module) => module.SaxophoneLab),
@@ -125,6 +141,8 @@ const THEME_STORAGE_KEY = "bocal-theme";
 const SENSITIVITY_STORAGE_KEY = "bocal-tuner-sensitivity";
 const DAMPING_STORAGE_KEY = "bocal-tuner-damping";
 const HISTORY_MODE_STORAGE_KEY = "bocal-tuner-history-mode";
+const PRECISION_STORAGE_KEY = "bocal-tuner-precision";
+const KEY_CENTRE_MODE_STORAGE_KEY = "bocal-temperament-key-mode";
 
 // The pitch-history graph shows the trailing HISTORY_WINDOW_MS of readings.
 // The ring buffer's capacity is sized off the sampling loop's own ~30ms
@@ -199,11 +217,27 @@ function labCardCopy(instrument: InstrumentProfile, writtenLabel: string | null)
 
 const navItems: { id: Mode; label: string; icon: typeof Crosshair }[] = [
   { id: "tune", label: "Tune", icon: Crosshair },
-  { id: "sax", label: "3D lab", icon: Wind },
+  { id: "sax", label: "Lab", icon: Wind },
   { id: "pulse", label: "Pulse", icon: Waves },
   { id: "analyze", label: "Analyze", icon: Activity },
   { id: "practice", label: "Practice", icon: Music2 },
 ];
+
+/**
+ * The "sax" nav item's label used to be a hard-coded "3D lab", shown for
+ * every instrument including flute, clarinet, bassoon (chart-only -- the
+ * chart lab's own header literally says "No 3D model exists yet") and
+ * guitar (a 2D chord studio, not a lab at all) -- a11y-ux.md finding
+ * "'3D lab' is the tab name for four instruments that have no 3D model".
+ * Derived from `labTier` instead so the nav agrees with what's actually
+ * behind the tab.
+ */
+function navLabelFor(itemId: Mode, instrument: InstrumentProfile): string {
+  if (itemId !== "sax") return navItems.find((item) => item.id === itemId)?.label ?? "";
+  if (instrument.labTier === "fingering" || instrument.labTier === "anatomy") return "Lab";
+  if (instrument.labTier === "chart") return "Chart";
+  return "Strings";
+}
 
 // Everything below derives from the one bar curve "M22 62 Q200 27 378 62"
 // (viewBox 400×100; x linear in t, evenly spaced control x's). Seats at
@@ -260,6 +294,13 @@ export default function Home() {
   const [damping, setDamping] = useState<Damping>("normal");
   const [precision, setPrecision] = useState<"standard" | "fine" | "ultra">("fine");
   const [historyMode, setHistoryMode] = useState<"line" | "staff">("line");
+  // Which pitch space the "Key centre" and "Sa is" pickers show/store their
+  // pitch class in. tuning.ts's readingFor/targetHzFor always want a
+  // *concert* pitch class (temperamentKeyPc keeps storing that, unchanged),
+  // but a transposing player thinks in their own written key -- see
+  // tuner.md's "Key centre and Sa is ... neither says so" finding.
+  const [keyCentreMode, setKeyCentreMode] = useState<"concert" | "written">("concert");
+  const [keyboardHelpOpen, setKeyboardHelpOpen] = useState(false);
   const [reading, setReading] = useState<PitchReading | null>(null);
   const [trackerReading, setTrackerReading] = useState<PitchTrackerReading>({
     state: "silence",
@@ -278,24 +319,34 @@ export default function Home() {
   const [sessionSeconds, setSessionSeconds] = useState(0);
   const audioContextRef = useRef<AudioContext | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
   const frameRef = useRef<number | null>(null);
-  // Sensitivity (acquireFrames/switchFrames/minimumConfidence) and Damping
-  // (holdMs/smoothing) are all constructor-only options on StablePitchTracker
-  // -- there's no live setter for any of them -- so changing either control
-  // recreates the tracker via the effect below rather than reconfiguring the
-  // running instance. See pitch-engine.ts's SENSITIVITY_PRESETS/DAMPING_PRESETS
-  // comment for the same note from the tracker's side.
+  const instrument = INSTRUMENTS[instrumentId];
+  // Sensitivity (acquireFrames/switchFrames/minimumConfidence), Damping
+  // (holdMs/smoothing) and the instrument's frequency range are reapplied to
+  // the running tracker via `configure()` rather than replacing the
+  // instance, so switching any of them mid-session no longer drops an
+  // active lock or restarts the 320ms room calibration (tuner.md finding
+  // "Changing Sensitivity or Damping mid-session rebuilds the tracker").
+  // `range` also fixes the tracker's biggest fidelity bug: it used to always
+  // fall back to StablePitchTracker's own 120-1600 Hz defaults, so a
+  // bassoon/bari/tenor low register read as silence and a flute A6-C7 read
+  // an octave low (tuner.md finding 1).
   const trackerOptions = useMemo<StablePitchTrackerOptions>(() => {
     const sensitivityOptions = SENSITIVITY_PRESETS[sensitivity];
     const dampingOptions = DAMPING_PRESETS[damping];
-    return { ...sensitivityOptions, ...dampingOptions };
-  }, [sensitivity, damping]);
-  const trackerRef = useRef(new StablePitchTracker(trackerOptions));
+    return { ...sensitivityOptions, ...dampingOptions, minHz: instrument.range.minHz, maxHz: instrument.range.maxHz };
+  }, [sensitivity, damping, instrument.range.minHz, instrument.range.maxHz]);
+  // Lazily constructed (rather than `useRef(new StablePitchTracker(...))`,
+  // which builds and immediately discards an instance on every render --
+  // ~33/s while listening, per tuner.md) and reconfigured in place below.
+  const trackerRef = useRef<StablePitchTracker | null>(null);
+  if (trackerRef.current === null) trackerRef.current = new StablePitchTracker(trackerOptions);
   useEffect(() => {
-    trackerRef.current = new StablePitchTracker(trackerOptions);
+    trackerRef.current?.configure(trackerOptions);
   }, [trackerOptions]);
   const tunerEvidenceRef = useRef<{ startedAt: number; cents: number[]; midiNotes: number[] } | null>(null);
-  const instrument = INSTRUMENTS[instrumentId];
   const tuningOptions = useMemo<TuningOptions>(
     () => ({ referenceHz, temperament, keyPc: temperamentKeyPc, customCents }),
     [referenceHz, temperament, temperamentKeyPc, customCents],
@@ -308,17 +359,6 @@ export default function Home() {
   useEffect(() => {
     tuningOptionsRef.current = tuningOptions;
   }, [tuningOptions]);
-  // Same live-ref pattern for Precision (the tolerance the history graph
-  // colours its trace against) and the history display mode, both of which
-  // a player can change mid-session same as reference pitch/temperament.
-  const precisionRef = useRef(precision);
-  useEffect(() => {
-    precisionRef.current = precision;
-  }, [precision]);
-  const historyModeRef = useRef(historyMode);
-  useEffect(() => {
-    historyModeRef.current = historyMode;
-  }, [historyMode]);
   // The pitch-history ring buffer lives in a ref, not React state, so pushing
   // a new sample every ~30ms during a session never triggers a re-render --
   // only the imperative canvas draw below reads it. historyCanvasRef is the
@@ -327,6 +367,7 @@ export default function Home() {
   // from a timer of its own.
   const pitchHistoryRef = useRef(new PitchHistoryBuffer(HISTORY_CAPACITY));
   const historyCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const historyResizeObserverRef = useRef<ResizeObserver | null>(null);
   const paintHistory = useCallback(
     (fallbackNowMs: number) => {
       const canvas = historyCanvasRef.current;
@@ -359,6 +400,29 @@ export default function Home() {
     pitchHistoryRef.current.clear();
     paintHistoryRef.current(performance.now());
   }, []);
+  // Callback ref (rather than a plain `useRef` attached via the `ref` prop)
+  // so a repaint fires the moment the canvas actually mounts, not only when
+  // one of paintHistory's dependencies happens to change. The canvas used to
+  // go blank switching from Pulse back to Tune -- its backing store reset to
+  // the untouched [300,104] default and stayed that way, because nothing in
+  // the mount path called paintHistory (tuner.md finding "The frozen
+  // pitch-history graph disappears after leaving and returning to Tune").
+  // A ResizeObserver on the same node covers the other half of that finding
+  // (rotating the phone on a frozen graph left it stretched until some other
+  // event triggered a paint).
+  const setHistoryCanvas = useCallback((node: HTMLCanvasElement | null) => {
+    historyCanvasRef.current = node;
+    historyResizeObserverRef.current?.disconnect();
+    historyResizeObserverRef.current = null;
+    if (!node) return;
+    paintHistoryRef.current(performance.now());
+    if (typeof ResizeObserver !== "undefined") {
+      const observer = new ResizeObserver(() => paintHistoryRef.current(performance.now()));
+      observer.observe(node);
+      historyResizeObserverRef.current = observer;
+    }
+  }, []);
+  useEffect(() => () => historyResizeObserverRef.current?.disconnect(), []);
   // Seated left to right along the pill arc, current instrument first.
   const pillInstruments = useMemo<InstrumentId[]>(
     () => (partnerInstrumentId === instrumentId ? [instrumentId] : [instrumentId, partnerInstrumentId]),
@@ -388,6 +452,7 @@ export default function Home() {
         setTheme(next);
         document.documentElement.dataset.theme = next;
         document.documentElement.style.colorScheme = next;
+        window.bocalHost?.setTheme?.(next);
       } catch {
         // Dark remains the dependable default if browser storage is unavailable.
       }
@@ -460,6 +525,12 @@ export default function Home() {
         }
         const savedHistoryMode = localStorage.getItem(HISTORY_MODE_STORAGE_KEY);
         if (savedHistoryMode === "line" || savedHistoryMode === "staff") setHistoryMode(savedHistoryMode);
+        const savedPrecision = localStorage.getItem(PRECISION_STORAGE_KEY);
+        if (savedPrecision === "standard" || savedPrecision === "fine" || savedPrecision === "ultra") {
+          setPrecision(savedPrecision);
+        }
+        const savedKeyCentreMode = localStorage.getItem(KEY_CENTRE_MODE_STORAGE_KEY);
+        if (savedKeyCentreMode === "concert" || savedKeyCentreMode === "written") setKeyCentreMode(savedKeyCentreMode);
       } catch {
         // A=440 equal temperament, medium sensitivity and normal damping are
         // the fallback when device storage is unavailable.
@@ -554,6 +625,28 @@ export default function Home() {
     }
   }, []);
 
+  // Precision used to be the one setting handed straight to setPrecision
+  // and never persisted, unlike every neighbouring calibration control
+  // (tuner.md finding "page.tsx is a 1619-line god component"): reopening
+  // Bocal always reset it to "fine" regardless of what was last chosen.
+  const choosePrecision = useCallback((next: "standard" | "fine" | "ultra") => {
+    setPrecision(next);
+    try {
+      localStorage.setItem(PRECISION_STORAGE_KEY, next);
+    } catch {
+      // The choice still applies for this session.
+    }
+  }, []);
+
+  const chooseKeyCentreMode = useCallback((next: "concert" | "written") => {
+    setKeyCentreMode(next);
+    try {
+      localStorage.setItem(KEY_CENTRE_MODE_STORAGE_KEY, next);
+    } catch {
+      // The choice still applies for this session.
+    }
+  }, []);
+
   useEffect(() => {
     if (!sessionActive) return;
     const timer = window.setInterval(() => setSessionSeconds((value) => value + 1), 1000);
@@ -600,11 +693,25 @@ export default function Home() {
     frameRef.current = null;
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
+    // Disconnect the source/analyser pair rather than leaving them attached
+    // to the shared AudioContext -- previously every Start/Stop cycle left
+    // the old nodes connected, so a long session accumulated one analyser
+    // per press (tuner.md/engineering.md: "analyser/source nodes accumulate
+    // on the reused tuner AudioContext").
+    sourceRef.current?.disconnect();
+    sourceRef.current = null;
+    analyserRef.current?.disconnect();
+    analyserRef.current = null;
     saveTunerEvidence();
-    trackerRef.current.reset();
+    trackerRef.current!.reset();
     setListening(false);
     setReading(null);
     setTrackerReading({ state: "silence", hz: null, rawHz: null, confidence: 0, rms: 0, gate: 0.009, accepted: false });
+    window.bocalHost?.setKeepAwake?.(false);
+    // Idle the AudioContext rather than leaving it running (and the device
+    // awake) between tuner sessions; startListening resumes it on the next
+    // "Start live tuner" press.
+    void audioContextRef.current?.suspend();
   }, [saveTunerEvidence]);
 
   const startListening = useCallback(async () => {
@@ -625,32 +732,59 @@ export default function Home() {
         : audioContextRef.current;
       if (audioContext.state === "suspended") await audioContext.resume();
       const analyser = audioContext.createAnalyser();
-      analyser.fftSize = 4096;
+      // A 58 Hz bassoon fundamental needs more than 3 periods of headroom
+      // after YIN's maximumTau is subtracted from the window, which 4096
+      // samples at 48kHz doesn't give it -- widen to 8192 for any instrument
+      // whose range dips under 100 Hz (bassoon, baritone; tuner.md finding 1).
+      analyser.fftSize = instrument.range.minHz < 100 ? 8192 : 4096;
       analyser.smoothingTimeConstant = 0;
-      audioContext.createMediaStreamSource(stream).connect(analyser);
+      const source = audioContext.createMediaStreamSource(stream);
+      source.connect(analyser);
+      sourceRef.current = source;
+      analyserRef.current = analyser;
       const data = new Float32Array(analyser.fftSize);
       streamRef.current = stream;
       audioContextRef.current = audioContext;
       setMicMessage("");
       setListening(true);
+      window.bocalHost?.setKeepAwake?.(true);
       setReading(null);
       setPitchTrace([]);
       setAcceptedFrames(0);
-      trackerRef.current.reset();
+      trackerRef.current!.reset();
       pitchHistoryRef.current.clear();
       tunerEvidenceRef.current = { startedAt: performance.now(), cents: [], midiNotes: [] };
       let lastAnalysisAt = Number.NEGATIVE_INFINITY;
+      // Every accepted 30ms sample tick used to call setTrackerReading with a
+      // fresh object (so it never bails out of a re-render) and setReading,
+      // re-rendering the whole page -- side rail, dock, TunerView's 33 props,
+      // ToneGenerator's own dozen states -- roughly 33 times a second while
+      // listening (tuner.md finding "Every 30 ms sample tick re-renders the
+      // whole page"). Publishing to React state is throttled to ~15 Hz
+      // (66ms) OR whenever a value the UI actually displays changes, whichever
+      // comes first; the ring buffer push and canvas paint below stay on the
+      // full 30ms cadence since neither goes through React state.
+      let lastPublishAt = Number.NEGATIVE_INFINITY;
+      let lastPublishedState = "";
 
       const sample = () => {
         const now = performance.now();
         if (now - lastAnalysisAt >= 30) {
           lastAnalysisAt = now;
           analyser.getFloatTimeDomainData(data);
-          const nextTrackerReading = trackerRef.current.process(data, audioContext.sampleRate, now);
-          setTrackerReading(nextTrackerReading);
-          if (nextTrackerReading.hz !== null) {
-            const nextReading = pitchFromFrequency(nextTrackerReading.hz, instrument.writtenOffset, tuningOptionsRef.current);
+          const nextTrackerReading = trackerRef.current!.process(data, audioContext.sampleRate, now);
+          const nextReading = nextTrackerReading.hz !== null
+            ? pitchFromFrequency(nextTrackerReading.hz, instrument.writtenOffset, tuningOptionsRef.current)
+            : null;
+          const displaySignature = `${nextTrackerReading.state}|${nextReading ? nextReading.writtenMidi : ""}|${nextReading ? Math.round(nextReading.cents) : ""}|${Math.round(nextTrackerReading.confidence * 100)}`;
+          const shouldPublish = now - lastPublishAt >= 66 || displaySignature !== lastPublishedState;
+          if (shouldPublish) {
+            lastPublishAt = now;
+            lastPublishedState = displaySignature;
+            setTrackerReading(nextTrackerReading);
             setReading(nextReading);
+          }
+          if (nextTrackerReading.hz !== null && nextReading) {
             if (nextTrackerReading.accepted && tunerEvidenceRef.current) {
               tunerEvidenceRef.current.cents.push(nextReading.cents);
               tunerEvidenceRef.current.midiNotes.push(nextReading.concertMidi);
@@ -668,7 +802,6 @@ export default function Home() {
               midi: nextTrackerReading.accepted ? nextReading.writtenMidi : null,
             });
           } else {
-            setReading(null);
             pitchHistoryRef.current.push({ tMs: now, cents: null, midi: null });
           }
           paintHistoryRef.current(now);
@@ -676,10 +809,23 @@ export default function Home() {
         frameRef.current = requestAnimationFrame(sample);
       };
       sample();
-    } catch {
-      setMicMessage("Microphone permission is needed for live tuning.");
+    } catch (error) {
+      // Every failure used to be reported as "permission is needed", which
+      // is wrong for a missing device, a device already in use, or a
+      // browser without any audio input at all (engineering.md: "Every
+      // getUserMedia failure is reported as a permission problem").
+      const name = error instanceof DOMException ? error.name : "";
+      setMicMessage(
+        name === "NotAllowedError" || name === "SecurityError"
+          ? "Microphone permission is needed for live tuning."
+          : name === "NotFoundError" || name === "OverconstrainedError"
+            ? "No microphone was found on this device."
+            : name === "NotReadableError"
+              ? "The microphone is in use by another app."
+              : "Microphone access failed. Check your device's microphone and try again.",
+      );
     }
-  }, [instrument.writtenOffset, listening, stopListening]);
+  }, [instrument.range.minHz, instrument.writtenOffset, listening, stopListening]);
 
   const playReferenceTone = useCallback(() => {
     const audioContext = audioContextRef.current ?? new AudioContext();
@@ -752,15 +898,32 @@ export default function Home() {
   // foldables docked to a keyboard). Digits jump straight to a destination;
   // arrows walk the nav. Suppressed while typing so the lesson-note textarea
   // and any future text input keep their keys.
+  //
+  // Arrow-nav used to fire globally, which stole ArrowLeft/ArrowRight from
+  // every radiogroup and tablist inside a workspace (notation switch,
+  // sensitivity/damping pickers, the tone generator's tabs) and from the
+  // lab's own note browser -- focusing a radio and pressing the ARIA-mandated
+  // arrow key changed the whole page instead of the radio (a11y-ux.md
+  // finding "Global ArrowLeft/ArrowRight workspace switcher steals arrow
+  // keys"). It's now suppressed whenever focus sits inside a role=radiogroup
+  // / role=tablist / .note-browser (the lab's note browser lives outside
+  // this file, but its own arrow handlers now stopPropagation -- see
+  // fingering-fidelity's WP5), and additionally only runs at all in
+  // `mode !== "sax"` so the 3D lab and chart labs get their arrow keys back
+  // for stepping through notes.
   useEffect(() => {
     const isTyping = (target: EventTarget | null) => {
       const el = target as HTMLElement | null;
       if (!el) return false;
       return el.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName);
     };
+    const isInsideOwnArrowHandler = (target: EventTarget | null) => {
+      const el = target as HTMLElement | null;
+      return Boolean(el?.closest('[role="radiogroup"], [role="tablist"], .note-browser, .note-scroll'));
+    };
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.metaKey || event.ctrlKey || event.altKey || isTyping(event.target)) return;
-      if (instrumentPickerOpen || onboardingOpen || downloadCenterOpen) return;
+      if (instrumentPickerOpen || onboardingOpen || downloadCenterOpen || keyboardHelpOpen) return;
 
       const digit = Number(event.key);
       if (Number.isInteger(digit) && digit >= 1 && digit <= navItems.length) {
@@ -768,7 +931,13 @@ export default function Home() {
         selectMode(navItems[digit - 1].id);
         return;
       }
-      if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
+      if (event.key === "?" && !isInsideOwnArrowHandler(event.target)) {
+        event.preventDefault();
+        setKeyboardHelpOpen(true);
+        return;
+      }
+      if (mode === "sax") return;
+      if ((event.key === "ArrowRight" || event.key === "ArrowLeft") && !isInsideOwnArrowHandler(event.target)) {
         const index = navItems.findIndex((item) => item.id === mode);
         if (index < 0) return;
         event.preventDefault();
@@ -778,7 +947,7 @@ export default function Home() {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [downloadCenterOpen, instrumentPickerOpen, mode, onboardingOpen, selectMode]);
+  }, [downloadCenterOpen, instrumentPickerOpen, keyboardHelpOpen, mode, onboardingOpen, selectMode]);
 
   const chooseRailSide = (side: RailSide) => {
     setRailSide(side);
@@ -789,6 +958,7 @@ export default function Home() {
     setTheme(next);
     document.documentElement.dataset.theme = next;
     document.documentElement.style.colorScheme = next;
+    window.bocalHost?.setTheme?.(next);
     try { localStorage.setItem(THEME_STORAGE_KEY, next); } catch { /* The preference still applies for this visit. */ }
   };
 
@@ -802,7 +972,7 @@ export default function Home() {
         </button>
 
         <nav className="rail-nav">
-          {navItems.map((item) => {
+          {navItems.map((item, index) => {
             const Icon = item.icon;
             return (
               <button
@@ -810,9 +980,11 @@ export default function Home() {
                 className={`rail-button ${mode === item.id ? "is-active" : ""}`}
                 onClick={() => selectMode(item.id)}
                 aria-current={mode === item.id ? "page" : undefined}
+                aria-keyshortcuts={String(index + 1)}
+                title={`${navLabelFor(item.id, instrument)} (${index + 1})`}
               >
                 <Icon size={19} />
-                <span>{item.label}</span>
+                <span>{navLabelFor(item.id, instrument)}</span>
               </button>
             );
           })}
@@ -820,7 +992,11 @@ export default function Home() {
 
         <div className="rail-footer">
           <div className="privacy-dot"><LockKeyhole size={14} /> Local only</div>
-          <button className="avatar" aria-label="Open Bocal settings" onClick={() => setDownloadCenterOpen(true)}>TU</button>
+          {/* Was a literal "TU" text glyph -- a leftover initialism that
+              meant nothing to a player and didn't match anything else in
+              the settings entry points (product.md/a11y-ux.md). A plain
+              settings icon, same as the top-bar's overflow button. */}
+          <button className="avatar" aria-label="Open Bocal settings" onClick={() => setDownloadCenterOpen(true)}><Settings2 size={17} /></button>
         </div>
       </aside>
 
@@ -850,7 +1026,8 @@ export default function Home() {
 
         {instrumentPickerOpen && <InstrumentPickerExperience open selectedId={instrumentId} onSelect={chooseInstrument} onClose={() => setInstrumentPickerOpen(false)} />}
         {onboardingOpen && <OnboardingGuide open selectedId={instrumentId} onSelect={chooseInstrument} onComplete={completeOnboarding} />}
-        {downloadCenterOpen && <DownloadCenter railSide={railSide} onRailSideChange={chooseRailSide} theme={theme} onThemeChange={chooseTheme} onClose={() => setDownloadCenterOpen(false)} onOpenOnboarding={() => { setDownloadCenterOpen(false); setOnboardingOpen(true); }} />}
+        {downloadCenterOpen && <DownloadCenter railSide={railSide} onRailSideChange={chooseRailSide} theme={theme} onThemeChange={chooseTheme} onClose={() => setDownloadCenterOpen(false)} onOpenOnboarding={() => { setDownloadCenterOpen(false); setOnboardingOpen(true); }} onOpenKeyboardHelp={() => { setDownloadCenterOpen(false); setKeyboardHelpOpen(true); }} />}
+        {keyboardHelpOpen && <KeyboardHelp onClose={() => setKeyboardHelpOpen(false)} />}
 
         {mode === "tune" && (
           <TunerView
@@ -882,17 +1059,20 @@ export default function Home() {
             damping={damping}
             onDampingChange={chooseDamping}
             precision={precision}
-            onPrecisionChange={setPrecision}
+            onPrecisionChange={choosePrecision}
             historyMode={historyMode}
             onHistoryModeChange={chooseHistoryMode}
             onClearHistory={clearHistory}
-            historyCanvasRef={historyCanvasRef}
+            historyCanvasRef={setHistoryCanvas}
+            keyCentreMode={keyCentreMode}
+            onKeyCentreModeChange={chooseKeyCentreMode}
+            onOpenKeyboardHelp={() => setKeyboardHelpOpen(true)}
           />
         )}
         {mode === "sax" && (instrumentId === "guitar"
           ? <GuitarStudio reading={reading ? { hz: reading.hz, cents: reading.cents, midi: reading.concertMidi } : null} listening={listening} onListen={startListening} />
           : <SaxophoneLab onBack={() => selectMode("tune")} instrumentId={instrumentId} notation={notation} saTonic={saTonic} />)}
-        {mode === "pulse" && <PulseView />}
+        {mode === "pulse" && <PulseView tuningOptions={tuningOptions} />}
         {mode === "analyze" && <AnalysisView instrument={instrument} notation={notation} saTonic={saTonic} />}
         {mode === "practice" && (
           <PracticeView
@@ -985,11 +1165,12 @@ export default function Home() {
                   key={item.id}
                   className={active ? "is-active" : ""}
                   aria-current={active ? "page" : undefined}
-                  aria-label={item.label}
+                  aria-label={navLabelFor(item.id, instrument)}
+                  aria-keyshortcuts={String(index + 1)}
                   style={{ left: ARC_SEATS[index].left, top: ARC_SEATS[index].top, "--tilt": ARC_TILTS[index] } as React.CSSProperties}
                   onClick={() => selectMode(item.id)}
                 >
-                  <Icon size={19} />{active && <span>{item.label}</span>}
+                  <Icon size={19} />{active && <span>{navLabelFor(item.id, instrument)}</span>}
                 </button>
               );
             })}
@@ -1008,6 +1189,7 @@ function DownloadCenter({
   onThemeChange,
   onClose,
   onOpenOnboarding,
+  onOpenKeyboardHelp,
 }: {
   railSide: RailSide;
   onRailSideChange: (side: RailSide) => void;
@@ -1015,6 +1197,7 @@ function DownloadCenter({
   onThemeChange: (theme: Theme) => void;
   onClose: () => void;
   onOpenOnboarding: () => void;
+  onOpenKeyboardHelp: () => void;
 }) {
   const downloads = [
     {
@@ -1054,6 +1237,15 @@ function DownloadCenter({
             <button role="radio" aria-checked={theme === "dark"} className={theme === "dark" ? "is-active" : ""} onClick={() => onThemeChange("dark")}>Dark</button>
           </div>
         </section>
+        <section className="settings-panel" aria-labelledby="keyboard-title">
+          {/* Keyboard shortcuts (digits jump to a workspace, arrows walk the
+              nav, "?" opens this row's dialog) existed but were entirely
+              undiscoverable -- nothing in the UI ever mentioned them
+              (a11y-ux.md finding "Keyboard shortcuts exist but are
+              undiscoverable"). */}
+          <div><SlidersHorizontal size={18} /><span><strong id="keyboard-title">Keyboard shortcuts</strong><p>Digits jump to a workspace, arrows switch between them. Press &quot;?&quot; any time to see the full list.</p></span></div>
+          <button className="button secondary" onClick={onOpenKeyboardHelp}>View shortcuts</button>
+        </section>
         <section className="model-source-panel" aria-labelledby="model-source-title">
           <header><div><strong id="model-source-title">Educational model sourcing</strong><p>Only models with usable rights and player-checked keywork will enter the learning lab.</p></div><span>{modelSources.filter((item) => item.tone === "ready").length} integrated</span></header>
           <div className="model-source-list">
@@ -1084,7 +1276,35 @@ function DownloadCenter({
   );
 }
 
-function NotationPicker({
+// Memoized: this and CalibrationPicker/TunerView below used to re-render on
+// every ~30ms tuner sample tick along with the rest of the page (tuner.md
+// finding "Every 30 ms sample tick re-renders the whole page"). With the
+// publish-rate throttle above and these three components wrapped, an
+// unchanged prop set now bails out instead of re-rendering their DOM.
+function KeyboardHelp({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="download-overlay" role="presentation">
+      <section className="download-dialog" role="dialog" aria-modal="true" aria-labelledby="keyboard-help-title">
+        <header>
+          <div><p className="eyebrow">Keyboard shortcuts</p><h2 id="keyboard-help-title">Get around without a pointer.</h2></div>
+          <button onClick={onClose} aria-label="Close keyboard shortcuts"><X size={19} /></button>
+        </header>
+        <section className="settings-panel">
+          <ul>
+            {navItems.map((item, index) => (
+              <li key={item.id}><kbd>{index + 1}</kbd> {item.label}</li>
+            ))}
+            <li><kbd>←</kbd> <kbd>→</kbd> Switch workspace (outside a lab, or a focused list/tab)</li>
+            <li><kbd>?</kbd> Open this dialog</li>
+            <li><kbd>Esc</kbd> Close a dialog</li>
+          </ul>
+        </section>
+      </section>
+    </div>
+  );
+}
+
+const NotationPicker = memo(function NotationPicker({
   notation,
   saTonic,
   onNotationChange,
@@ -1115,7 +1335,13 @@ function NotationPicker({
       <p className="notation-hint">{profile.description}</p>
       {profile.needsTonic && (
         <label className="notation-tonic">
-          <span>Sa is</span>
+          {/* "(written)" qualifies which pitch space this picks Sa from: the
+              readout above shows written pitch first, and this picker feeds
+              that same written note name, not the concert one the temperament
+              key-centre picker below uses (tuner.md finding "Key centre and
+              Sa is use the same letter picker but one is concert pitch and
+              the other written pitch, and neither says so"). */}
+          <span>Sa is (written)</span>
           <select value={saTonic} onChange={(event) => onSaTonicChange(Number(event.target.value))}>
             {TONIC_CHOICES.map((choice) => (
               <option key={choice.pc} value={choice.pc}>
@@ -1127,14 +1353,14 @@ function NotationPicker({
       )}
     </div>
   );
-}
+});
 
 // Calibration is set-once-then-forget, unlike the notation switch a player
 // might flip between mid-session, so it lives behind a disclosure instead of
 // sitting open in the readout. Same crater/keycap vocabulary as
 // NotationPicker above -- recessed track for what you choose from, raised
 // keycap for what you chose.
-function CalibrationPicker({
+const CalibrationPicker = memo(function CalibrationPicker({
   referenceHz,
   temperament,
   temperamentKeyPc,
@@ -1147,6 +1373,9 @@ function CalibrationPicker({
   onSensitivityChange,
   damping,
   onDampingChange,
+  writtenOffset,
+  keyCentreMode,
+  onKeyCentreModeChange,
 }: {
   referenceHz: number;
   temperament: TemperamentId;
@@ -1160,10 +1389,66 @@ function CalibrationPicker({
   onSensitivityChange: (next: Sensitivity) => void;
   damping: Damping;
   onDampingChange: (next: Damping) => void;
+  /** Semitones from concert to written pitch for the current instrument. */
+  writtenOffset: number;
+  keyCentreMode: "concert" | "written";
+  onKeyCentreModeChange: (next: "concert" | "written") => void;
 }) {
   const [open, setOpen] = useState(false);
   const profile = TEMPERAMENT_PROFILES[temperament];
   const hzLabel = Number.isInteger(referenceHz) ? String(referenceHz) : referenceHz.toFixed(1);
+  // The key centre a temperament is built around is always a *concert*
+  // pitch class in tuning.ts (readingFor/targetHzFor need it that way), but
+  // a transposing player thinks in their written key -- an alto player who
+  // wants "Key centre: C" to mean their written C (concert Eb) needs the
+  // toggle below to convert through writtenOffset before it's stored
+  // (tuner.md finding "Key centre and Sa is use the same letter picker but
+  // one is concert pitch and the other written pitch").
+  const pc = (value: number) => ((value % 12) + 12) % 12;
+  const displayedKeyPc = keyCentreMode === "written" ? pc(temperamentKeyPc + writtenOffset) : temperamentKeyPc;
+  const handleKeyPcChange = (nextDisplayedPc: number) => {
+    onTemperamentKeyPcChange(keyCentreMode === "written" ? pc(nextDisplayedPc - writtenOffset) : nextDisplayedPc);
+  };
+  // Per-cell string drafts so a partially-typed "-" (or "-5") isn't clobbered
+  // back to "0" on every keystroke -- a plain controlled `<input
+  // type="number">` reads a bare "-" as `Number("") === 0`, snapping the
+  // field back and eating the minus sign before a player can finish typing a
+  // negative offset, which is most of them (tuner.md finding "Custom
+  // temperament fields cannot accept a negative number").
+  const [customDrafts, setCustomDrafts] = useState<string[]>(() => customCents.map((value) => String(value)));
+  // Resyncs drafts from the prop when it changes for a reason other than
+  // this component's own edits (e.g. "Load from current pressed", or the
+  // instrument changed) -- done as a render-time state adjustment (React's
+  // documented pattern for "adjusting state when a prop changes") rather
+  // than a `useEffect` that calls setState, which the lint rule
+  // react-hooks/set-state-in-effect flags as an avoidable extra render.
+  const [syncedCustomCents, setSyncedCustomCents] = useState(customCents);
+  if (syncedCustomCents !== customCents) {
+    setSyncedCustomCents(customCents);
+    setCustomDrafts(customCents.map((value) => String(value)));
+  }
+  const commitCustomDraft = (index: number, draft: string) => {
+    const parsed = Number.parseFloat(draft);
+    if (Number.isFinite(parsed)) onCustomCentChange(index, parsed);
+    else setCustomDrafts((current) => { const next = current.slice(); next[index] = String(customCents[index] ?? 0); return next; });
+  };
+  // Remembers the last non-"custom" temperament the player had selected, so
+  // "Load from current" (only shown once Custom is active) has something
+  // other than Custom's own table to copy from -- it seeds the custom grid
+  // from whichever named temperament the player was just looking at. Uses
+  // state updated during render (React's documented pattern) rather than a
+  // ref written during render, which react-hooks/refs flags.
+  const [lastNamedTemperament, setLastNamedTemperament] = useState<Exclude<TemperamentId, "custom">>(
+    temperament === "custom" ? "equal" : temperament,
+  );
+  const [syncedTemperament, setSyncedTemperament] = useState(temperament);
+  if (syncedTemperament !== temperament) {
+    setSyncedTemperament(temperament);
+    if (temperament !== "custom") setLastNamedTemperament(temperament);
+  }
+  const loadFromCurrentTemperament = () => {
+    TEMPERAMENTS[lastNamedTemperament].forEach((value, index) => onCustomCentChange(index, value));
+  };
   return (
     <div className="calibration-picker">
       <button
@@ -1230,36 +1515,75 @@ function CalibrationPicker({
             </select>
             <p className="notation-hint">{profile.description}</p>
             {profile.needsKeyCentre && (
-              <label className="notation-tonic">
-                <span>Key centre</span>
-                <select value={temperamentKeyPc} onChange={(event) => onTemperamentKeyPcChange(Number(event.target.value))}>
-                  {TONIC_CHOICES.map((choice) => (
-                    <option key={choice.pc} value={choice.pc}>
-                      {choice.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <>
+                <label className="notation-tonic">
+                  {/* "(concert)" qualifies which pitch space this centres the
+                      temperament on -- readingFor treats it as a concert
+                      pitch class regardless of the toggle below, so a
+                      transposing player who wants their own written key
+                      needs the Written/Concert switch to convert it first
+                      (tuner.md finding on the ambiguous "Key centre"/"Sa is"
+                      pickers). */}
+                  <span>Key centre ({keyCentreMode})</span>
+                  <select value={displayedKeyPc} onChange={(event) => handleKeyPcChange(Number(event.target.value))}>
+                    {TONIC_CHOICES.map((choice) => (
+                      <option key={choice.pc} value={choice.pc}>
+                        {choice.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {writtenOffset !== 0 && (
+                  <div className="notation-switch key-centre-mode" role="radiogroup" aria-label="Key centre pitch space">
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={keyCentreMode === "written"}
+                      className={keyCentreMode === "written" ? "is-active" : ""}
+                      onClick={() => onKeyCentreModeChange("written")}
+                    >
+                      Written
+                    </button>
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={keyCentreMode === "concert"}
+                      className={keyCentreMode === "concert" ? "is-active" : ""}
+                      onClick={() => onKeyCentreModeChange("concert")}
+                    >
+                      Concert
+                    </button>
+                  </div>
+                )}
+              </>
             )}
             {temperament === "custom" && (
-              <div className="custom-temperament-grid" role="group" aria-label="Custom temperament cent offsets">
-                {DEGREE_LABELS.map((label, index) => (
-                  <label key={label} className="custom-temperament-cell">
-                    <span>{label}</span>
-                    <input
-                      type="number"
-                      inputMode="decimal"
-                      step={0.1}
-                      min={-100}
-                      max={100}
-                      value={customCents[index] ?? 0}
-                      disabled={index === 0}
-                      onChange={(event) => onCustomCentChange(index, Number(event.target.value))}
-                      aria-label={`${label} cents from equal`}
-                    />
-                  </label>
-                ))}
-              </div>
+              <>
+                <button type="button" className="small-action load-from-current" onClick={loadFromCurrentTemperament}>
+                  Load from {TEMPERAMENT_PROFILES[lastNamedTemperament].label}
+                </button>
+                <div className="custom-temperament-grid" role="group" aria-label="Custom temperament cent offsets">
+                  {DEGREE_LABELS.map((label, index) => (
+                    <label key={label} className="custom-temperament-cell">
+                      <span>{label}</span>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        pattern="-?[0-9]*\.?[0-9]*"
+                        value={customDrafts[index] ?? "0"}
+                        disabled={index === 0}
+                        onChange={(event) => {
+                          const next = event.target.value;
+                          setCustomDrafts((current) => { const copy = current.slice(); copy[index] = next; return copy; });
+                        }}
+                        onBlur={(event) => commitCustomDraft(index, event.target.value)}
+                        onKeyDown={(event) => { if (event.key === "Enter") commitCustomDraft(index, (event.target as HTMLInputElement).value); }}
+                        aria-label={`${label} cents from equal`}
+                      />
+                    </label>
+                  ))}
+                </div>
+              </>
             )}
           </div>
 
@@ -1304,9 +1628,9 @@ function CalibrationPicker({
       )}
     </div>
   );
-}
+});
 
-function TunerView({
+const TunerView = memo(function TunerView({
   reading,
   listening,
   trackerReading,
@@ -1340,6 +1664,9 @@ function TunerView({
   onHistoryModeChange,
   onClearHistory,
   historyCanvasRef,
+  keyCentreMode,
+  onKeyCentreModeChange,
+  onOpenKeyboardHelp,
 }: {
   reading: PitchReading | null;
   listening: boolean;
@@ -1373,7 +1700,10 @@ function TunerView({
   historyMode: "line" | "staff";
   onHistoryModeChange: (next: "line" | "staff") => void;
   onClearHistory: () => void;
-  historyCanvasRef: React.RefObject<HTMLCanvasElement | null>;
+  historyCanvasRef: (node: HTMLCanvasElement | null) => void;
+  keyCentreMode: "concert" | "written";
+  onKeyCentreModeChange: (next: "concert" | "written") => void;
+  onOpenKeyboardHelp: () => void;
 }) {
   const tolerance = PRECISION_TOLERANCE[precision];
   const inTune = trackerReading.state === "locked" && reading !== null && Math.abs(reading.cents) <= tolerance;
@@ -1413,12 +1743,30 @@ function TunerView({
       : trackerReading.state === "silence"
         ? { title: "No clear note yet.", copy: "Play a sustained note near the phone. Background sound won’t be shown as a pitch." }
         : trackerReading.state === "acquiring"
-          ? { title: "Keep holding it.", copy: "Bocal waits for three consistent readings before it changes the displayed note." }
+          ? {
+              title: "Keep holding it.",
+              // Interpolates the live Sensitivity preset's frame count
+              // instead of a hard-coded "three" -- the lock-policy line
+              // just below already shows the real number, and the fixed
+              // "three" here was wrong for every preset but Medium
+              // (product.md finding "Tuner coaching copy contradicts the
+              // engine").
+              copy: `Bocal waits for ${SENSITIVITY_PRESETS[sensitivity].acquireFrames} consistent readings before it changes the displayed note.`,
+            }
           : trackerReading.state === "holding"
             ? { title: "The signal dipped.", copy: "Bocal holds the last note briefly instead of jumping. The display clears if the sound doesn’t return." }
             : inTune
-              ? { title: "Right in the middle.", copy: `You’re within ${tolerance} cents. Keep the air and embouchure where they are.` }
-              : { title: `${direction} by ${Math.abs(reading?.cents ?? 0)} cents.`, copy: direction === "Sharp" ? "Ease the jaw pressure without losing the air." : "Support the air and bring the pitch up without biting." };
+              ? { title: "Right in the middle.", copy: `You’re within ${tolerance} cents. Keep your embouchure and air where they are.` }
+              : {
+                  title: `${direction} by ${Math.abs(reading?.cents ?? 0)} cents.`,
+                  // Per-family correction copy (reed / air-reed / double-reed
+                  // / string) instead of one fixed "jaw pressure" / "biting"
+                  // pair shown to every instrument including guitar strings
+                  // and flute's air column, neither of which has a reed or a
+                  // jaw to speak of (product.md finding "Tuner coaching copy
+                  // contradicts the engine and the instrument").
+                  copy: direction === "Sharp" ? CORRECTION_COPY[instrument.embouchure].sharp : CORRECTION_COPY[instrument.embouchure].flat,
+                };
   const signalPercent = Math.min(100, Math.round((trackerReading.rms / Math.max(trackerReading.gate * 1.6, 0.0001)) * 100));
 
   return (
@@ -1433,10 +1781,32 @@ function TunerView({
       </section>
 
       <div className="tuner-grid">
-        <section className={`tuner-card ${inTune ? "is-centered" : ""} ${reading ? "has-reading" : "is-waiting"}`} aria-live="polite">
+        {/* aria-live used to sit on this whole section, which also holds 11
+            interactive controls (precision select, notation radios,
+            calibration disclosure, Line/Staff, Clear, Start/Stop) -- any of
+            them changing, or the note readout ticking at up to 15Hz, queued
+            the entire card's ~560 characters for announcement, and toggling
+            a control inside a live region re-announces the region
+            (a11y-ux.md finding "The entire tuner card is an aria-live
+            region"). Moved to a small, visually-hidden status line below
+            instead, which only the note/cents/state feed. */}
+        <section className={`tuner-card ${inTune ? "is-centered" : ""} ${reading ? "has-reading" : "is-waiting"}`}>
+          {/* Inline-styled rather than a `.visually-hidden` class: WP6 owns
+              globals.css in this wave and a11y-ux.md separately flags that
+              class as undefined today, so relying on it here would show
+              this status line as visible text until that fix lands. */}
+          <p
+            aria-live="polite"
+            aria-atomic="true"
+            style={{ position: "absolute", width: 1, height: 1, padding: 0, margin: -1, overflow: "hidden", clip: "rect(0,0,0,0)", whiteSpace: "nowrap", border: 0 }}
+          >
+            {reading
+              ? `${fullNoteLabel(reading.writtenMidi, notation, saTonic)}, ${Math.abs(reading.cents)} cents ${reading.cents === 0 ? "in tune" : reading.cents > 0 ? "sharp" : "flat"}`
+              : trackerLabel}
+          </p>
           <div className="tuner-card-top">
             <span className="status-label"><CircleDot size={15} /> {trackerReading.state === "locked" ? direction : trackerLabel}</span>
-            <div className="tuner-top-actions"><label className="precision-picker"><span>Precision</span><select value={precision} onChange={(event) => onPrecisionChange(event.target.value as "standard" | "fine" | "ultra")} aria-label="Tuner precision"><option value="standard">Standard ±10¢</option><option value="fine">Fine ±5¢</option><option value="ultra">Ultra ±2¢</option></select></label><button className="small-action" onClick={onReference}><Volume2 size={16} /> Hear reference A</button></div>
+            <div className="tuner-top-actions"><label className="precision-picker"><span>Precision</span><select value={precision} onChange={(event) => onPrecisionChange(event.target.value as "standard" | "fine" | "ultra")} aria-label="Tuner precision"><option value="standard">Standard ±10¢</option><option value="fine">Fine ±5¢</option><option value="ultra">Ultra ±2¢</option></select></label><button className="small-action" onClick={onReference}><Volume2 size={16} /> Hear reference A</button><button className="small-action" aria-keyshortcuts="?" onClick={onOpenKeyboardHelp}>Keyboard</button></div>
           </div>
 
           <div className="note-readout">
@@ -1484,9 +1854,20 @@ function TunerView({
             onSensitivityChange={onSensitivityChange}
             damping={damping}
             onDampingChange={onDampingChange}
+            writtenOffset={instrument.writtenOffset}
+            keyCentreMode={keyCentreMode}
+            onKeyCentreModeChange={onKeyCentreModeChange}
           />
 
-          <div className="tune-scale" role="meter" aria-valuemin={-50} aria-valuemax={50} aria-valuenow={reading?.cents} aria-label="Pitch deviation in cents">
+          <div
+            className="tune-scale"
+            role="meter"
+            aria-valuemin={-50}
+            aria-valuemax={50}
+            aria-valuenow={reading ? Math.round(reading.cents) : 0}
+            aria-valuetext={reading ? `${Math.abs(Math.round(reading.cents))} cents ${reading.cents < 0 ? "flat" : reading.cents > 0 ? "sharp" : "in tune"}` : "No reading"}
+            aria-label="Pitch deviation in cents"
+          >
             <div className="scale-labels"><span>−50</span><span>−25</span><strong>0</strong><span>+25</span><span>+50</span></div>
             <div className="scale-track">
               <span className="center-zone" />
@@ -1533,7 +1914,9 @@ function TunerView({
               height={104}
             />
             <p className="pitch-history-caption">
-              Cents from target over the last 10 seconds — a flat line near the middle means you’re steady. Stops when the tuner does, so you can look back.
+              {historyMode === "staff"
+                ? "Notes you've held over the last 10 seconds, coloured by how close to target they were. Stops when the tuner does, so you can look back."
+                : "Cents from target over the last 10 seconds — a flat line near the middle means you’re steady. Stops when the tuner does, so you can look back."}
             </p>
           </section>
 
@@ -1597,6 +1980,7 @@ function TunerView({
         temperamentKeyPc={temperamentKeyPc}
         notation={notation}
         saTonic={saTonic}
+        customCents={customCents}
       />
 
       <section className="today-strip">
@@ -1607,7 +1991,7 @@ function TunerView({
       </section>
     </div>
   );
-}
+});
 
 function Metric({ value, label, detail, icon: Icon }: { value: string; label: string; detail: string; icon: typeof Activity }) {
   return (

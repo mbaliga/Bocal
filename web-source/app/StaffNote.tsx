@@ -41,7 +41,15 @@ const BOTTOM_LINE = STAFF_BOTTOM_LINE;
 // Drawn from the bottom tail terminal, up the stem, round the top curl, down
 // into the big loop and spiralling in to the terminal on the G line -- the
 // order the stroke is actually made by hand.
-const TREBLE_CLEF =
+//
+// Exported (with the F clef and the sharp/flat geometry below) so the
+// tuner's pitch-history graph can draw the same hand-authored paths in
+// staff mode instead of falling back to the Unicode clef glyphs, which this
+// component's own comment above already explains are a coin-flip on Android
+// WebView (tuner.md: "uses the Unicode clef glyph StaffNote deliberately
+// avoids"). pitch-history-canvas.ts renders these via `new Path2D(...)`
+// scaled to its own staff spacing.
+export const TREBLE_CLEF =
   "M -7 54 C -3 58, 3 57, 4 51 C 5 44, 2 38, 0 30 " +
   "C -2 22, 1 12, 3 4 C 4 -3, 3 -10, 8 -13 " +
   "C 13 -16, 15 -8, 11 -2 C 7 5, -1 12, -6 19 " +
@@ -49,7 +57,18 @@ const TREBLE_CLEF =
   "C 12 32, 6 26, 1 29 C -3 31, -2 35, 2 35";
 
 // The F clef: a comma whose head sits on the F line, sweeping down and left.
-const BASS_CLEF = "M 12 17 C 12 9, 3 6, -2 12 M 12 17 C 12 29, 3 37, -9 43";
+export const BASS_CLEF = "M 12 17 C 12 9, 3 6, -2 12 M 12 17 C 12 29, 3 37, -9 43";
+
+// Sharp/flat geometry as stroke-only path data, matching SharpGlyph/FlatGlyph
+// below exactly, for the canvas to draw with `ctx.stroke(new Path2D(...))`.
+export const SHARP_GLYPH_PATHS = [
+  "M -2.6 -8 L -2.6 7",
+  "M 2.6 -7 L 2.6 8",
+  "M -5.4 -1.4 L 5.4 -3.4",
+  "M -5.4 3.8 L 5.4 1.8",
+];
+export const FLAT_GLYPH_PATH =
+  "M -2.6 -11 L -2.6 6 M -2.6 6 C 2 2.5, 5 0.5, 4.4 -2.6 C 3.9 -5.2, 0.4 -5, -2.6 -1.6";
 
 function SharpGlyph({ x, y }: { x: number; y: number }) {
   // Two upright strokes and two rising crossbars, the crossbars slanted so the
@@ -92,7 +111,26 @@ export default function StaffNote({
 
   // Half-space steps above the bottom line. Line positions are the even values
   // 0, 2, 4, 6, 8; anything outside that range needs ledger lines.
-  const step = midi === null ? null : octaveOf(midi) * 7 + spellingFor(midi).letter - bottom;
+  const rawStep = midi === null ? null : octaveOf(midi) * 7 + spellingFor(midi).letter - bottom;
+  // Steps beyond ~12 either side ran the notehead and most of its ledger
+  // lines off the fixed viewBox entirely (tuner.md: "flute F6-C7 and bassoon
+  // above G4 are drawn off-canvas"). Rather than growing the viewBox
+  // per-note (which would make the staff itself jump size), fold the note
+  // back an octave (7 diatonic steps) and show an 8va/8vb badge, the
+  // standard notation convention for exactly this situation.
+  const FOLD_LIMIT = 12;
+  let step = rawStep;
+  let octaveTag: "8va" | "8vb" | null = null;
+  if (step !== null) {
+    while (step > FOLD_LIMIT) {
+      step -= 7;
+      octaveTag = "8va";
+    }
+    while (step < -FOLD_LIMIT) {
+      step += 7;
+      octaveTag = "8vb";
+    }
+  }
   const noteY = step === null ? null : 4 * S - (step * S) / 2;
   const accidental = midi === null ? 0 : spellingFor(midi).accidental;
 
@@ -159,6 +197,19 @@ export default function StaffNote({
             strokeLinecap="round"
           />
           <ellipse cx={noteX} cy={noteY} rx={7.8} ry={5.6} fill="currentColor" transform={`rotate(-21 ${noteX} ${noteY})`} />
+          {octaveTag && (
+            <text
+              x={noteX}
+              y={octaveTag === "8va" ? noteY - 20 : noteY + 24}
+              textAnchor="middle"
+              fill="currentColor"
+              fontSize={11}
+              fontStyle="italic"
+              opacity={0.75}
+            >
+              {octaveTag}
+            </text>
+          )}
         </g>
       )}
     </svg>

@@ -112,8 +112,16 @@ export const CUSTOM_TEMPERAMENT_DEFAULT: number[] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 
  * Interval name for each of the 12 degrees, shown next to the custom
  * temperament's editable cent offsets since the degrees aren't absolute
  * pitch classes -- they're semitones above whatever key centre is chosen.
+ *
+ * Previously "Unison", "m2", "M2", "m3", "M3", "P4", "TT", "P5", "m6", "M6",
+ * "m7", "M7" -- but the CSS applied `text-transform: uppercase` to these
+ * labels, which destroys the case distinction the m/M pairs depend on: m2
+ * and M2 both rendered as "M2" (tuner.md finding "Custom temperament degree
+ * labels are uppercased"). WP1 owns this file's labels, not the CSS rule
+ * (WP6 owns globals.css), so the fix here is unambiguous labels that read
+ * the same whatever case they're forced into.
  */
-export const DEGREE_LABELS = ["Unison", "m2", "M2", "m3", "M3", "P4", "TT", "P5", "m6", "M6", "m7", "M7"];
+export const DEGREE_LABELS = ["1", "♭2", "2", "♭3", "3", "4", "♭5", "5", "♭6", "6", "♭7", "7"];
 
 /**
  * Parses a custom temperament's 12 cent offsets out of a raw localStorage
