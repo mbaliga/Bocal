@@ -1,4 +1,5 @@
 "use client";
+import "./native-bridge";
 
 import {
   Activity,
@@ -100,17 +101,6 @@ import { recordPracticeActivity } from "./practice-data";
 // Declared here so the web app can call it defensively ahead of that work
 // landing -- every call is optional-chained, so nothing breaks in the
 // browser preview or before the native side ships the interface.
-declare global {
-  interface Window {
-    bocalHost?: {
-      setTheme(theme: "light" | "dark"): void;
-      setKeepAwake(on: boolean): void;
-      saveFile(name: string, mime: string, base64: string): boolean;
-      openExternal(url: string): boolean;
-    };
-  }
-}
-
 const SaxophoneLab = dynamic(
   () => import("./SaxophoneLab").then((module) => module.SaxophoneLab),
   { ssr: false },

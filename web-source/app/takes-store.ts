@@ -1,3 +1,4 @@
+import "./native-bridge";
 /**
  * IndexedDB-backed storage for Analyze takes.
  *
@@ -103,17 +104,6 @@ export async function renameStoredTake(id: string, name: string): Promise<void> 
 /** Extension to give a downloaded/exported take, derived from its MIME type
  *  rather than hard-coded to .webm -- an imported MP3 or an iOS m4a
  *  recording should keep its real container. */
-declare global {
-  interface Window {
-    bocalHost?: {
-      setTheme?(theme: "light" | "dark"): void;
-      setKeepAwake?(on: boolean): void;
-      saveFile?(name: string, mime: string, base64: string): boolean;
-      openExternal?(url: string): boolean;
-    };
-  }
-}
-
 function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();

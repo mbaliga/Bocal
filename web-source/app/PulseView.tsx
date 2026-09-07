@@ -1,4 +1,5 @@
 "use client";
+import "./native-bridge";
 
 import {
   Activity,
@@ -46,17 +47,6 @@ import "./styles/pulse.css";
 // The Android/WebView host contract (see PLAN.md "Shared conventions" §6).
 // Declared locally rather than in a shared d.ts because no such file exists
 // yet in this codebase; harmless to redeclare an optional global.
-declare global {
-  interface Window {
-    bocalHost?: {
-      setTheme?(theme: "light" | "dark"): void;
-      setKeepAwake?(on: boolean): void;
-      saveFile?(name: string, mime: string, base64: string): boolean;
-      openExternal?(url: string): boolean;
-    };
-  }
-}
-
 const EQUAL_A440: TuningOptions = { referenceHz: 440, temperament: "equal", keyPc: 0 };
 const DRONE_OCTAVES = [2, 3, 4, 5];
 
