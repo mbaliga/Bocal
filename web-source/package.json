@@ -8,6 +8,7 @@
   "scripts": {
     "install:ci": "npm ci",
     "dev": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vite",
+    "prebuild": "node scripts/sync-handoff.mjs",
     "build": "vinext build && bash scripts/validate-artifact.sh",
     "start": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start",
     "typecheck": "tsc --noEmit",
@@ -18,7 +19,7 @@
     "validate:artifact": "bash scripts/validate-artifact.sh",
     "lint": "bash scripts/sites-env.sh -- eslint . --ignore-pattern dist --ignore-pattern .next --ignore-pattern preview-dist",
     "db:generate": "bash scripts/sites-env.sh -- drizzle-kit generate",
-    "preview:standalone": "vite build --config vite.preview.config.ts && node scripts/inline-preview-assets.mjs"
+    "preview:standalone": "node scripts/sync-handoff.mjs && vite build --config vite.preview.config.ts && node scripts/inline-preview-assets.mjs"
   },
   "dependencies": {
     "drizzle-orm": "0.45.2",

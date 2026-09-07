@@ -184,3 +184,12 @@ test("analysis keeps more than one take and supports local take management", asy
   assert.match(source, /playbackRate/);
   assert.match(source, /takes\.map/);
 });
+
+test("the lab tab is named for what the chosen instrument actually has, never a blanket \"3D lab\"", async () => {
+  const source = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  // The literal must only survive inside the comment that explains its removal.
+  const codeOnly = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+  assert.doesNotMatch(codeOnly, /["'`]3D lab["'`]/);
+  assert.match(source, /function navLabelFor\(/);
+  assert.match(source, /labTier === "chart"\) return "Chart"/);
+});
