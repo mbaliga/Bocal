@@ -1,0 +1,159 @@
+/* Guitar studio: token-driven so the studio reads correctly in both themes.
+   Selectors are scoped under .guitar-studio for specificity over the
+   dark-only rules in globals.css (owned by the light-theme package) so this
+   file wins regardless of CSS import order. */
+
+.guitar-studio .guitar-tuner-card,
+.guitar-studio .guitar-chord-card,
+.guitar-studio .chord-player-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+}
+
+.guitar-studio .guitar-card-head select,
+.guitar-studio .guitar-card-head button {
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--subtle);
+}
+
+.guitar-studio .guitar-card-head button:hover {
+  color: var(--cyan);
+  border-color: var(--cyan);
+}
+
+.guitar-studio .guitar-tuner-readout span {
+  color: var(--muted);
+}
+
+.guitar-studio .guitar-tuner-readout strong {
+  color: var(--ink);
+}
+
+.guitar-studio .guitar-tuner-readout small {
+  color: var(--subtle);
+}
+
+.guitar-studio .guitar-string-meter {
+  border-top: 1px solid var(--line);
+  background: repeating-linear-gradient(90deg, transparent 0, transparent calc(10% - 1px), var(--line) calc(10% - 1px), var(--line) 10%);
+}
+
+.guitar-studio .guitar-string-meter i {
+  background: var(--ink);
+}
+
+.guitar-studio .guitar-string-grid button {
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--muted);
+}
+
+.guitar-studio .guitar-string-grid button strong {
+  color: var(--ink);
+}
+
+.guitar-studio .guitar-string-grid button.is-active {
+  color: var(--cyan);
+  border-color: var(--cyan);
+}
+
+.guitar-studio .guitar-auto {
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--muted);
+}
+
+.guitar-studio .guitar-auto.is-active {
+  color: var(--cyan);
+  border-color: var(--cyan);
+}
+
+.guitar-studio .guitar-chord-title span {
+  color: var(--muted);
+}
+
+.guitar-studio .guitar-chord-title em {
+  border: 1px solid var(--line);
+  color: var(--ink);
+  background: var(--panel-2);
+}
+
+.guitar-studio .guitar-chord-row button {
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--muted);
+}
+
+.guitar-studio .guitar-chord-row button.is-active {
+  color: var(--panel);
+  border-color: var(--cyan);
+  background: var(--cyan);
+}
+
+.guitar-studio .chord-player-intro p,
+.guitar-studio .chord-player-note {
+  color: var(--muted);
+}
+
+.guitar-studio .chord-flow button {
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--muted);
+}
+
+.guitar-studio .chord-flow button.is-current {
+  color: var(--ink);
+  border-color: var(--cyan);
+}
+
+.guitar-studio .chord-player-controls button,
+.guitar-studio .guitar-tempo-select {
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--muted);
+}
+
+.guitar-studio .wait-toggle.is-active {
+  color: var(--cyan);
+  border-color: var(--cyan);
+}
+
+/* Fretboard SVG: fixed hex strokes replaced with theme tokens. */
+.guitar-studio .guitar-fret-body {
+  fill: var(--panel-2);
+  stroke: var(--line);
+}
+
+.guitar-studio .guitar-fret-nut {
+  stroke: var(--ink);
+  stroke-width: 7;
+}
+
+.guitar-studio .guitar-fret-wire {
+  stroke: var(--line);
+  stroke-width: 3;
+}
+
+.guitar-studio .guitar-fret-string {
+  stroke: var(--subtle);
+  stroke-opacity: 0.72;
+}
+
+.guitar-studio .guitar-fret-number {
+  fill: var(--muted);
+}
+
+.guitar-studio .guitar-fret-mute {
+  /* Not a surface/text token: a small "muted string" glyph, tuned to clear
+     3:1 (large-text) contrast against both --panel and --panel-2. */
+  fill: #d1314f;
+}
+
+.guitar-studio .guitar-fret-open {
+  stroke: var(--subtle);
+}
+
+.guitar-studio .guitar-fret-finger-label {
+  fill: var(--panel);
+}

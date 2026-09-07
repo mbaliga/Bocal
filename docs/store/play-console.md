@@ -19,10 +19,16 @@
 > which surface is canonical before shipping; the listing describes the Android app
 > (`android/`, 0.5.0).
 
-## The blocker that is not about forms: model licensing
+## Model licensing (resolved for the current bundle)
 
-The Android app ships **three detailed third-party glTF instruments**, and the repo
-flags this in its own README (`Android 0.5 and model licensing`).
+> **6 September update:** this section originally described a three-model bundle
+> (alto sax, oboe, clarinet) and flagged the clarinet's CC-BY-NC licence as a
+> blocker. The clarinet model has since been removed; `android/app/src/main/assets/www/models`
+> now ships only `oboe/` and `sax/`, both CC-BY-4.0, and `android/MODEL_MANIFEST.md`
+> records the reversal. The steps below are kept for future model additions.
+
+The Android app ships **two third-party glTF instruments** (alto sax, oboe), both
+CC-BY-4.0.
 
 **Confirm, per model, that the licence permits commercial redistribution inside a
 closed-source app on a store.** Many free 3D models are CC-BY (attribution required
@@ -66,8 +72,7 @@ say so.
 | `VIBRATE` | Metronome and interaction feedback. | No |
 
 ### targetSdk
-The repo shows both `36` and `37` across its trees. Confirm what the Android app
-actually builds against, and that it meets Play's current floor.
+Resolved: `android/app/build.gradle.kts` targets and compiles against `37`.
 
 ### Content rating
 - Category `Utility, Productivity, Communication, or Other`, or `Reference, News,
@@ -78,9 +83,11 @@ actually builds against, and that it meets Play's current floor.
 - **No in-app purchases** today.
 
 ## F-Droid
-- ⛔ Not a good fit while third-party models are bundled: declare **`NonFreeAssets`**
-  at minimum, and F-Droid may decline outright depending on the licences. Resolving
-  the model question in favour of the repo's own originals would also unblock this.
+- Re-evaluate: the remaining bundled assets (alto sax and oboe models, CC-BY-4.0;
+  the WebView shell's own code) carry no non-free licence, so the earlier
+  `NonFreeAssets` concern (written for the since-removed CC-BY-NC clarinet model)
+  no longer applies as stated. Still confirm there is no other non-free dependency
+  before submitting.
 
 ## Pre-submit checklist
 

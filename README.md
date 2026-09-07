@@ -1,12 +1,18 @@
 # Bocal
 
-Bocal is a music-learning application for saxophone and other woodwinds, covering
-tuning, tone and practice workflows with an interactive 3D instrument lab.
+Bocal is a local-first music practice app: a stable-note tuner, pulse and practice
+tools, local analysis, and instrument-specific fingering/anatomy learning, covering
+ten instruments (nine woodwinds plus guitar).
 
-This repository is the import of the Bocal 0.2 reference handoff dated 10 August 2026,
-plus a later in-progress source iteration. It is a snapshot of prototype work, not a
-released product — read [Status and limits](#status-and-limits) before relying on any
-part of it.
+## Current product (read this first)
+
+**`web-source/` is the current shipping app** and the only actively developed
+product surface. For what Bocal actually does today, read
+[`docs/BOCAL_HANDOFF.md`](docs/BOCAL_HANDOFF.md) (the single source of truth for
+product state) and [`web-source/README.md`](web-source/README.md). The rest of this
+file, `web-standalone/`, `web-source-v6/`, `models/`, `research/` and `qa/` are the
+historical record of the 0.2 → 0.5 import described below; they predate the current
+instrument set and are not maintained as part of the live product.
 
 ## Layout
 
@@ -15,7 +21,7 @@ part of it.
 | `web-standalone/` | TypeScript/Vite standalone app. `dist/` is the ready-to-host static build (serve over HTTPS — microphone access requires it). |
 | `web-source/` | Next.js/vinext hosted-Sites variant, including the client-only 3D loading boundary. |
 | `web-source-v6/` | Later, divergent iteration of `web-source`. Not a drop-in replacement — see [The v6 source](#the-v6-source). |
-| `android/` | Kotlin/Jetpack Compose Android project, version 0.5.0. Six-workspace shell over three detailed third-party glTF instruments — see [Android 0.5 and model licensing](#android-05-and-model-licensing). |
+| `android/` | Android shell, version 0.5.0. As of the current `web-source/` product it is a WebView wrapper (`MainActivity` → `WebAppScreen`) over the `web-source/` build, not the Compose UI described below — the Compose screens remain in the tree only as a revert path. It ships two third-party glTF instruments (alto sax, oboe) — see [Android 0.5 and model licensing](#android-05-and-model-licensing), which otherwise describes the superseded 0.5-era Compose shell. |
 | `models/` | 35 original educational woodwind GLBs, plus catalog, generator and validator. |
 | `research/` | 84-row TonalEnergy parity matrix, 10 personas × 5 workflows, source ledger, baseline delta. |
 | `docs/` | Product handoff (MD/DOCX/PDF), saxophone validation and parity spec, alto 3D model brief, music-learning baseline. |
