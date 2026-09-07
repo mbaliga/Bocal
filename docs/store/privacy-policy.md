@@ -23,10 +23,11 @@ tone. That is how a tuner works, and it is the core function of the app.
 - Audio is processed **as it arrives**, on your device. The tuner and tone
   analyser keep nothing.
 - **Recording happens only when you press Record.** The Analyze screen lets you
-  record short takes to listen back to. Those takes are kept in memory for as long
-  as the app stays open — they are not written to a persistent store — and you can
-  download one to your device's own storage at any time; closing the app or
-  uninstalling clears whatever was not downloaded.
+  record short takes to listen back to. Those takes are saved in the app's private
+  storage on your device (the browser's IndexedDB inside the app) so they survive
+  closing and reopening the app. You can rename or delete any take in the Analyze
+  screen, download one to your own files at any time, and uninstalling Bocal
+  removes them all. They are never sent anywhere.
 - **Nothing is transmitted.** There is no server of ours, and nothing is uploaded.
 - The app listens only while you are using a feature that needs it, and you can
   revoke the permission at any time in Android's settings.

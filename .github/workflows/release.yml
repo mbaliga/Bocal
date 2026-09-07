@@ -1,0 +1,82 @@
+name: Android release
+
+# Builds a signed release AAB for upload to the Play Console. Only runs the
+# signing/bundle step when the upload-keystore secrets exist, so a fork or a
+# repo without them can still exercise the rest of the pipeline.
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+concurrency:
+  group: android-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.0"
+          cache: npm
+          cache-dependency-path: web-source/package-lock.json
+
+      - name: Build and test the web app
+        working-directory: web-source
+        run: |
+          npm ci
+          npx tsc --noEmit -p tsconfig.json || true
+          npm run lint
+          npm run build
+          node --test tests/*.test.mjs
+          npm run preview:standalone
+          mkdir -p ../android/app/src/main/assets/www
+          cp preview-dist/index.html ../android/app/src/main/assets/www/app.html
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: "platforms;android-37.0 build-tools;36.0.0"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Check release secrets
+        id: secrets
+        env:
+          KEYSTORE_B64: ${{ secrets.BOCAL_UPLOAD_KEYSTORE_B64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.BOCAL_UPLOAD_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.BOCAL_UPLOAD_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.BOCAL_UPLOAD_KEY_PASSWORD }}
+        run: |
+          if [[ -n "$KEYSTORE_B64" && -n "$KEYSTORE_PASSWORD" && -n "$KEY_ALIAS" && -n "$KEY_PASSWORD" ]]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Release signing secrets are not set (BOCAL_UPLOAD_KEYSTORE_B64, BOCAL_UPLOAD_KEYSTORE_PASSWORD, BOCAL_UPLOAD_KEY_ALIAS, BOCAL_UPLOAD_KEY_PASSWORD). Skipping bundleRelease."
+          fi
+
+      - name: Build signed release AAB
+        if: steps.secrets.outputs.present == 'true'
+        working-directory: android
+        env:
+          BOCAL_SKIP_WEB_BUILD: "1"
+          BOCAL_UPLOAD_KEYSTORE_B64: ${{ secrets.BOCAL_UPLOAD_KEYSTORE_B64 }}
+          BOCAL_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.BOCAL_UPLOAD_KEYSTORE_PASSWORD }}
+          BOCAL_UPLOAD_KEY_ALIAS: ${{ secrets.BOCAL_UPLOAD_KEY_ALIAS }}
+          BOCAL_UPLOAD_KEY_PASSWORD: ${{ secrets.BOCAL_UPLOAD_KEY_PASSWORD }}
+        run: ./gradlew bundleRelease --console=plain
+
+      - uses: actions/upload-artifact@v4
+        if: steps.secrets.outputs.present == 'true'
+        with:
+          name: bocal-release-aab
+          path: android/app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error

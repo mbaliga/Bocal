@@ -1,5 +1,8 @@
 package com.bocal.music.ui;
 
+import android.content.ActivityNotFoundException;
+import android.content.Intent;
+import android.net.Uri;
 import android.webkit.RenderProcessGoneDetail;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
@@ -10,7 +13,11 @@ import androidx.webkit.WebViewAssetLoader;
 
 import java.io.ByteArrayInputStream;
 
-/** Restricts the instrument Lab to bundled appassets and recovers from renderer termination. */
+/**
+ * Restricts the instrument app to bundled appassets, recovers from renderer
+ * termination, and opens non-local http(s) navigations (model credit links,
+ * reference sources) in the system browser instead of swallowing them.
+ */
 final class LocalAssetWebViewClient extends WebViewClient {
     private static final String APPASSETS_HOST = "appassets.androidplatform.net";
 
@@ -41,7 +48,23 @@ final class LocalAssetWebViewClient extends WebViewClient {
 
     @Override
     public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-        return !isLocal(request);
+        if (isLocal(request)) {
+            return false;
+        }
+        Uri uri = request.getUrl();
+        String scheme = uri.getScheme();
+        if ("http".equals(scheme) || "https".equals(scheme)) {
+            try {
+                view.getContext().startActivity(
+                        new Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            } catch (ActivityNotFoundException ignored) {
+                // No browser available; nothing else to do.
+            }
+        }
+        // blob: navigations (take download, transcript share) are left
+        // unhandled here so WebView's own DownloadListener/JS bridge path can
+        // see them; everything else that is not local is consumed.
+        return !"blob".equals(scheme);
     }
 
     @Override

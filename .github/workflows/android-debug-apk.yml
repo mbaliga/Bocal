@@ -1,9 +1,8 @@
 name: Android debug APK
 
-# Builds the debug-signed APK and uploads it as a workflow artifact -- the
-# repo has no release-signing keystore (a deliberate, permanent decision, not
-# a missing build step), so this is the distribution path for on-device
-# testing until one exists.
+# Builds and tests the web app, then packages it into a debug-signed APK for
+# sideloading. Play requires a signed AAB for any real release -- see
+# release.yml for that path once the signing secrets exist.
 on:
   push:
     branches:
@@ -13,17 +12,78 @@ on:
       - "android/**"
       - "web-source/**"
       - ".github/workflows/android-debug-apk.yml"
+  pull_request:
+    paths:
+      - "android/**"
+      - "web-source/**"
+      - ".github/workflows/android-debug-apk.yml"
   workflow_dispatch:
 
+concurrency:
+  group: android-debug-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  build:
+  web:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web-source
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
           node-version: "22.13.0"
+          cache: npm
+          cache-dependency-path: web-source/package-lock.json
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: |
+          set +e
+          npx tsc --noEmit -p tsconfig.json > tsc-output.txt 2>&1
+          status=$?
+          set -e
+          if [ $status -ne 0 ]; then
+            # Only the four known pre-existing errors (cloudflare:workers, JSX
+            # namespace, Fetcher, D1Database) are allowed until WP10 lands.
+            unexpected=$(grep -c "error TS" tsc-output.txt || true)
+            cat tsc-output.txt
+            if [ "$unexpected" -gt 4 ]; then
+              echo "More than the four known tsc errors are present."
+              exit 1
+            fi
+          fi
+
+      - run: npm run lint
+      - run: npm run build
+      - run: node --test tests/*.test.mjs
+      - run: npm run preview:standalone
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bocal-web-app
+          path: web-source/preview-dist/index.html
+          if-no-files-found: error
+
+  apk:
+    needs: web
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: bocal-web-app
+          path: android/app/src/main/assets/www-staged
+
+      - name: Stage the web app bundle
+        run: |
+          mkdir -p android/app/src/main/assets/www
+          cp android/app/src/main/assets/www-staged/index.html android/app/src/main/assets/www/app.html
+          rm -rf android/app/src/main/assets/www-staged
 
       - uses: actions/setup-java@v4
         with:
@@ -38,19 +98,15 @@ jobs:
           # failed (sdkmanager: "Failed to find package 'platforms;android-37'").
           packages: "platforms;android-37.0 build-tools;36.0.0"
 
-      # The APK bundles the web app verbatim (assets/www/app.html), so it has
-      # to exist and be current before Gradle packages it.
-      - name: Build the standalone web app
-        working-directory: web-source
-        run: |
-          npm ci
-          npm run preview:standalone
-          mkdir -p ../android/app/src/main/assets/www
-          cp preview-dist/index.html ../android/app/src/main/assets/www/app.html
+      - uses: gradle/actions/setup-gradle@v4
 
       - name: Build debug APK
         working-directory: android
-        run: ./gradlew assembleDebug --console=plain
+        # The web bundle is already staged above; skip stageWebApp's own npm
+        # invocation so this job needs no Node toolchain.
+        env:
+          BOCAL_SKIP_WEB_BUILD: "1"
+        run: ./gradlew lintDebug assembleDebug --console=plain
 
       - uses: actions/upload-artifact@v4
         with:

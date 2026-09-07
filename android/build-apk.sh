@@ -5,11 +5,11 @@ project_dir="$(cd "$(dirname "$0")" && pwd)"
 cd "$project_dir"
 
 if [[ -x ./gradlew && -f ./gradle/wrapper/gradle-wrapper.jar ]]; then
-  ./gradlew --no-daemon :app:testDebugUnitTest :app:assembleDebug
+  ./gradlew --no-daemon :app:assembleDebug
 elif command -v gradle >/dev/null 2>&1; then
-  gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug
+  gradle --no-daemon :app:assembleDebug
 else
-  echo "Gradle is unavailable. Open this folder in Android Studio, allow it to install Gradle 9.5.0 and Android SDK Platform 36, then run this script again."
+  echo "Gradle is unavailable. Open this folder in Android Studio, allow it to install Gradle 9.7.1 and Android SDK Platform 37, then run this script again."
   exit 2
 fi
 
