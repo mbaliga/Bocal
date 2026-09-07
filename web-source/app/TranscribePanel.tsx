@@ -5,7 +5,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { InstrumentProfile } from "./instruments";
 import { frequencyFromMidi, fullNoteLabel, type NotationSystem } from "./notation";
 import StaffNote from "./StaffNote";
-import { MAX_INPUT_SECONDS, transcribeFile, type TranscriptionResult } from "./transcribe";
+import { DEFAULT_TUNING_OPTIONS, MAX_INPUT_SECONDS, transcribeFile, type TranscriptionResult } from "./transcribe";
+import type { TuningOptions } from "./tuning";
+import { saveOrShareFile } from "./takes-store";
 
 function formatSeconds(value: number) {
   const minutes = Math.floor(value / 60);
@@ -28,10 +30,12 @@ export function TranscribePanel({
   instrument,
   notation,
   saTonic,
+  tuningOptions = DEFAULT_TUNING_OPTIONS,
 }: {
   instrument: InstrumentProfile;
   notation: NotationSystem;
   saTonic: number;
+  tuningOptions?: TuningOptions;
 }) {
   const [fileName, setFileName] = useState("");
   const [busy, setBusy] = useState(false);
@@ -60,7 +64,7 @@ export function TranscribePanel({
     setProgress(0);
     setBusy(true);
     try {
-      setResult(await transcribeFile(file, setProgress));
+      setResult(await transcribeFile(file, setProgress, tuningOptions));
     } catch (caught) {
       setError(
         caught instanceof Error && caught.message
@@ -121,12 +125,7 @@ export function TranscribePanel({
       navigator.share({ files: [file], title: "Bocal transcription" }).catch(() => undefined);
       return;
     }
-    const url = URL.createObjectURL(file);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = file.name;
-    link.click();
-    URL.revokeObjectURL(url);
+    void saveOrShareFile(file);
   };
 
   return (

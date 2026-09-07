@@ -1,23 +1,7 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import test from "node:test";
-import ts from "typescript";
-
-async function loadSaxData() {
-  const sourceUrl = new URL("../app/sax-data.ts", import.meta.url);
-  const source = await readFile(sourceUrl, "utf8");
-  const { outputText } = ts.transpileModule(source, {
-    compilerOptions: {
-      module: ts.ModuleKind.ESNext,
-      target: ts.ScriptTarget.ES2022,
-    },
-    fileName: "sax-data.ts",
-    reportDiagnostics: true,
-  });
-  return import(`data:text/javascript;base64,${Buffer.from(outputText).toString("base64")}`);
-}
-
-const data = await loadSaxData();
+import * as data from "../app/sax-data.ts";
+import { INSTRUMENTS } from "../app/instruments.ts";
 
 test("modern alto exposes every distinct player touch-piece", () => {
   const ids = data.SAX_KEYS.map((key) => key.id);
@@ -126,14 +110,6 @@ test("SAXOPHONE_FINGERINGS is the map and ALTO_FINGERINGS is a back-compat alias
 });
 
 test("written pitch transposes to the correct concert pitch on every saxophone", async () => {
-  const instrumentsSource = await readFile(new URL("../app/instruments.ts", import.meta.url), "utf8");
-  const { outputText } = ts.transpileModule(instrumentsSource, {
-    compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
-    fileName: "instruments.ts",
-    reportDiagnostics: true,
-  });
-  const { INSTRUMENTS } = await import(`data:text/javascript;base64,${Buffer.from(outputText).toString("base64")}`);
-
   // Written B♭3 (midi 58) is the same grip on every saxophone; only the
   // sounding (concert) pitch differs, by the instrument's writtenOffset.
   const writtenBb3 = 58;
@@ -167,6 +143,43 @@ test("all fingering contacts resolve and route ids are unique", () => {
     for (const trill of note.trills ?? []) {
       for (const key of trill.keys) assert.ok(keyIds.has(key), `${note.id} trill to ${trill.to} uses ${key}`);
     }
+  }
+});
+
+// B6/C7 fixtures transcribed directly from the Woodwind Fingering Guide's
+// "Middle Altissimo" text-coded table (sax_alt_5.html, fetched 2026-09-06):
+// every option below is a line present verbatim on that page (T = octave,
+// D/Eb/F = left-hand palm keys, LH 1 2 3, | separates hands, RH 1 2 3,
+// C/Bb = right-hand side keys, G# = left-pinky G♯). A prior version of this
+// file shipped three B6 and two C7 options that did not appear on the page
+// at all; this fixture pins the replacements to lines that do.
+const WFG_ALTISSIMO_FIXTURE = {
+  b6: {
+    primary: ["octave", "palmD", "lh3", "rh1", "rh2"], // T D--3|12-
+    alternates: [
+      ["octave", "lh1", "lh3", "rh1", "rh3"], // T 1-3|1-3, "For alto and tenor"
+      ["octave", "palmD", "lh3", "sideC", "rh1", "rh2", "rh3"], // T D--3|C123, tenor
+    ],
+  },
+  c7: {
+    primary: ["octave", "palmD", "palmEb", "sideC", "sideBb"], // T Eb D---|C Bb---
+    alternates: [
+      ["octave", "palmD", "palmEb", "lh3"], // T Eb D--3|---
+      ["octave", "palmD", "palmEb", "gsharp"], // T Eb D---G#|---
+    ],
+  },
+};
+
+test("B6 and C7 altissimo fingerings match lines present on the cited WFG page", () => {
+  const byId = Object.fromEntries(data.ALTO_FINGERINGS.map((note) => [note.id, note]));
+  for (const [id, fixture] of Object.entries(WFG_ALTISSIMO_FIXTURE)) {
+    const note = byId[id];
+    assert.ok(note, `missing fingering ${id}`);
+    assert.deepEqual([...note.keys].sort(), [...fixture.primary].sort(), `${id} primary diverges from WFG fixture`);
+    assert.equal(note.alternates?.length, fixture.alternates.length, `${id} alternate count diverges from WFG fixture`);
+    note.alternates.forEach((alt, i) => {
+      assert.deepEqual([...alt.keys].sort(), [...fixture.alternates[i]].sort(), `${id} alternate ${i} diverges from WFG fixture`);
+    });
   }
 });
 

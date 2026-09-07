@@ -1,4 +1,15 @@
-# Bocal product state — 28 August 2026
+# Bocal product state — 27 August 2026
+
+> **6 September update:** this document's header previously read "28 August 2026"
+> while the filename says 27 August — that mismatch is fixed above. Its "Known
+> gaps" list below also predates several later merges; see
+> `docs/CURRENT_STATE.md` for the current instrument × capability table and
+> `docs/BOCAL_HANDOFF.md` §4 for the gaps that are still accurate today. In
+> particular, "TE-grade professional tuner/metronome/recording/analysis controls …
+> remain incomplete" (last bullet) conflated two different things: most of those
+> *controls* (temperaments, pitch history, sequences, harmonics) have since
+> shipped in the web app; what remains incomplete is *physical-device validation*
+> of them, which is a separate claim.
 
 ## Current visual direction
 

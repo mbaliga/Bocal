@@ -16,7 +16,31 @@ The parity-foundation branch now closes the first web gaps identified below:
 - Analyze supports multiple named in-session takes, local audio import, looping, tempo playback, rename, delete and download.
 - Practice now records tuner activity, persists the checklist, exposes weekly goals and a low-pressure streak signal, supports song progress, and includes a local coach brief with review-capability coverage and export.
 
-This is a web parity foundation, not a TonalEnergy replacement claim. The remaining gaps are intentionally listed in the matrix and still include region/A-B recording, harmonic/staff/interval analysis, multi-section metronome sequences, MIDI/Ableton Link, synced coach exchange, and physical-device validation.
+This is a web parity foundation, not a TonalEnergy replacement claim. The remaining gaps are intentionally listed in the matrix and still include region/A-B recording, MIDI/Ableton Link, synced coach exchange, and physical-device validation.
+
+## 6 September correction addendum
+
+The table and benchmark rows below were written before several merges landed and
+had drifted stale by the time of the 6 September product review (see
+`docs/CURRENT_STATE.md` and `review/product.md`). Read the corrections here before
+the tables:
+
+- **Instrument count.** "Alto, oboe and guitar are selectable" (Tuner row) is out of
+  date — all ten instruments in `INSTRUMENT_ORDER` are selectable: the four
+  saxophones, oboe, cor anglais, flute, clarinet, bassoon and guitar.
+- **Tuner depth.** The tuner row still describes "a noise gate, three-frame lock and
+  550 ms dropout hold" as the whole feature. It now also has pitch history (10 s,
+  line or staff), 11 temperaments plus a custom editor, an A4 reference slider with
+  presets, and sensitivity/damping controls — not just the basic gate described
+  below.
+- **Analysis depth.** "Harmonic/staff/interval analysis" and "multi-section
+  metronome sequences" were listed as remaining gaps; both now exist (a harmonics
+  overlay in Analyze, a staff pitch-history mode, tone-generator intervals, and
+  metronome sequences), so they are removed from the remaining-gaps list above and
+  from the benchmark table's "add" language below.
+
+The benchmark table itself is left as originally written below it for historical
+comparison; treat the bullets above as authoritative where they conflict with it.
 
 ## What Bocal now provides
 

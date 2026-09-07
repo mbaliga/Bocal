@@ -15,10 +15,23 @@ export type { ChartAlternate, ChartKey, ChartKeyHand, ChartKeyShape, Fingering, 
  * Every caller that renders this for cor-anglais must disclose that the
  * chart is the oboe's, the way `FingeringChartLab` and `OboeLab` do.
  */
+/**
+ * The cor anglais shares the oboe's conservatoire key system and chart, but
+ * its written range starts at B3 -- it has no low B♭ key (WFG ob_bas_1
+ * flags the low B♭ fingering itself as "For oboes without the low Bb key",
+ * i.e. model-dependent even on the oboe). Trim the borrowed chart so the
+ * note picker never offers a note the instrument cannot play.
+ */
+const CENTER_ANGLAIS_CHART: FingeringChart = {
+  ...OBOE_CHART,
+  instrumentId: "cor-anglais",
+  fingerings: OBOE_CHART.fingerings.filter((f) => f.writtenMidi >= 59),
+};
+
 export const FINGERING_CHARTS: Partial<Record<InstrumentId, FingeringChart>> = {
   flute: FLUTE_CHART,
   clarinet: CLARINET_CHART,
   bassoon: BASSOON_CHART,
   oboe: OBOE_CHART,
-  "cor-anglais": OBOE_CHART,
+  "cor-anglais": CENTER_ANGLAIS_CHART,
 };

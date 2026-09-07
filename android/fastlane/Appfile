@@ -1,0 +1,2 @@
+json_key_file(ENV["SUPPLY_JSON_KEY"] || "") # path to the Play Console service-account key, provided via CI secret
+package_name("com.bocal.music")

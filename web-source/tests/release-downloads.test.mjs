@@ -21,27 +21,37 @@ test("the public handoff and Android release gate point to repository-owned sour
   assert.match(page, /Only models with usable rights and player-checked keywork/i);
 });
 
-test("native Android foundation stays local-first", async () => {
-  const manifest = await readFile(new URL("../android/app/src/main/AndroidManifest.xml", import.meta.url), "utf8");
-  const engine = await readFile(new URL("../android/app/src/main/java/com/bocal/music/audio/TunerEngine.kt", import.meta.url), "utf8");
-  const detector = await readFile(new URL("../android/app/src/main/java/com/bocal/music/audio/YinPitchDetector.kt", import.meta.url), "utf8");
+test("the shipping Android tree (/android) is a hardened, local-first WebView shell", async () => {
+  const manifest = await readFile(new URL("../../android/app/src/main/AndroidManifest.xml", import.meta.url), "utf8");
+  const webAppScreen = await readFile(
+    new URL("../../android/app/src/main/java/com/bocal/music/ui/WebAppScreen.kt", import.meta.url),
+    "utf8",
+  );
+  const client = await readFile(
+    new URL("../../android/app/src/main/java/com/bocal/music/ui/LocalAssetWebViewClient.java", import.meta.url),
+    "utf8",
+  );
+  const host = await readFile(
+    new URL("../../android/app/src/main/java/com/bocal/music/ui/BocalHost.kt", import.meta.url),
+    "utf8",
+  );
   assert.match(manifest, /RECORD_AUDIO/);
   assert.doesNotMatch(manifest, /uses-permission[^>]+INTERNET/);
-  assert.match(engine, /AudioRecord/);
-  assert.match(engine, /AUDIOFOCUS_LOSS/);
-  assert.match(detector, /class YinPitchDetector/);
+  assert.match(manifest, /android:allowBackup="false"/);
+  assert.match(webAppScreen, /appassets\.androidplatform\.net/);
+  assert.match(client, /APPASSETS_HOST/);
+  assert.match(client, /ACTION_VIEW/); // external http(s) links open in the system browser
+  assert.match(webAppScreen, /allowFileAccess = false/);
+  assert.match(webAppScreen, /addJavascriptInterface\(BocalHost/);
+  assert.match(host, /fun setTheme/);
+  assert.match(host, /fun setKeepAwake/);
+  assert.match(host, /fun saveFile/);
+  assert.match(host, /fun openExternal/);
 });
 
-test("native learning parity slice is implemented rather than described as a placeholder", async () => {
-  const app = await readFile(new URL("../android/app/src/main/java/com/bocal/music/ui/BocalApp.kt", import.meta.url), "utf8");
-  const lab = await readFile(new URL("../android/app/src/main/java/com/bocal/music/ui/SaxophoneLabScreen.kt", import.meta.url), "utf8");
-  const navigation = await readFile(new URL("../android/app/src/main/java/com/bocal/music/ui/BocalNavigation.kt", import.meta.url), "utf8");
-  const practice = await readFile(new URL("../android/app/src/main/java/com/bocal/music/data/PracticeRepository.kt", import.meta.url), "utf8");
-  assert.match(app, /OnboardingGuide/);
-  assert.match(app, /SaxophoneLabScreen/);
-  assert.match(lab, /BronzeSaxModel/);
-  assert.doesNotMatch(lab, /phantom|hand shape|fake hand/i);
-  assert.match(navigation, /NavigationSide\.LEFT/);
-  assert.match(app, /NavigationSide\.RIGHT/);
-  assert.match(practice, /SharedPreferences|getSharedPreferences/);
+test("no APK is served from the built site, and the legacy 0.2 Android tree is gone", async () => {
+  const publicDownloads = await readdir(new URL("../public/downloads/", import.meta.url));
+  assert.ok(!publicDownloads.some((name) => name.endsWith(".apk")));
+  await assert.rejects(() => stat(new URL("../android/", import.meta.url)));
+  await assert.rejects(() => stat(new URL("../debug-apks/", import.meta.url)));
 });

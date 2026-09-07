@@ -1,0 +1,10 @@
+{
+  "model": "oboe",
+  "classificationMethod": "ancestor walk: any mesh under a node named Oboe_Base is body, everything under Static or Moving is keywork",
+  "goldKeyTexture": { "materialIndex": 1, "materialName": "Gold_Oboe", "baseColorTextureIndex": 3, "note": "orphaned in the scene graph but still present in the GLB; loaded on demand via GLTFLoader's parser.getDependency for the gold key finish" },
+  "groups": {
+    "Oboe_Base": { "role": "body", "meshes": 1, "note": "whole wooden body: top joint + lower joint + bell in one mesh" },
+    "Static": { "role": "keywork", "note": "posts, pillars, screws, springs, fixed rods, thumb rest -- does not move" },
+    "Moving": { "role": "keywork", "note": "key cups + pads, moving rods/levers, bent levers, key touches -- moves with fingering" }
+  }
+}

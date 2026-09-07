@@ -185,7 +185,7 @@ export function calculateSkillRating(bundle: SkillEvidenceBundle): SkillRating {
       label: "Rhythm",
       weight: 0.2,
       score: rhythmError === null ? null : Math.round(clamp(100 - rhythmError / 1.5)),
-      evidence: rhythmError === null ? `${rhythmHits}/16 measured attacks` : `${rhythmError.toFixed(0)} ms median timing error`,
+      evidence: rhythmError === null ? `${rhythmHits}/16 measured taps` : `${rhythmError.toFixed(0)} ms median timing error`,
       formula: "100 − median timing error ÷ 1.5",
     },
     {

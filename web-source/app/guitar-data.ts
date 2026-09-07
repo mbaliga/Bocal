@@ -82,6 +82,12 @@ export const GUITAR_CHORDS: GuitarChord[] = [
 
 export const FOUR_CHORD_FLOW = ["g", "d", "em", "c"] as const;
 
+/** Tempos the follow player can advance the four-chord flow at, in BPM. */
+export const CHORD_FLOW_TEMPOS = [60, 80, 100, 120] as const;
+
+/** Each chord in the flow holds for this many beats before advancing. */
+export const CHORD_FLOW_BEATS_PER_CHORD = 4;
+
 export function midiToFrequency(midi: number) {
   return 440 * 2 ** ((midi - 69) / 12);
 }

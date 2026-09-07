@@ -1,0 +1,14 @@
+{
+  "model": "saxophone-alto",
+  "classificationMethod": "explicit mesh name table (no material/luminance heuristic)",
+  "parts": {
+    "Object_2": { "role": "body", "note": "body + bow + bell + neck tube fused in one mesh" },
+    "Object_3": { "role": "keywork", "note": "main keywork stack: touches, rods, cups, pads" },
+    "Object_4": { "role": "keywork", "note": "small fitting on the bell (brace/ring region)" },
+    "Object_5": { "role": "mouthpiece", "note": "mouthpiece, at the neck tip" },
+    "Object_6": { "role": "ligature", "note": "ligature and the neck tenon / cork end" },
+    "Object_7": { "role": "keywork", "note": "bell-key cluster (low B/B-flat side)" },
+    "Object_8": { "role": "keywork", "note": "octave mechanism at the top of the body/neck receiver" },
+    "Object_9": { "role": "keywork", "note": "bow/bell guard region" }
+  }
+}

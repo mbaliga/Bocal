@@ -36,6 +36,11 @@ export type PulseSegment = {
   bars?: number;
   /** When set with a finite `bars`, bpm steps linearly from `bpm` to this value, one new tempo per bar. */
   rampToBpm?: number;
+  /**
+   * Fraction of the beat the first eighth note takes when subdivision is 2
+   * (0.5 = straight, up to ~0.75 = a hard triplet swing). Ignored otherwise.
+   */
+  swingRatio?: number;
   /** Carried through to each tick for a "now playing" readout. */
   label?: string;
 };
@@ -89,11 +94,19 @@ export function cycleBeatMark(mark: BeatMark): BeatMark {
   return mark === "normal" ? "accent" : mark === "accent" ? "silent" : "normal";
 }
 
-/** Linear per-bar bpm for a ramping segment; plain bpm outside a ramp. Per-bar steps, not a smooth sweep. */
+/**
+ * Linear per-bar bpm for a ramping segment; plain bpm outside a ramp, and
+ * plain (start) bpm during count-in bars -- a ramp only spans the bars the
+ * player actually plays over, so a 2-bar count-in ahead of a 4-bar ramp
+ * doesn't burn ramp progress before the player has come in.
+ */
 function bpmForBar(segment: PulseSegment, barInSegment: number): number {
   if (segment.rampToBpm === undefined || segment.bars === undefined) return segment.bpm;
-  const span = Math.max(1, segment.bars - 1);
-  const progress = Math.min(1, barInSegment / span);
+  const rampBar = barInSegment - segment.countInBars;
+  if (rampBar < 0) return segment.bpm;
+  const rampBars = Math.max(1, segment.bars - segment.countInBars);
+  const span = Math.max(1, rampBars - 1);
+  const progress = Math.min(1, rampBar / span);
   return segment.bpm + (segment.rampToBpm - segment.bpm) * progress;
 }
 
@@ -135,11 +148,20 @@ export function* schedulePulse(plan: PulsePlan, startTime: number): Generator<Sc
   let index = 0;
   let bar = 0;
   for (const { segment, segmentIndex } of segmentTimeline(plan)) {
+    // A saved preset with a corrupted or hand-edited beatsPerBar/subdivision
+    // (0, negative, NaN) must never reach the inner loops below: at 0 beats
+    // per bar or 0 subticks the `for` loops never advance `bar`/`barInSegment`
+    // and this generator spins forever with nothing to show for it, hanging
+    // whatever calls .next() on it. Treat it as silently unplayable instead.
+    if (!(segment.beatsPerBar > 0) || !(segment.subdivision > 0) || !(segment.bpm > 0)) {
+      throw new Error(`PulseSegment has an invalid beatsPerBar/subdivision/bpm: ${JSON.stringify({ beatsPerBar: segment.beatsPerBar, subdivision: segment.subdivision, bpm: segment.bpm })}`);
+    }
     const totalBars = segment.bars ?? Infinity;
     const pattern = segment.accentPattern.length > 0 ? segment.accentPattern : defaultAccentPattern(segment.beatsPerBar);
     for (let barInSegment = 0; barInSegment < totalBars; barInSegment += 1) {
       const bpmNow = bpmForBar(segment, barInSegment);
-      const secondsPerTick = 60 / bpmNow / segment.subdivision;
+      const beatSeconds = 60 / bpmNow;
+      const secondsPerTick = beatSeconds / segment.subdivision;
       const countIn = barInSegment < segment.countInBars;
       const mutedBar = segment.muteEveryBars > 0 && !countIn && (barInSegment - segment.countInBars + 1) % segment.muteEveryBars === 0;
       for (let beat = 0; beat < segment.beatsPerBar; beat += 1) {
@@ -163,11 +185,50 @@ export function* schedulePulse(plan: PulsePlan, startTime: number): Generator<Sc
             voice: segment.voice,
             label: segment.label,
           };
-          when += secondsPerTick;
+          // Swing only reshapes a pair of eighth notes (subdivision 2): the
+          // first eighth takes `swingRatio` of the beat, the second takes the
+          // rest, and the two deltas still sum to exactly one beat, so the
+          // next beat lands on time regardless of the ratio chosen.
+          const ratio = segment.swingRatio;
+          if (segment.subdivision === 2 && ratio !== undefined && ratio !== 0.5) {
+            const clamped = Math.min(0.75, Math.max(0.5, ratio));
+            when += subTick === 0 ? beatSeconds * clamped : beatSeconds * (1 - clamped);
+          } else {
+            when += secondsPerTick;
+          }
           index += 1;
         }
       }
       bar += 1;
     }
+  }
+}
+
+/** A second, independent click voice used for a polyrhythm drill. */
+export type PolyrhythmVoice = { beats: number; voice: ClickVoice };
+
+export type PolyrhythmTick = { when: number; index: number; voice: ClickVoice };
+
+/**
+ * Yields evenly-spaced ticks for a second voice that divides the *same bar
+ * duration* as the main pulse into `poly.beats` equal parts, independent of
+ * the main pulse's own beatsPerBar -- the classic "N against M" cross-rhythm
+ * feel (e.g. a 3-beat bar with a 2-beat second voice sounds "3 against 2").
+ * `bpmNow` is read once per bar so a live tempo change is picked up at the
+ * next bar boundary, the same rule schedulePulse follows.
+ */
+export function* schedulePolyrhythm(mainBeatsPerBar: number, poly: PolyrhythmVoice, startTime: number, bpmNow: () => number): Generator<PolyrhythmTick, void, void> {
+  if (!(mainBeatsPerBar > 0) || !(poly.beats > 0)) throw new Error("schedulePolyrhythm needs a positive beat count on both voices");
+  let when = startTime;
+  let index = 0;
+  for (;;) {
+    const bpm = bpmNow();
+    const barSeconds = (60 / (bpm > 0 ? bpm : 1)) * mainBeatsPerBar;
+    const step = barSeconds / poly.beats;
+    for (let i = 0; i < poly.beats; i += 1) {
+      yield { when: when + i * step, index, voice: poly.voice };
+      index += 1;
+    }
+    when += barSeconds;
   }
 }

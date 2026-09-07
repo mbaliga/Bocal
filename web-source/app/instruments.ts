@@ -44,6 +44,50 @@ export type InstrumentId =
  */
 export type LabTier = "fingering" | "anatomy" | "chart" | "none";
 
+/**
+ * The concert-pitch frequency band the live tuner's pitch tracker searches
+ * within for this instrument. Every instrument used to share one fixed
+ * 120-1600 Hz window (StablePitchTracker's own defaults): a bassoon,
+ * baritone or tenor player's low register fell below it and read as silence,
+ * and a flutist's A6-C7 fell within it at the *wrong* frequency (half the
+ * true one still happened to land inside 120-1600 Hz), so the tracker
+ * confidently reported the note an octave low. See tuner.md finding 1 and
+ * engineering.md's P0 finding for the measurements. Bounds are generous
+ * around each instrument's actual written and concert range so a slightly
+ * sharp or flat note, or a written extreme not everyone reaches, still
+ * falls inside the search window.
+ */
+export type FrequencyRange = { minHz: number; maxHz: number };
+
+/**
+ * The tuner's sharp/flat coaching copy used to be one fixed pair of phrases
+ * ("Ease the jaw pressure..." / "Support the air...") shown to every
+ * instrument, including guitar strings and flute's air column, which don't
+ * take a jaw or a reed (product.md finding "Tuner coaching copy contradicts
+ * the engine and the instrument"). Each embouchure family gets its own pair
+ * instead.
+ */
+export type EmbouchureFamily = "reed" | "air-reed" | "double-reed" | "string";
+
+export const CORRECTION_COPY: Record<EmbouchureFamily, { sharp: string; flat: string }> = {
+  reed: {
+    sharp: "Ease the jaw pressure on the reed without losing the air.",
+    flat: "Support the air and bring the pitch up without biting harder.",
+  },
+  "air-reed": {
+    sharp: "Roll the embouchure hole slightly out, or ease the air speed.",
+    flat: "Roll the embouchure hole slightly in, or speed the air up.",
+  },
+  "double-reed": {
+    sharp: "Relax the embouchure pressure on the reed without losing support.",
+    flat: "Firm the embouchure slightly and keep the air moving.",
+  },
+  string: {
+    sharp: "Ease the tuning peg or fine tuner to lower the string slightly.",
+    flat: "Tighten the tuning peg or fine tuner to raise the string slightly.",
+  },
+};
+
 export type InstrumentProfile = {
   id: InstrumentId;
   name: string;
@@ -61,6 +105,10 @@ export type InstrumentProfile = {
   tunerDescription: string;
   labTier: LabTier;
   labStatus: string;
+  /** Concert-pitch search window for the live pitch tracker. See FrequencyRange. */
+  range: FrequencyRange;
+  /** Which embouchure/technique family this instrument's tuner correction copy should use. */
+  embouchure: EmbouchureFamily;
 };
 
 export const INSTRUMENTS: Record<InstrumentId, InstrumentProfile> = {
@@ -75,6 +123,8 @@ export const INSTRUMENTS: Record<InstrumentId, InstrumentProfile> = {
     tunerDescription: "Your written note is shown first. Bocal handles the B♭ transposition.",
     labTier: "fingering",
     labStatus: "Fingering trainer, shown on the alto 3D model · standard range only",
+    range: { minHz: 200, maxHz: 2200 },
+    embouchure: "reed",
   },
   "alto-sax": {
     id: "alto-sax",
@@ -87,6 +137,8 @@ export const INSTRUMENTS: Record<InstrumentId, InstrumentProfile> = {
     tunerDescription: "Your written note is shown first. Bocal handles the E♭ transposition.",
     labTier: "fingering",
     labStatus: "Fingering trainer + 3D reference",
+    range: { minHz: 130, maxHz: 1800 },
+    embouchure: "reed",
   },
   "tenor-sax": {
     id: "tenor-sax",
@@ -99,6 +151,8 @@ export const INSTRUMENTS: Record<InstrumentId, InstrumentProfile> = {
     tunerDescription: "Your written note is shown first. Bocal handles the B♭ transposition.",
     labTier: "fingering",
     labStatus: "Fingering trainer, shown on the alto 3D model · standard range only",
+    range: { minHz: 95, maxHz: 1600 },
+    embouchure: "reed",
   },
   "bari-sax": {
     id: "bari-sax",
@@ -111,6 +165,8 @@ export const INSTRUMENTS: Record<InstrumentId, InstrumentProfile> = {
     tunerDescription: "Your written note is shown first. Bocal handles the E♭ transposition.",
     labTier: "fingering",
     labStatus: "Fingering trainer, shown on the alto 3D model · standard range only, no low A",
+    range: { minHz: 60, maxHz: 1400 },
+    embouchure: "reed",
   },
   flute: {
     id: "flute",
@@ -123,6 +179,8 @@ export const INSTRUMENTS: Record<InstrumentId, InstrumentProfile> = {
     tunerDescription: "The flute is a concert-pitch instrument, so written and sounding notes match.",
     labTier: "chart",
     labStatus: "Fingering chart · no 3D model yet",
+    range: { minHz: 240, maxHz: 2600 },
+    embouchure: "air-reed",
   },
   clarinet: {
     id: "clarinet",
@@ -135,6 +193,8 @@ export const INSTRUMENTS: Record<InstrumentId, InstrumentProfile> = {
     tunerDescription: "Your written note is shown first. Bocal handles the B♭ transposition.",
     labTier: "chart",
     labStatus: "Fingering chart · 3D model not licensed",
+    range: { minHz: 140, maxHz: 2200 },
+    embouchure: "reed",
   },
   oboe: {
     id: "oboe",
@@ -147,6 +207,8 @@ export const INSTRUMENTS: Record<InstrumentId, InstrumentProfile> = {
     tunerDescription: "The oboe is a concert-pitch instrument, so written and sounding notes match.",
     labTier: "anatomy",
     labStatus: "3D anatomy preview + fingering chart",
+    range: { minHz: 220, maxHz: 2000 },
+    embouchure: "double-reed",
   },
   "cor-anglais": {
     id: "cor-anglais",
@@ -160,6 +222,8 @@ export const INSTRUMENTS: Record<InstrumentId, InstrumentProfile> = {
     tunerDescription: "Your written note is shown first. Bocal handles the F transposition.",
     labTier: "anatomy",
     labStatus: "3D anatomy preview, shown on the oboe model + oboe fingering chart",
+    range: { minHz: 150, maxHz: 1500 },
+    embouchure: "double-reed",
   },
   bassoon: {
     id: "bassoon",
@@ -174,6 +238,8 @@ export const INSTRUMENTS: Record<InstrumentId, InstrumentProfile> = {
     tunerDescription: "The bassoon is a concert-pitch instrument, so written and sounding notes match.",
     labTier: "chart",
     labStatus: "Fingering chart · no 3D model yet",
+    range: { minHz: 55, maxHz: 1000 },
+    embouchure: "double-reed",
   },
   guitar: {
     id: "guitar",
@@ -186,6 +252,8 @@ export const INSTRUMENTS: Record<InstrumentId, InstrumentProfile> = {
     tunerDescription: "Tune each open string, then move straight into a colour-coded chord and listening drill.",
     labTier: "none",
     labStatus: "String tuner + chord player",
+    range: { minHz: 75, maxHz: 1400 },
+    embouchure: "string",
   },
 };
 

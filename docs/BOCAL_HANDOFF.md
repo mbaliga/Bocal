@@ -1,388 +1,195 @@
 # Bocal product and engineering handoff
 
-**Version:** 1.3
-**Date:** 11 August 2026  
-**Status:** Active prototype; not yet TonalEnergy feature parity  
-**Current public instruments:** E♭ alto saxophone learning lab; C oboe anatomy preview  
+**Version:** 2.0
+**Date:** 6 September 2026
+**Status:** Active prototype; not yet TonalEnergy feature parity, not yet teacher-reviewed
+**Current public instruments:** Ten — see the table in §2. Nine woodwinds (alto/tenor/soprano/baritone saxophone, oboe, cor anglais, flute, clarinet, bassoon) plus guitar.
 **Product principle:** local-first, educationally honest, usable in one or two taps during real practice
 
-## 1. Executive handoff
+This is the single canonical handoff document. `web-source/public/downloads/BOCAL_HANDOFF.md`
+is the copy served in-app from Settings → Download and must always match this file.
+Any other file named `BOCAL_HANDOFF.md` elsewhere in the repository is stale and
+should not be trusted.
 
-Bocal is a local-first practice companion for music learners, teachers and working musicians. The near-term product is not “another attractive tuner.” It is a dependable tuner, rhythm and practice workspace with instrument-specific learning that general-purpose incumbents do not center.
+## 1. What Bocal is
 
-The public web implementation currently contains:
+Bocal is a local-first practice companion for music learners, teachers and working
+musicians: a dependable tuner, rhythm and practice workspace with instrument-specific
+learning content, run entirely in the browser (or an Android WebView shell) with no
+account and no network calls beyond loading the app itself.
 
-- a confidence-gated chromatic tuner with E♭ alto and concert-pitch oboe modes;
-- a metronome, tap tempo and drone workspace;
-- live waveform and spectral-energy views plus local take recording/download;
-- local practice planning, lesson/equipment notes and deterministic skill evidence;
-- a complete keyed-range alto fingering dataset from written B♭3 through F♯6;
-- a licensed detailed alto reference mesh with 23 interactive educational touch targets aligned directly over the instrument;
-- one unified fingering experience: selected contacts remain visible at all times, optional available targets can be revealed, an XR-style phantom-hand rig establishes player contact, and the side panel explains linked pad motion;
-- an unobstructed model viewport with controls in an external experience dock and a full-screen focus mode;
-- cinematic alto-saxophone and oboe card/gallery images, with optimized web assets and both generated masters retained in the repository;
-- a first-run four-step onboarding journey led by an expanding-panel instrument gallery and replayable from the handoff menu;
-- visual, horizontally swipeable setup-part coverflow with a centered featured variant and visible neighbours;
-- an oboe anatomy preview that isolates the standard silver-key instrument from the source GLB’s second finish variant and preserves the orbit camera across inspection updates;
-- explicit source, licence, readiness and validation boundaries.
+## 2. Instrument support
 
-It does **not** yet have instrument-grade device validation, a complete take editor, harmonic/staff analysis, professional MIDI/Link workflows, native Android packaging, or validated learning systems for the remaining woodwinds.
+All ten rows below are selectable in the instrument picker today; none are
+placeholders. `labTier` in `web-source/app/instruments.ts` drives what each
+instrument's second workspace tab shows.
 
-### Repository and delivery map for this checkpoint
-
-This file is the single user-facing handoff. The repository—not a set of parallel download archives—is the source of truth for every other deliverable.
-
-| Deliverable | Repository location | Status |
-|---|---|---|
-| Hosted web product | `app/`, `public/`, `build/`, `db/` | Implemented and production-deployed |
-| Unified detailed sax fingering overlay | `app/ImportedInstrumentCanvas.tsx`, `app/SaxophoneLab.tsx`, `app/sax-data.ts` | Implemented; educational anchor placement still requires expert/device review |
-| Immersive gallery and onboarding | `app/InstrumentExperience.tsx`, `app/globals.css` | Implemented; first run plus replay entry point |
-| Visual setup coverflow | `app/SaxophoneLab.tsx`, `app/globals.css` | Implemented for finish, neck, mouthpiece, reed and ligature variants |
-| Cinematic card images | `assets/source/bocal-alto-sax-cinematic.png`, `assets/source/bocal-oboe-cinematic.png` | Generated masters retained |
-| Optimized cinematic images | `public/images/bocal-alto-sax-cinematic.webp`, `public/images/bocal-oboe-cinematic.webp` | Implemented in cards and instrument gallery |
-| Alto and oboe GLBs | `public/models/` | Implemented with attribution |
-| Native Android foundation | `android/` | Source complete for this checkpoint; APK not compiled in this environment |
-| Automated checks | `tests/` and `android/app/src/test/` | Web/repository tests runnable here; Android tests require the Android toolchain |
-| Research and detailed validation notes | `docs/` | Supporting repository material; this handoff contains the release-level conclusions |
-
-The previously exposed source/model ZIP downloads were retired from the product surface. They duplicated repository state and could drift from the deployed commit.
-
-### 1.3 interaction research translated into product behavior
-
-The two user-supplied motion references were treated as interaction references, not copied assets:
-
-| Reference observation | Bocal implementation | Reason |
-|---|---|---|
-| Instrument families appear as full-height, cinematic panels; the focused item expands while neighbours remain visible | First-run and anytime instrument selector uses an expanding horizontal panel deck with photographic alto/oboe heroes and clearly labelled validation-state placeholders | Selection feels like entering an instrument-specific world while unsupported tools remain honest |
-| A central item owns attention while adjacent items remain partially visible and spatially receded | Setup variants use scroll-snap coverflow, perspective, featured-card scaling, neighbour peeking and explicit previous/next controls | Swiping remains discoverable without hiding comparison detail or accessibility controls |
-| The instrument itself must remain the primary canvas | Model toolbar, view selector and legend moved into a separate dock above the viewport; focus mode removes surrounding panels | Fingertips and keywork are no longer obscured by UI |
-| Body contact is part of playing, not merely a diagram label | Alto adds a translucent, data-driven phantom-hand rig; active fingertips intensify while inactive fingers remain ghosted | Gives spatial context without pretending to be biometric tracking or expert-validated posture analysis |
-
-The hand rig is an educational XR-style aid, not photoreal anatomy, live hand tracking or a substitute for a teacher. Future instruments can add instrument-specific contact rigs—thumbs, chin, jaw, shoulder, embouchure or support points—but those contact anchors must be validated per instrument before publication. Violin chin/shoulder contact is therefore an architectural requirement, not a currently shipped woodwind claim.
-
-## 2. Research basis
-
-TonalEnergy’s official positioning spans beginners through world-class musicians, students, educators and professionals, and explicitly covers singers, brass, woodwinds, percussion, strings and guitars. Its official Android guide documents multiple tuner views, target/range controls, temperament and transposition, pitch tracking, metronome sequencing, tone generation, waveform/spectral/harmonic/staff analysis, recording and practice activity. These are the parity benchmarks, not assumptions based on screenshots:
-
-- [TonalEnergy Mobile overview](https://www.tonalenergy.com/te-mobile)
-- [TonalEnergy Android/Desktop guide](https://www.tonalenergy.com/tet-user-guide-android)
-
-Android’s current platform guidance supports the native direction in the supplied baseline: AAudio is designed for high-performance low-latency streams, and Google recommends Oboe as a C++ wrapper that selects AAudio when available and falls back when necessary. AAudio itself does not provide device enumeration, routing, file I/O or decoding, so those remain product-layer responsibilities:
-
-- [Android native stable audio APIs](https://developer.android.com/ndk/guides/stable_apis)
-- [AAudio guide](https://developer.android.com/ndk/guides/audio/aaudio/aaudio)
-
-For a 2026 Play release, the Android project targets API 36. Google Play requires new apps and updates to target Android 16/API 36 from 31 August 2026. The checked-in native configuration uses JDK 17, AGP 8.13.2, Gradle 8.13 and the stable Compose BOM 2026.06.00:
-
-- [Google Play target API requirements](https://developer.android.com/google/play/requirements/target-sdk)
-- [AGP 8.13 compatibility](https://developer.android.com/build/releases/agp-8-13-0-release-notes)
-- [Compose BOM guidance](https://developer.android.com/develop/ui/compose/bom)
-
-## 3. Persona map and five core workflows each
-
-The following seven personas cover the credible v1/v2 market. Accessibility needs—low vision, color-vision deficiency, motor variance, hearing differences and screen-free practice—are cross-cutting requirements, not a separate silo.
-
-### Persona A — new or returning woodwind learner
-
-**Goal:** form correct habits without being overwhelmed by professional controls.
-
-1. **First-note setup:** choose instrument → allow microphone only when starting the tuner → play one sustained note → see written pitch, sounding pitch and a plain-language correction.
-2. **Learn a fingering:** choose a written note → view the detailed instrument → see cyan touch targets directly on that saxophone → inspect left/right/back views → hear the sounding pitch.
-3. **Build finger memory:** select challenge mode → receive a target note → press virtual touch-pieces → check the route → retry with one useful hint.
-4. **Practice with a pulse:** choose tempo and meter → enable a simple subdivision → run a two-minute exercise → end automatically → retain the result locally.
-5. **Remember equipment:** log instrument, mouthpiece and reed → record first-use date → rotate reeds → receive an optional local retirement reminder.
-
-### Persona B — advancing student or conservatory/pre-professional player
-
-**Goal:** diagnose recurring weaknesses and rehearse deliberately.
-
-1. **Long-tone diagnostic:** choose note/range lock → play a dynamic long tone → view pitch trace, stability and volume separately → compare the result with the last attempt.
-2. **Intonation map:** record a scale → group accepted frames by written note → inspect sharp/flat tendency → add an adjustment note → repeat after warm-up.
-3. **Alternate fingering comparison:** select a note with alternatives → compare routes and use cases → hear the pitch target → test each route in context → save a preferred route.
-4. **Rehearsal preset:** load a metronome sequence → set count-in and grouped accents → add a drone/temperament → practice a passage → save the exact setup.
-5. **Lesson follow-through:** open teacher assignment → start timed session → annotate a passage → attach local evidence → export a compact session bundle.
-
-### Persona C — working professional performer
-
-**Goal:** obtain trustworthy information immediately without UI friction.
-
-1. **Backstage check:** open directly into last tuner configuration → lock desired note/range → verify pitch and reference → dismiss in under ten seconds.
-2. **Temperament/context setup:** choose concert/written view → set A reference and temperament/root → load instrument transposition → save as a named preset.
-3. **Silent tactile warm-up:** enable capability-aware haptics → feel sharp/flat direction and centered lock → keep the screen dim → disable after warm-up.
-4. **Complex click rehearsal:** open set-list preset → run changing meters/tempi → loop selected measures → route audio appropriately → recall at the next rehearsal.
-5. **Take review:** record a take → view waveform, pitch and harmonic context → mark a region → compare two takes → export locally.
-
-### Persona D — private teacher or studio instructor
-
-**Goal:** demonstrate clearly, assign work and review progress without accounts.
-
-1. **Demonstrate fingering:** choose student instrument → select note → show player/front/side view → enable visible touch guides → explain linked pads without mislabelling them as finger contacts.
-2. **Create an assignment:** select tuner/metronome goals → define duration/tolerance → attach a repertoire note → export assignment bundle → student imports locally.
-3. **Review evidence:** import student bundle → inspect accepted frames and attempts → add timestamp/note comments → export annotated bundle → preserve the student’s original evidence.
-4. **Compare setup choices:** select mouthpiece/reed/neck category → compare two sourced descriptions → explain trade-offs and compatibility → avoid unsupported product claims.
-5. **Run a lesson timer:** start lesson session → switch among tuner, pulse, recorder and lab without losing time → add notes → save locally → export summary.
-
-### Persona E — ensemble director, section coach or band/orchestra educator
-
-**Goal:** coordinate pitch and pulse across multiple players efficiently.
-
-1. **Reference-tone warm-up:** choose concert pitch → set A reference/temperament → play sustained target → increase/decrease register → keep display visible to the room.
-2. **Section intonation drill:** define note sequence → give count-in → capture aggregate pitch tendency without identifying students → review common problem notes.
-3. **Rhythm rehearsal:** program meter/tempo sequence → configure accents/subdivisions → loop transition → project a simplified visual pulse → save ensemble preset.
-4. **Instrument transposition check:** switch among E♭, B♭, F and C instruments → show written/concert mapping → verify student note → return to concert display.
-5. **Demonstration mode:** enable visible touches and large type → open instrument anatomy → rotate to needed view → highlight only verified educational data → exit without disturbing the rehearsal preset.
-
-### Persona F — parent or guardian supporting a young learner
-
-**Goal:** help establish a healthy routine without needing musical expertise.
-
-1. **Start today’s plan:** open three-item practice plan → read plain-language task → start timer → keep controls simple → celebrate completion without punitive streak pressure.
-2. **Check readiness:** confirm instrument/reed/setup checklist → see nontechnical maintenance prompt → mark completed → avoid changing pedagogical settings.
-3. **Enable reminders:** choose days/time → read why notifications are requested → grant optional permission → receive local reminder → pause during holidays.
-4. **Share with teacher:** export the selected session → choose any installed sharing app → send no account data → keep the original on device.
-5. **Review trend:** view minutes, consistency and completed assignments → avoid ranking or fabricated scores → discuss the next small goal.
-
-### Persona G — woodwind specialist, technician or expert validator
-
-**Goal:** correct the educational representation and protect product credibility.
-
-1. **Model audit:** open exact instrument/version → inspect front, left, right and back → compare control placement → record corrections by semantic part ID.
-2. **Mechanism audit:** actuate one touch-piece → verify directly touched input → inspect linked pads and motion → flag normally-open/closed errors → attach evidence source.
-3. **Fingering audit:** traverse keyed range → test primary and alternate routes → identify model/system exceptions → approve or reject each versioned route.
-4. **Asset readiness audit:** inspect licence → review silhouette and mobile weight → check mesh/node separation → assign preview/learning/rigged status → approve publication boundary.
-5. **Release sign-off:** run acceptance checklist on a representative instrument → record reviewer role/date → sign a dataset version → publish corrections as data changes rather than mesh-only hacks.
-
-## 4. End-to-end journey model
-
-| Stage | User question | Bocal response | Failure to avoid |
+| Instrument | Pitch | Tuner | Lab (`labTier`) |
 |---|---|---|---|
-| Select | “Does this understand my instrument?” | Instrument, transposition and readiness are explicit | Showing unsupported learning tools as complete |
-| Prepare | “Can I start quickly?” | Last-used setup and one primary action | Permission prompts at launch; deep menus |
-| Perform | “Can I trust this while playing?” | Stable audio-clock behavior, confidence and redundant visual/haptic encoding | Invented notes, UI-thread timing, hue-only state |
-| Understand | “What should I change?” | One specific correction plus optional deeper analysis | A dashboard of unexplained numbers |
-| Retain | “Am I improving?” | Device-local evidence, robust summaries and honest uncertainty | Fabricated trends, punitive streaks |
-| Share | “Can my teacher help?” | Versioned export/import bundle with consent | Accounts or hidden upload requirements |
+| Alto saxophone | E♭ | Yes | 3D fingering trainer on the licensed alto model |
+| Tenor saxophone | B♭ | Yes | Fingering trainer, shown on the alto model, standard range only |
+| Soprano saxophone | B♭ | Yes | Fingering trainer, shown on the alto model, standard range only |
+| Baritone saxophone | E♭ | Yes | Fingering trainer, shown on the alto model, standard range only, no low A |
+| Oboe | C | Yes | 3D anatomy preview + 2D fingering chart |
+| Cor anglais | F | Yes | 3D anatomy preview shown on the oboe model + oboe fingering chart |
+| Flute | C | Yes | 2D fingering chart, no 3D model |
+| Clarinet | B♭ | Yes | 2D fingering chart, 3D model not licensed |
+| Bassoon | C | Yes | 2D fingering chart, no 3D model |
+| Guitar | — | String tuner | Chord fretboard chart + a follow player that waits for the played root |
 
-## 5. Capability requirements derived from workflows
+**Every fingering chart and the saxophone altissimo set are badged "not yet
+teacher-reviewed"** — they are checked against two published references
+(the Woodwind Fingering Guide and a second method-book source), which is a lower bar
+than a qualified player's review. See `docs/CURRENT_STATE.md` for the full
+instrument × capability matrix and known data gaps per instrument.
 
-### Trust foundation (P0)
+## 3. What each workspace does
 
-- Voiced/unvoiced detector with confidence, hysteresis and explicit silence.
-- AudioWorklet on web; Oboe/AAudio callback path on Android.
-- Synthetic and licensed golden fixtures covering register, noise, attacks, vibrato and octave errors.
-- Input level, device/routing, calibration, tolerance, concert/written and transposition controls.
-- Audio-clock metronome scheduling; UI animation never acts as timing authority.
-- Lifecycle handling for denial, interruption, device change, Bluetooth and backgrounding.
+- **Tune** — confidence-gated chromatic pitch detection (YIN-based), written/concert
+  pitch display honoring each instrument's transposition, 11 built-in temperaments
+  plus a custom temperament editor, adjustable reference pitch, sensitivity/damping
+  presets, a 10-second pitch history (line or staff view), and a calibrated
+  reference-tone generator with selectable waveform and precision.
+- **Lab** (label varies by instrument tier) — the sax family's interactive 3D
+  fingering trainer on a licensed alto model with key-glow; the oboe's 3D anatomy
+  preview; 2D fingering charts for flute, clarinet and bassoon (and as a second view
+  for oboe/cor anglais); the guitar's chord fretboard and follow player.
+- **Pulse** — metronome with tap tempo, count-in, click voice options, silent-bar
+  drills, saved presets and multi-section sequences, plus a drone.
+- **Analyze** — live waveform and spectrum views, a harmonics/partial-level overlay,
+  and named multi-take recording with import, loop, tempo playback, rename, delete
+  and download. Takes are kept in memory for the session unless downloaded; the app
+  does not persist recordings to disk on its own.
+- **Practice** — local practice-time logging, weekly goals, a streak indicator,
+  lesson/setup notes, deterministic (non-random) skill-rating evidence, and a coach
+  board covering pitch, rhythm, technique, repertoire and reflection with an
+  exportable brief.
 
-### Daily parity (P1)
+## 4. Known gaps (do not ship copy that contradicts these)
 
-- Target, chromatic, bar, cents and pitch-trace tuner views.
-- Temperament library, A reference, range/note lock and reference-tone automation.
-- Arbitrary meter/grouping, accents, subdivisions, count-in, presets, sequences and loops.
-- Full-range tone generator with chords, sequences and safe levels.
-- Local practice timer, goals, reminders, equipment/reed rotation and export.
+This section exists so the handoff cannot drift out of sync with reality the way its
+predecessors did. It is not exhaustive — see the individual review reports under
+`review/` for full detail with file:line citations.
 
-### Analysis and recording (P2)
+- No fingering chart or altissimo fingering has been reviewed by a qualified teacher.
+- Several charts (flute, bassoon, oboe) have documented data errors against the cited
+  source; see `fingering-charts.md`.
+- The tuner's pitch tracker is tuned to a single frequency range that clips some
+  instruments' extremes (e.g. bassoon's first octave); see `tuner.md`.
+- The 3D models render a uniform bronze study finish; no per-instrument
+  customization (finish, environment, camera preset) reaches the model yet.
+- Takes recorded in Analyze are session/in-memory only, not saved to persistent
+  storage, despite earlier drafts of this handoff and the privacy policy implying
+  otherwise.
+- The Android shell is a WebView wrapper over this web build (`MainActivity` →
+  `WebAppScreen`), not a native Kotlin/Compose UI; no signed release build exists yet.
 
-- Waveform, spectrum, harmonic-energy and note-staff views.
-- Take recorder with markers, region selection, loop and A/B comparison.
-- Per-note intonation map and robust session summaries.
-- Interval/ear trainer and linear-passage repertoire alignment.
+## 5. Technical architecture
 
-### Professional/educator (P3)
+- **Web app** (`web-source/`): Next.js/vinext, React, TypeScript, Three.js for the 3D
+  labs. Client-only rendering for the 3D canvas; everything else is a normal React
+  tree. No server-side state — all persistence is `localStorage`/IndexedDB in the
+  visitor's own browser.
+- **Android** (`android/`): a thin native shell. `MainActivity` sets content to
+  `WebAppScreen()`, a WebView loading this app's static build from
+  `appassets.androidplatform.net` (so `getUserMedia` works without cleartext
+  traffic). Compile/target SDK 37. Permissions: `RECORD_AUDIO` and `VIBRATE` only —
+  no `INTERNET`. Two third-party glTF instrument models ship in
+  `android/app/src/main/assets/www/models` (alto sax, oboe); see
+  `android/THIRD_PARTY_NOTICES.md` and `android/MODEL_MANIFEST.md` for licensing.
+  The earlier native Kotlin/Compose screens remain in the source tree only as an
+  unused revert path.
+- **Build/verification**: `npm run lint`, `npx tsc --noEmit`, `npm run build`,
+  `node --test tests/*.test.mjs`, `npm run preview:standalone`. See
+  `web-source/README.md` for the exact commands.
 
-- MIDI input/control, external display, keyboard commands and remote control.
-- Ableton Link or equivalent shared-tempo workflow.
-- Teacher assignment and `.bocalbundle` annotation exchange.
-- Large-display and demonstration mode with visible touches.
+## 6. Release status
 
-### Bocal differentiation (P4)
+No signed Android release build exists. `android/fastlane/` and `docs/store/`
+describe the intended Play Store listing and privacy policy; both should be
+re-checked against §4 before any store submission, since store copy has previously
+overclaimed relative to what ships (see `product.md` and `android-ci.md` in
+`review/`).
 
-- Educationally validated, semantically versioned instrument anatomy.
-- Primary/alternate fingering challenges and linked-mechanism explanations.
-- Sourced setup literacy without fabricated acoustic claims.
-- Woodwind-specific drills and capability-aware haptic feedback.
+## 7. Personas and core workflows
 
-## 6. Current delta against TonalEnergy
+- **Beginner woodwind/guitar student** — picks their instrument once in onboarding,
+  tunes before every practice session, and leans on the fingering chart or 3D lab
+  when a new note comes up in a lesson.
+- **Returning intermediate player** — uses Pulse sequences and Practice logging to
+  structure a session, checks Analyze's harmonics/spectrum view to hear intonation
+  drift, and reviews the Practice streak and coach board weekly.
+- **Teacher/coach** — uses the coach board to leave notes across pitch, rhythm,
+  technique, repertoire and reflection, and exports a brief for a student; does not
+  yet have a way to review or correct the shipped fingering data in-app (that stays a
+  code change today — see §4).
+- **Casual/curious visitor** — opens the instrument gallery, browses the Woodwinds
+  and Strings sections and the further-planned families, and may leave without an
+  account, which the app supports (no sign-in exists at all).
 
-| Capability | Bocal now | TonalEnergy benchmark | Required action |
-|---|---|---|---|
-| Basic tuner | Functional confidence-gated web tuner | Multiple mature tuner views and controls | Device/golden validation; more views and settings |
-| Metronome | Basic tempo, tap, meter, subdivision, drone | Deep presets, sequencing, looping, assistant, Link | Replace timer authority; add complete sequence model |
-| Tone generator | Reference tone and basic drone | Wheel, keyboard, grid and exercise creator | Add full range, chords, sequences, temperament |
-| Analysis | Pitch trace, live waveform and spectral-energy preview | Waveform, spectrum, harmonic, staff, interval | Validate current views; add harmonic/staff/interval |
-| Recording | Local browser take capture, playback and download | Recording/playback integrated with analysis | Add markers, regions, A/B and structured export |
-| Practice data | Local sessions and deterministic evidence | Activity, timed events, goals and streaks | Add robust longitudinal model and honest goals |
-| Professional control | Minimal | MIDI, Link, remote/custom layouts | P3 after audio foundation |
-| Instrument learning | Alto trainer + oboe anatomy preview | Not incumbent’s central workflow | Validate and expand carefully |
-| Native Android | Source foundation only | Shipping native app | Build/test/sign with Android SDK and real devices |
+Each persona's workflow is a straight-line loop: pick an instrument once, then tune,
+learn, keep time and review, all inside one browser tab with no server round-trip
+beyond the initial page load.
 
-Parity is achieved only when the P0–P3 workflows are reliable and no harder to reach than the incumbent. A long checklist of placeholder screens is not parity.
+## 8. Capability requirements this handoff assumes
 
-## 7. Instrument expansion plan
+- **Local-first**: every feature above must work with the microphone and the current
+  page's `localStorage`/IndexedDB only; no feature should require an account or a
+  network request to function.
+- **Instrument-honest**: an instrument's lab tier, tuner correction copy and
+  onboarding copy must describe what that specific instrument actually has, not a
+  generic "every instrument gets a 3D model" assumption. This was violated before
+  the 6 September review (`product.md` findings on the "3D lab" tab name, onboarding
+  step 2/3 copy, and the guitar sharing the sax family's embouchure correction
+  copy) and is being corrected package by package; check `docs/CURRENT_STATE.md` for
+  what has landed.
+- **Reviewable data**: any musical claim (a fingering, an altissimo note, a
+  temperament's cent values) must be traceable to a cited source and badged
+  accordingly, never presented with more confidence than a teacher's sign-off would
+  imply.
 
-### Readiness tiers
+## 9. Build, packaging and current release path
 
-1. **Catalogue:** instrument/transposition exists; no 3D claims.
-2. **Anatomy preview:** licensed visual model, correct orientation, mobile budget and explicit credit.
-3. **Educational map:** semantic touch-pieces, linked outputs, range and sourced fingerings.
-4. **Interactive rig:** independently addressable controls/pads with validated motion.
-5. **Expert validated:** named role/date/version approval and regression tests.
+No signed Android release build has been produced. The web app builds via
+`npm run build` (Next.js) and has a static "standalone" export path
+(`npm run preview:standalone`) that the Android WebView shell is meant to serve.
+`android/fastlane/` scaffolds a Play Store submission (title, short/full
+description, changelogs) but the changelog for the currently tagged versionCode
+predates several shipped features — see §4 and `android-ci.md` in `review/` for the
+exact string-level mismatch and the fix (regenerate the bundled WebView asset from
+`preview:standalone` rather than hand-copying it).
 
-### Order
+## 10. QA and release gates
 
-1. Alto saxophone — retain as the validation template; finish expert review and rig acquisition.
-2. Soprano, tenor and baritone saxophones — reuse fingering semantics only after documenting family-specific mechanics, range and transposition.
-3. B♭ clarinet — obtain a commercial-use model; the supplied CC BY-NC asset is excluded.
-4. Flute/piccolo — validate open-hole/closed-hole and mechanism variants explicitly.
-5. Oboe/English horn — upgrade the current anatomy preview after specialist fingering/mechanism review.
-6. Bassoon/contrabassoon — treat system/version complexity as first-class data.
-7. Recorder family — instrument-specific baroque/German fingering systems.
+Before any Android release is promoted beyond internal testing:
 
-“All woodwinds” must never mean one generic fingering engine with different meshes.
+1. `npx tsc --noEmit`, `npm run lint`, `npm run build`, and the full
+   `node --test tests/*.test.mjs` suite must pass with zero regressions.
+2. A Playwright pass over the onboarding flow, the instrument picker, and every
+   `labTier` in both light and dark theme, at a phone viewport, with zero
+   `pageerror` events and no horizontal overflow.
+3. A physical-device pass: microphone latency and accuracy, screen-lock behavior
+   while the tuner or metronome is running, and status-bar/theme sync, none of
+   which are exercised by the emulator-only checks above.
+4. A named, qualified reviewer's sign-off on at least the flute, clarinet and
+   bassoon fingering charts before removing the "not yet teacher-reviewed" badge
+   from any of them.
 
-## 8. Asset audit and licensing
+## 11. Open decisions
 
-| Asset | Licence | Commercial use | Structure | Public status |
-|---|---|---:|---|---|
-| “saxophone alto” by ANDRIANIAINAToky | CC BY 4.0 | Yes, with attribution | 8 material meshes; not per-key rigged | Detailed alto reference |
-| “Saxophone” by Matt Caddie | CC BY 4.0 | Yes, with attribution | Single lightweight mesh | Not selected as primary |
-| “Oboe – Howarth Conservatoire S20C” by WarderiiK | CC BY 4.0 | Yes, with attribution | Source contains two finish trees; public viewer isolates the standard `Oboe` root | Anatomy preview |
-| “Clarinet model (with annotations)” by Henry Chi | CC BY-NC 4.0 | **No** for commercial Bocal | 3 meshes | Excluded from public build |
-| Bocal cinematic alto card photograph | Project-generated asset | Yes for Bocal | PNG master + optimized WebP | Tuner card |
-| Bocal cinematic oboe photograph | Project-generated asset | Yes for Bocal | PNG master + optimized WebP | Oboe card and instrument gallery |
+- Whether guitar belongs in an otherwise woodwind-focused app long-term, or should
+  be reframed as the first of a broader "strings" section (see the picker's
+  Woodwinds/Strings split introduced alongside this handoff).
+- Whether the Android shell should keep the click running in the background while
+  microphone capture stops (current default), or match the metronome's behavior to
+  the tuner's.
+- Whether to invest further in the current bronze-study 3D finish and per-instrument
+  material customization, or prioritize teacher review of the 2D chart data first.
 
-Optimized public sizes are approximately 1.7 MB for alto and 2.1 MB for oboe. Optimization does not create a rig; the app must preserve that distinction.
+## 12. Provenance
 
-## 9. Technical architecture
-
-### Web
-
-- React/Next-compatible Vinext application hosted on Sites.
-- Web Audio for input, synthesis and current timing prototypes.
-- Three.js for imported GLB viewing and pedagogical mechanism rendering.
-- The alto GLB is normalized into a shared scene coordinate system. `SAX_KEYS` supplies semantic touch IDs, hand/finger/side metadata and anchor coordinates; `ImportedInstrumentCanvas` always renders the active cyan contacts and reveals quieter available-touch rings only on request.
-- `ImportedInstrumentCanvas` creates an optional translucent hand-contact rig from the same semantic anchors. One route per finger is shown, the current route intensifies, and the UI explicitly identifies it as educational rather than biometric.
-- Player, left-control, right-control and thumb/back presets filter side-specific targets to avoid implying that left- and right-hand controls occupy the same face.
-- Touch targets are interactive and update the shared fingering state. The source GLB itself is not key-rigged, so pad travel remains an explained data trace rather than a fabricated mesh animation.
-- The oboe source includes two top-level finish variants. `isolateRootName="Oboe"` publishes only the standard silver-key tree. A stable empty-marker constant and callback refs prevent inspection state from recreating the renderer, while a pointer travel threshold separates orbit gestures from taps.
-- Model controls live outside the canvas. Full-screen focus is a real viewport state with an Escape exit and scroll lock, not a CSS enlargement inside the document flow.
-- Instrument selection and onboarding are client-only, localStorage-gated experiences. Unsupported instruments are visible as roadmap context but cannot be selected.
-- Setup coverflow retains all sourced caveats, comparison controls and accessible button semantics; perspective and motion are progressive enhancement and respect reduced-motion preferences.
-- Device-local storage for practice evidence and notes.
-- Static-first deployment; no maintained backend.
-
-### Native Android
-
-- Kotlin, Jetpack Compose, min SDK 26, target/compile SDK 36.
-- Native `AudioRecord` foundation in the checked-in scaffold; migrate the real-time path to Oboe/AAudio after fixtures stabilize.
-- Room for structured local data; DataStore for small settings.
-- WorkManager/local notifications only after user opts into a reminder.
-- No `INTERNET` permission in the local-first release.
-- Haptics require capability checks and deterministic fallback.
-- 3D rendering should use a maintained glTF/Filament path and the same semantic instrument contract as web.
-
-### Shared contracts
-
-- `InstrumentProfile`: identity, family, transposition, range, readiness and source version.
-- `TouchPiece`: semantic ID, hand/contact, side and accessible label.
-- `MechanismEdge`: input → output, opens/closes, condition and validation evidence.
-- `FingeringRoute`: written pitch, contacts, primary/alternate context and source.
-- `SessionEvidence`: accepted frames, notes, cents, confidence and timing.
-- `BocalBundle`: versioned session, annotations and optional audio references.
-
-Rendering code must consume these contracts; it must not become the source of musical truth.
-
-## 10. Delta from the supplied Baseline/Claude brief
-
-### Retained
-
-- Native Kotlin/Compose direction.
-- Oboe/AAudio as the eventual low-latency Android foundation.
-- Backendless/local-first privacy and offline operation.
-- Hyle violet/cyan/AMOLED visual language and redundant state encoding.
-- Practice, equipment, reminder, longitudinal and coach-exchange concepts.
-- Small stable seams for shared Hyle, haptics and baseline contracts.
-
-### Added or corrected
-
-- A browser-deliverable product exists now and is separated from the eventual native audio engine.
-- Fingering truth distinguishes direct player contact from linked pad output.
-- Alto AF♯ and HF♯ are separate; low E♭ motion and important coupled pads were corrected.
-- Imported visual fidelity and interactive pedagogical logic are layered: the licensed mesh remains visually intact while semantic, tappable touch targets render directly over it.
-- The source oboe’s duplicate finish trees are no longer rendered together, and orbit gestures no longer cause renderer resets through incidental inspection state.
-- First-run instrument selection, guided onboarding, full-screen model focus and visual setup coverflow convert a functional dashboard into a more experiential product without hiding validation status.
-- Optional phantom hands make player contact legible while preserving the distinction between educational placement and biometric/body-tracking accuracy.
-- Model licences and readiness tiers are release gates.
-- Seven personas and 35 concrete workflows translate strategy into acceptance behavior.
-- TonalEnergy parity is ordered by measurement/timing integrity before visible feature count.
-- Clarinet expansion is blocked by the supplied non-commercial licence.
-- “All woodwinds” is a validation program, not a mesh-shopping exercise.
-
-### Deferred from the baseline
-
-- Neural pitch inference before deterministic DSP and golden tests are excellent.
-- Urbana/local-LLM coupling in v1 because even localhost networking weakens the no-network-permission trust claim.
-- Camera posture analysis before core tuner/metronome/recorder reliability.
-- Cross-domain “platform” positioning; Bocal remains a focused consumer product.
-
-## 11. Build, packaging and APK status
-
-The repository contains native Android source, but this execution environment does not contain the Android SDK, Gradle, AAPT2, D8, ADB or signing tools. Therefore no APK generated here can be described as built or tested.
-
-Required release build environment:
-
-1. JDK 17.
-2. Android Studio or command-line SDK with platform 36 and build tools.
-3. Gradle 8.13 and AGP 8.13.2.
-4. A physical Android phone for microphone/routing/latency checks.
-5. A private signing keystore that is never committed or shared in chat.
-
-Build sequence after SDK installation:
-
-```text
-cd android
-gradle :app:assembleDebug
-gradle :app:testDebugUnitTest
-gradle :app:lintDebug
-```
-
-Release signing and Play upload must be completed in the owner’s trusted build environment. The debug APK output is expected at `android/app/build/outputs/apk/debug/app-debug.apk` after a successful build.
-
-## 12. QA and release gates
-
-- Synthetic pitch tests from 55–2200 Hz, including octave-confusion cases.
-- Licensed, hand-labelled alto golden recordings and per-device accuracy reports.
-- 30-minute metronome drift/jitter test using recorded click onsets.
-- Permission denial/revocation, interruption, route change and Bluetooth warnings.
-- Low-, mid- and high-tier Android devices; wired and built-in microphones.
-- WebGL/mobile GPU memory and frame-rate budgets for every model.
-- Regression coverage for single-root asset isolation, stable renderer setup, tap-versus-orbit thresholds and active-contact visibility.
-- First-run, replay, keyboard, reduced-motion and narrow-viewport checks for onboarding and both coverflows.
-- Non-hue semantic encoder for every state.
-- Expert sign-off for any instrument advertised as a learning trainer.
-- Licence/attribution check included in automated release tests.
-
-## 13. Open decisions and blockers
-
-1. Acquire a commercially usable, separately rigged modern alto model or fund controlled rigging of the selected reference.
-2. Obtain commercial-use soprano, tenor, baritone and clarinet models.
-3. Recruit an alto saxophonist plus technician/experienced teacher for v1 dataset sign-off.
-4. Select and license golden audio fixtures.
-5. Build the Android project on a machine with SDK 36 and test on physical devices.
-6. Decide whether the first Play release is tuner/pulse/practice only or waits for the native 3D lab.
-7. Recruit instrument-specific posture reviewers before publishing chin, embouchure, shoulder or support-point body rigs beyond the current alto hand-contact prototype.
-
-## 14. Definition of done
-
-Bocal v1 is done only when:
-
-1. P0 tuner and timing release gates pass on representative Android devices.
-2. The native APK builds, installs, resumes and handles microphone denial safely.
-3. Alto learning data receives recorded expert sign-off.
-4. Fingering targets remain visibly attached to the detailed model in player, left-control, right-control and thumb/back views; active contacts stay visible with optional targets hidden.
-5. Practice evidence remains local, exportable and deterministic.
-6. Accessibility and no-network-permission claims are verified.
-7. The repository source, models, cinematic masters, onboarding, coverflow, licences and this single handoff match the deployed version.
-
-The current build is a strong checkpoint, not that definition of done.
+This repository also contains an earlier 0.2–0.5 import snapshot
+(`web-standalone/`, `web-source-v6/`, `models/`, `research/`, `qa/`) that predates
+the current instrument set and is not part of the live product; see the top-level
+`README.md` for that history. `web-source/` is the only actively developed product
+surface this handoff describes.

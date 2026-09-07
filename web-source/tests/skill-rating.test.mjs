@@ -1,18 +1,6 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import test from "node:test";
-import ts from "typescript";
-
-async function loadModule() {
-  const source = await readFile(new URL("../app/skill-rating.ts", import.meta.url), "utf8");
-  const { outputText } = ts.transpileModule(source, {
-    compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
-    fileName: "skill-rating.ts",
-  });
-  return import(`data:text/javascript;base64,${Buffer.from(outputText).toString("base64")}`);
-}
-
-const skill = await loadModule();
+import * as skill from "../app/skill-rating.ts";
 
 test("no evidence means no score", () => {
   const rating = skill.calculateSkillRating(skill.emptySkillEvidence());

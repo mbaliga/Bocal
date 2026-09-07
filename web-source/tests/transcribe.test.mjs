@@ -1,26 +1,6 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import test from "node:test";
-import ts from "typescript";
-
-async function transpile(relativePath, fileName, rewrites = {}) {
-  let source = await readFile(new URL(relativePath, import.meta.url), "utf8");
-  for (const [specifier, replacement] of Object.entries(rewrites)) {
-    source = source.replaceAll(`"${specifier}"`, `"${replacement}"`);
-  }
-  const { outputText } = ts.transpileModule(source, {
-    compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
-    fileName,
-  });
-  return `data:text/javascript;base64,${Buffer.from(outputText).toString("base64")}`;
-}
-
-// transcribe.ts imports the pitch engine by relative path, which a data: URL
-// cannot resolve. Inline the engine as its own data URL and point the import
-// at it, so the module under test is the real source rather than a copy.
-const engineUrl = await transpile("../app/pitch-engine.ts", "pitch-engine.ts");
-const transcribeUrl = await transpile("../app/transcribe.ts", "transcribe.ts", { "./pitch-engine": engineUrl });
-const { transcribeBuffer } = await import(transcribeUrl);
+import { transcribeBuffer, pitchTrackFrames } from "../app/transcribe.ts";
 
 const RATE = 16000;
 
@@ -144,4 +124,29 @@ test("a chord is flagged rather than transcribed as a wrong single line", async 
 test("a short recording still reports its duration", async () => {
   const result = await transcribeBuffer(new Float32Array(RATE));
   assert.ok(Math.abs(result.durationSec - 1) < 0.01);
+});
+
+test("pitchTrackFrames reads a 442 Hz tone as 0 cents when the reference is 442 Hz", async () => {
+  const hz = 442;
+  const seconds = 0.6;
+  const length = Math.round(seconds * RATE);
+  const samples = new Float32Array(length);
+  for (let index = 0; index < length; index += 1) {
+    const t = index / RATE;
+    const fade = Math.min(1, index / (0.01 * RATE), (length - index) / (0.01 * RATE));
+    samples[index] = fade * (Math.sin(2 * Math.PI * hz * t) + 0.3 * Math.sin(4 * Math.PI * hz * t));
+  }
+
+  const frames442 = await pitchTrackFrames(samples, undefined, { referenceHz: 442, temperament: "equal", keyPc: 0 });
+  const voiced442 = frames442.filter((frame) => frame.midi !== null);
+  assert.ok(voiced442.length > 5, "expected at least a few voiced frames");
+  for (const frame of voiced442) assert.ok(Math.abs(frame.cents) <= 3, `expected ~0 cents at reference 442, got ${frame.cents}`);
+
+  // The same signal against the default A440 reference should read sharp
+  // instead -- a 442 Hz A is +7.9 cents from A440's A -- confirming the
+  // reference actually changes what comes out rather than always reading 0.
+  const frames440 = await pitchTrackFrames(samples);
+  const voiced440 = frames440.filter((frame) => frame.midi !== null);
+  assert.ok(voiced440.length > 5);
+  for (const frame of voiced440) assert.ok(frame.cents > 4, `expected a clearly sharp reading at reference 440, got ${frame.cents}`);
 });

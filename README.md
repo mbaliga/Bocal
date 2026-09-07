@@ -1,12 +1,18 @@
 # Bocal
 
-Bocal is a music-learning application for saxophone and other woodwinds, covering
-tuning, tone and practice workflows with an interactive 3D instrument lab.
+Bocal is a local-first music practice app: a stable-note tuner, pulse and practice
+tools, local analysis, and instrument-specific fingering/anatomy learning, covering
+ten instruments (nine woodwinds plus guitar).
 
-This repository is the import of the Bocal 0.2 reference handoff dated 10 August 2026,
-plus a later in-progress source iteration. It is a snapshot of prototype work, not a
-released product — read [Status and limits](#status-and-limits) before relying on any
-part of it.
+## Current product (read this first)
+
+**`web-source/` is the current shipping app** and the only actively developed
+product surface. For what Bocal actually does today, read
+[`docs/BOCAL_HANDOFF.md`](docs/BOCAL_HANDOFF.md) (the single source of truth for
+product state) and [`web-source/README.md`](web-source/README.md). The rest of this
+file, `web-standalone/`, `web-source-v6/`, `models/`, `research/` and `qa/` are the
+historical record of the 0.2 → 0.5 import described below; they predate the current
+instrument set and are not maintained as part of the live product.
 
 ## Layout
 
@@ -15,7 +21,7 @@ part of it.
 | `web-standalone/` | TypeScript/Vite standalone app. `dist/` is the ready-to-host static build (serve over HTTPS — microphone access requires it). |
 | `web-source/` | Next.js/vinext hosted-Sites variant, including the client-only 3D loading boundary. |
 | `web-source-v6/` | Later, divergent iteration of `web-source`. Not a drop-in replacement — see [The v6 source](#the-v6-source). |
-| `android/` | Kotlin/Jetpack Compose Android project, version 0.5.0. Six-workspace shell over three detailed third-party glTF instruments — see [Android 0.5 and model licensing](#android-05-and-model-licensing). |
+| `android/` | Android WebView shell (version 0.6.0, versionCode 7) hosting `web-source`'s app verbatim — see [Android and model licensing](#android-and-model-licensing). |
 | `models/` | 35 original educational woodwind GLBs, plus catalog, generator and validator. |
 | `research/` | 84-row TonalEnergy parity matrix, 10 personas × 5 workflows, source ledger, baseline delta. |
 | `docs/` | Product handoff (MD/DOCX/PDF), saxophone validation and parity spec, alto 3D model brief, music-learning baseline. |
@@ -62,10 +68,12 @@ standalone build no longer holds — 0.5 replaced those assets entirely.
 
 **Not verified:**
 
-- **No APK is included, and none has been built** — still true at 0.5, which has had
-  release hardening but no compile. `android/` needs a real Android Studio/SDK compile,
-  unit-test, instrumentation, install and device-validation pass. `android/build-apk.sh`,
-  `verify-apk.sh` and `device-release-check.sh` document that path.
+- **No signed release APK/AAB is included.** `android/` now builds and passes
+  `assembleDebug`/`assembleRelease` locally (R8 verified) and CI produces a debug APK
+  on every push, but a Play-acceptable signed AAB requires the upload-keystore
+  secrets named in `android/README.md`, which do not exist in this repository.
+  `android/build-apk.sh`, `verify-apk.sh` and `device-release-check.sh` document the
+  remaining device-validation pass.
 - **The 35 in-house 3D models are educational reference geometry, not repair or CAD
   models.** Only the alto saxophone has a core note map. Other instruments expose
   recognizable parts and controls but must not be presented as certified fingering
@@ -80,32 +88,23 @@ standalone build no longer holds — 0.5 replaced those assets entirely.
 - Any claim of parity with or superiority to TonalEnergy is unproven, and would
   require moderated matched-task studies on a shared device and audio corpus.
 
-## Android 0.5 and model licensing
+## Android and model licensing
 
-`android/` is version 0.5.0 and no longer matches the rest of this repository's
-model story. Where `models/` and `web-standalone/` carry 35 in-house generated GLBs,
-the Android app now ships **three detailed third-party glTF models** — alto sax,
-Howarth oboe and clarinet — with textures, plus a vendored Three.js runtime. It
-restores a six-workspace shell (Tune, Lab, Sound, Pulse, Analyze, Practice) as a
-floating two-tier dock, adds instrumentation tests, and hardens the app with
-`usesCleartextTraffic=false` and a non-exported FileProvider. `INTERNET` is still
-deliberately absent; `RECORD_AUDIO` and `VIBRATE` remain the only permissions.
+`android/` is now a thin WebView shell (`MainActivity` -> `WebAppScreen`) that hosts
+`web-source`'s app verbatim from a bundled `assets/www/app.html`; the six-workspace
+native Compose UI, its five audio engines and the separate in-app 3D Lab
+(`assets/www/lab.html`, a vendored Three.js runtime and duplicate glTF model trees)
+described in earlier versions of this document have been deleted as dead code —
+nothing reachable from `MainActivity` ever loaded them, and removing them took the
+debug APK from ~34 MB to ~19 MB. `INTERNET` is still deliberately absent;
+`RECORD_AUDIO` and `VIBRATE` remain the only permissions, and `allowBackup` is now
+`false`.
 
-**The clarinet model is CC-BY-NC-4.0 — it forbids commercial use.** The sax and oboe
-models are CC-BY-4.0 (commercial use allowed, attribution required) and Three.js is
-MIT. Full credits are in `android/THIRD_PARTY_NOTICES.md`.
-
-This is a reversal that deserves an explicit decision. In 0.4 the clarinet was
-deliberately *excluded* over its non-commercial licence, and
-`android/scripts/validate-assets.py` still enforces that policy — it fails unless the
-clarinet is listed as an excluded model. In 0.5 the clarinet was bundled anyway, on
-the premise stated in `android/MODEL_MANIFEST.md` that "this packaged source handoff
-is treated as a free non-commercial release artifact."
-
-So `android/static-check.sh` currently fails on that validator, by design. The gate is
-left as-is rather than quietly updated, because passing it means committing Bocal to a
-non-commercial release. If Bocal is ever to be sold or monetised, the clarinet model
-must be removed or relicensed.
+The web app's own saxophone and oboe 3D labs inline **two** detailed third-party
+glTF models (alto sax, Howarth oboe) as base64 inside `app.html` — see
+`web-source/public/models/ATTRIBUTION.md` for licences and credits. The clarinet
+model referenced in earlier drafts of this repository was CC-BY-NC-4.0 (no
+commercial use) and is not shipped.
 
 ## The v6 source
 

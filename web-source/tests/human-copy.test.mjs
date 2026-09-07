@@ -9,6 +9,14 @@ const SURFACES = [
   "../app/OboeLab.tsx",
   "../app/PracticeTools.tsx",
   "../app/AnalysisView.tsx",
+  "../app/FingeringChart.tsx",
+  "../app/GuitarStudio.tsx",
+  "../app/ToneGenerator.tsx",
+  "../app/TranscribePanel.tsx",
+  "../app/ImportedInstrumentCanvas.tsx",
+  "../app/StaffNote.tsx",
+  "../app/TakePitchTrace.tsx",
+  "../app/layout.tsx",
 ];
 
 test("customer-facing copy avoids the old synthetic product language", async () => {

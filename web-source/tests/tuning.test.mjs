@@ -1,25 +1,13 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import test from "node:test";
-import ts from "typescript";
-
-async function loadModule() {
-  const source = await readFile(new URL("../app/tuning.ts", import.meta.url), "utf8");
-  const { outputText } = ts.transpileModule(source, {
-    compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
-    fileName: "tuning.ts",
-  });
-  return import(`data:text/javascript;base64,${Buffer.from(outputText).toString("base64")}`);
-}
-
-const {
+import {
   targetHzFor,
   readingFor,
   TEMPERAMENTS,
   TEMPERAMENT_ORDER,
   loadCustomTemperamentCents,
   serializeCustomTemperamentCents,
-} = await loadModule();
+} from "../app/tuning.ts";
 
 const equalAt440 = { referenceHz: 440, temperament: "equal", keyPc: 0 };
 

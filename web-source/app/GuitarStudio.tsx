@@ -2,8 +2,18 @@
 
 import { Check, ChevronLeft, ChevronRight, CircleDot, Ear, Guitar, Mic, Pause, Play, Sparkles, Volume2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { FINGER_COLORS, FOUR_CHORD_FLOW, GUITAR_CHORDS, GUITAR_TUNINGS, midiToFrequency, type GuitarChord } from "./guitar-data";
+import {
+  CHORD_FLOW_BEATS_PER_CHORD,
+  CHORD_FLOW_TEMPOS,
+  FINGER_COLORS,
+  FOUR_CHORD_FLOW,
+  GUITAR_CHORDS,
+  GUITAR_TUNINGS,
+  midiToFrequency,
+  type GuitarChord,
+} from "./guitar-data";
 import { recordPracticeActivity } from "./practice-data";
+import "./styles/guitar.css";
 
 export type GuitarPitchReading = {
   hz: number;
@@ -25,38 +35,23 @@ function closestString<T extends { midi: number }>(hz: number, strings: T[]): T 
   return strings.reduce((closest, candidate) => Math.abs(centsFromTarget(hz, candidate.midi)) < Math.abs(centsFromTarget(hz, closest.midi)) ? candidate : closest, strings[0]);
 }
 
-function playPitch(hz: number) {
-  const context = new AudioContext();
-  const oscillator = context.createOscillator();
-  const gain = context.createGain();
-  oscillator.type = "triangle";
-  oscillator.frequency.value = hz;
-  gain.gain.setValueAtTime(0.0001, context.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.11, context.currentTime + 0.025);
-  gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.74);
-  oscillator.connect(gain).connect(context.destination);
-  oscillator.start();
-  oscillator.stop(context.currentTime + 0.8);
-  window.setTimeout(() => void context.close(), 900);
-}
-
 function GuitarFretboard({ chord }: { chord: GuitarChord }) {
   const stringY = [28, 62, 96, 130, 164, 198];
   const fretX = [114, 210, 306, 402, 498];
   return (
     <svg className="guitar-fretboard" viewBox="0 0 620 228" role="img" aria-label={`${chord.name} chord chart with colour coded fingers`}>
-      <rect x="96" y="12" width="432" height="202" rx="14" fill="rgba(11,11,13,.76)" stroke="#3a3634" />
-      {fretX.map((x, index) => <line key={`fret-${index}`} x1={x} x2={x} y1="12" y2="214" stroke={index === 0 ? "#e7ddc4" : "#5e5550"} strokeWidth={index === 0 ? 7 : 3} />)}
-      {stringY.map((y, index) => <line key={`string-${index}`} x1="96" x2="528" y1={y} y2={y} stroke="#d7c2a2" strokeOpacity={0.72} strokeWidth={Math.max(1, 5 - index * 0.6)} />)}
-      {[1, 2, 3, 4].map((fret) => <text key={fret} x={fretX[fret - 1] + 48} y="224" fill="#74706c" textAnchor="middle" fontSize="12">{fret}</text>)}
+      <rect className="guitar-fret-body" x="96" y="12" width="432" height="202" rx="14" />
+      {fretX.map((x, index) => <line key={`fret-${index}`} className={index === 0 ? "guitar-fret-nut" : "guitar-fret-wire"} x1={x} x2={x} y1="12" y2="214" />)}
+      {stringY.map((y, index) => <line key={`string-${index}`} className="guitar-fret-string" x1="96" x2="528" y1={y} y2={y} strokeWidth={Math.max(1, 5 - index * 0.6)} />)}
+      {[1, 2, 3, 4].map((fret) => <text key={fret} className="guitar-fret-number" x={fretX[fret - 1] + 48} y="224" textAnchor="middle" fontSize="12">{fret}</text>)}
       {chord.frets.map((fret, stringIndex) => {
         const finger = chord.fingers[stringIndex];
         const y = stringY[stringIndex];
-        if (fret === null) return <text key={`mute-${stringIndex}`} x="60" y={y + 5} fill="#ff7d91" textAnchor="middle" fontSize="19">×</text>;
-        if (fret === 0) return <circle key={`open-${stringIndex}`} cx="60" cy={y} r="10" fill="none" stroke="#b8b6af" strokeWidth="2" />;
+        if (fret === null) return <text key={`mute-${stringIndex}`} className="guitar-fret-mute" x="60" y={y + 5} textAnchor="middle" fontSize="19">×</text>;
+        if (fret === 0) return <circle key={`open-${stringIndex}`} className="guitar-fret-open" cx="60" cy={y} r="10" fill="none" strokeWidth="2" />;
         const x = fretX[fret - 1] + 48;
-        const colour = FINGER_COLORS[finger]?.color ?? "#f4f1e8";
-        return <g key={`finger-${stringIndex}`}><circle cx={x} cy={y} r="16" fill={colour} /><text x={x} y={y + 5} fill="#071917" textAnchor="middle" fontSize="14" fontWeight="700">{finger}</text></g>;
+        const colour = FINGER_COLORS[finger]?.color ?? "var(--ink)";
+        return <g key={`finger-${stringIndex}`}><circle cx={x} cy={y} r="16" fill={colour} /><text className="guitar-fret-finger-label" x={x} y={y + 5} textAnchor="middle" fontSize="14" fontWeight="700">{finger}</text></g>;
       })}
     </svg>
   );
@@ -74,8 +69,15 @@ export function GuitarStudio({ reading, listening, onListen }: { reading: Guitar
   const [playerStep, setPlayerStep] = useState(0);
   const [playerPlaying, setPlayerPlaying] = useState(false);
   const [waitForRoot, setWaitForRoot] = useState(true);
+  const [tempoBpm, setTempoBpm] = useState<number>(80);
   const rootFrames = useRef(0);
   const playerStartedAt = useRef<number | null>(null);
+  // One AudioContext for the whole studio: the follow player's chord-advance
+  // clock and the "hear root" preview both run on it, created lazily inside a
+  // user gesture (onListen / togglePlayer / hear-root) and closed on unmount.
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const nextChordAtRef = useRef(0);
+  const schedulerRef = useRef<number | null>(null);
   const tuning = GUITAR_TUNINGS.find((item) => item.id === tuningId) ?? GUITAR_TUNINGS[0];
   const selectedString = tuning.strings.find((item) => item.id === selectedStringId) ?? tuning.strings[0];
   const autoCandidate = reading ? closestString(reading.hz, tuning.strings) : selectedString;
@@ -85,12 +87,57 @@ export function GuitarStudio({ reading, listening, onListen }: { reading: Guitar
   const selectedChord = GUITAR_CHORDS.find((item) => item.id === selectedChordId) ?? GUITAR_CHORDS[0];
   const progression = FOUR_CHORD_FLOW.map((id) => GUITAR_CHORDS.find((item) => item.id === id)!).filter(Boolean);
   const playerChord = progression[playerStep] ?? progression[0];
+  const secondsPerChord = (60 / tempoBpm) * CHORD_FLOW_BEATS_PER_CHORD;
 
+  function getAudioContext() {
+    let context = audioContextRef.current;
+    if (!context || context.state === "closed") {
+      context = new AudioContext();
+      audioContextRef.current = context;
+    }
+    if (context.state === "suspended") void context.resume();
+    return context;
+  }
+
+  function playPitch(hz: number) {
+    const context = getAudioContext();
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    oscillator.type = "triangle";
+    oscillator.frequency.value = hz;
+    gain.gain.setValueAtTime(0.0001, context.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.11, context.currentTime + 0.025);
+    gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.74);
+    oscillator.connect(gain).connect(context.destination);
+    oscillator.start();
+    oscillator.stop(context.currentTime + 0.8);
+    oscillator.onended = () => {
+      oscillator.disconnect();
+      gain.disconnect();
+    };
+  }
+
+  // Advances on the AudioContext clock rather than a bare setInterval, so the
+  // step timing does not drift and matches the "N BPM" label. A short poll
+  // compares the clock to the next scheduled chord time; nothing here is
+  // audible, so a 40 ms lookahead has no perceptible cost.
   useEffect(() => {
     if (!playerPlaying || waitForRoot) return;
-    const timer = window.setInterval(() => setPlayerStep((current) => (current + 1) % progression.length), 2400);
-    return () => window.clearInterval(timer);
-  }, [playerPlaying, progression.length, waitForRoot]);
+    const context = getAudioContext();
+    nextChordAtRef.current = context.currentTime + secondsPerChord;
+    const poll = () => {
+      const now = context.currentTime;
+      if (now >= nextChordAtRef.current) {
+        setPlayerStep((current) => (current + 1) % progression.length);
+        nextChordAtRef.current += secondsPerChord;
+      }
+    };
+    schedulerRef.current = window.setInterval(poll, 40);
+    return () => {
+      if (schedulerRef.current !== null) window.clearInterval(schedulerRef.current);
+      schedulerRef.current = null;
+    };
+  }, [playerPlaying, progression.length, waitForRoot, secondsPerChord]);
 
   useEffect(() => {
     if (!playerPlaying || !waitForRoot || !reading) {
@@ -105,18 +152,33 @@ export function GuitarStudio({ reading, listening, onListen }: { reading: Guitar
     setPlayerStep((current) => (current + 1) % progression.length);
   }, [playerChord.name, playerChord.root, playerPlaying, progression.length, reading, waitForRoot]);
 
+  useEffect(() => {
+    return () => {
+      if (schedulerRef.current !== null) window.clearInterval(schedulerRef.current);
+      const context = audioContextRef.current;
+      if (context && context.state !== "closed") void context.close();
+      audioContextRef.current = null;
+    };
+  }, []);
+
   const togglePlayer = () => {
+    getAudioContext();
     setPlayerPlaying((current) => {
       if (!current) playerStartedAt.current = performance.now();
-      if (current && playerStartedAt.current !== null) {
-        recordPracticeActivity({ type: "chords", seconds: (performance.now() - playerStartedAt.current) / 1000, instrumentId: "guitar", label: "Four-chord flow" });
-        playerStartedAt.current = null;
+      if (current) {
+        if (playerStartedAt.current !== null) {
+          recordPracticeActivity({ type: "chords", seconds: (performance.now() - playerStartedAt.current) / 1000, instrumentId: "guitar", label: "Four-chord flow" });
+          playerStartedAt.current = null;
+        }
+        const context = audioContextRef.current;
+        if (context && context.state === "running") void context.suspend();
       }
       return !current;
     });
   };
 
   const instruction = !reading ? "Play one open string." : stringInTune ? `${activeString.label} is centered.` : stringCents! > 0 ? "Ease it down." : "Bring it up.";
+  const advanceLabel = waitForRoot ? "Wait for correct root" : `Advance every ${CHORD_FLOW_BEATS_PER_CHORD} beats · ${tempoBpm} BPM`;
 
   return (
     <div className="content-wrap guitar-studio">
@@ -147,7 +209,17 @@ export function GuitarStudio({ reading, listening, onListen }: { reading: Guitar
       <section className="chord-player-card">
         <div className="chord-player-intro"><span className="card-kicker"><Ear size={15} /> Follow player</span><h2>Four-chord flow.</h2><p>Use the coloured fingering chart, play a clear root note, and Bocal can wait before revealing the next shape.</p></div>
         <div className="chord-flow" aria-label="Four chord flow">{progression.map((chord, index) => <button key={`${chord.id}-${index}`} className={playerStep === index ? "is-current" : ""} onClick={() => { setPlayerStep(index); setSelectedChordId(chord.id); }}><span>{String(index + 1).padStart(2, "0")}</span><strong>{chord.name}</strong><small>{chord.root} root</small></button>)}</div>
-        <div className="chord-player-controls"><button className={`chord-play ${playerPlaying ? "is-playing" : ""}`} onClick={togglePlayer}>{playerPlaying ? <Pause size={18} /> : <Play size={18} fill="currentColor" />}{playerPlaying ? "Pause flow" : "Start flow"}</button><button className={`wait-toggle ${waitForRoot ? "is-active" : ""}`} onClick={() => setWaitForRoot((value) => !value)} aria-pressed={waitForRoot}>{waitForRoot ? "Wait for correct root" : "Advance every 4 beats"}</button><button className="chord-step" onClick={() => setPlayerStep((value) => (value + progression.length - 1) % progression.length)} aria-label="Previous chord"><ChevronLeft size={18} /></button><button className="chord-step" onClick={() => setPlayerStep((value) => (value + 1) % progression.length)} aria-label="Next chord"><ChevronRight size={18} /></button></div>
+        <div className="chord-player-controls">
+          <button className={`chord-play ${playerPlaying ? "is-playing" : ""}`} onClick={togglePlayer}>{playerPlaying ? <Pause size={18} /> : <Play size={18} fill="currentColor" />}{playerPlaying ? "Pause flow" : "Start flow"}</button>
+          <button className={`wait-toggle ${waitForRoot ? "is-active" : ""}`} onClick={() => setWaitForRoot((value) => !value)} aria-pressed={waitForRoot}>{advanceLabel}</button>
+          {!waitForRoot && (
+            <select className="guitar-tempo-select" value={tempoBpm} onChange={(event) => setTempoBpm(Number(event.target.value))} aria-label="Follow player tempo">
+              {CHORD_FLOW_TEMPOS.map((bpm) => <option key={bpm} value={bpm}>{bpm} BPM</option>)}
+            </select>
+          )}
+          <button className="chord-step" onClick={() => setPlayerStep((value) => (value + progression.length - 1) % progression.length)} aria-label="Previous chord"><ChevronLeft size={18} /></button>
+          <button className="chord-step" onClick={() => setPlayerStep((value) => (value + 1) % progression.length)} aria-label="Next chord"><ChevronRight size={18} /></button>
+        </div>
         {waitForRoot && <p className="chord-player-note">{listening ? `Listening for ${playerChord.root}. Play one clean root note to continue.` : "Start the tuner when you want Bocal to listen for the next root."}</p>}
       </section>
     </div>

@@ -30,15 +30,15 @@ import {
   X,
 } from "lucide-react";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import * as THREE from "three";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { FingeringChart } from "./FingeringChart";
 import { FINGERING_CHARTS } from "./fingering-charts";
 import { ImportedInstrumentCanvas, type InstrumentViewId } from "./ImportedInstrumentCanvas";
+import { ModelLookPanel } from "./ModelLookPanel";
 import { OboeLab } from "./OboeLab";
-import { animateEducationalSaxKeys, buildEducationalAltoSaxophone } from "./alto-sax-model";
 import { INSTRUMENTS, type InstrumentId } from "./instruments";
+import { defaultSaxLook, loadModelLook, saveModelLook, type ModelLook } from "./model-looks";
 import type { NotationSystem } from "./notation";
+import "./styles/model-look.css";
 import {
   SAXOPHONE_FINGERINGS,
   midiToFrequency,
@@ -67,14 +67,6 @@ import {
 } from "./skill-rating";
 
 type TrainerMode = "learn" | "challenge";
-type SaxViewId = "player" | "left" | "right" | "thumb";
-
-const SAX_VIEW_PRESETS: Record<SaxViewId, { label: string; position: [number, number, number]; target: [number, number, number] }> = {
-  player: { label: "Player", position: [0, 0.45, 13.1], target: [0.05, 0.35, 0] },
-  left: { label: "Left controls", position: [-8.4, 0.85, 8.4], target: [-0.08, 0.55, 0] },
-  right: { label: "Right controls", position: [8.4, 0.15, 8.4], target: [0.2, -0.15, 0] },
-  thumb: { label: "Thumb / back", position: [0, 0.55, -12.8], target: [-0.05, 0.65, 0] },
-};
 
 const REFERENCE_VIEW_PRESETS: Array<{ id: InstrumentViewId; label: string }> = [
   { id: "front", label: "Player" },
@@ -133,230 +125,6 @@ function hexColour(value: number) {
   return `#${value.toString(16).padStart(6, "0")}`;
 }
 
-export function LegacySaxophoneModel({
-  activeKeys,
-  onKeyToggle,
-  resetView,
-  colorway,
-  showGuides,
-  viewPreset,
-}: {
-  activeKeys: Set<SaxKeyId>;
-  onKeyToggle: (id: SaxKeyId) => void;
-  resetView: number;
-  colorway: SaxColorway;
-  showGuides: boolean;
-  viewPreset: SaxViewId;
-}) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const activeRef = useRef(activeKeys);
-  const callbackRef = useRef(onKeyToggle);
-  const colorwayRef = useRef(colorway);
-  const guideRef = useRef(showGuides);
-  const applyColorwayRef = useRef<((next: SaxColorway) => void) | null>(null);
-  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
-  const controlsRef = useRef<OrbitControls | null>(null);
-  const [webglUnavailable, setWebglUnavailable] = useState(false);
-
-  useEffect(() => { activeRef.current = activeKeys; }, [activeKeys]);
-  useEffect(() => { callbackRef.current = onKeyToggle; }, [onKeyToggle]);
-  useEffect(() => { guideRef.current = showGuides; }, [showGuides]);
-  useEffect(() => {
-    colorwayRef.current = colorway;
-    applyColorwayRef.current?.(colorway);
-  }, [colorway]);
-
-  useEffect(() => {
-    if (!cameraRef.current || !controlsRef.current) return;
-    const preset = SAX_VIEW_PRESETS[viewPreset];
-    cameraRef.current.position.set(...preset.position);
-    controlsRef.current.target.set(...preset.target);
-    controlsRef.current.update();
-  }, [resetView, viewPreset]);
-
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x0b0b0c, 0.026);
-    const camera = new THREE.PerspectiveCamera(31, 1, 0.1, 100);
-    camera.position.set(...SAX_VIEW_PRESETS.player.position);
-    cameraRef.current = camera;
-
-    const rendererCanvas = document.createElement("canvas");
-    const contextOptions = { antialias: true, alpha: true, powerPreference: "high-performance" as const };
-    let renderingContext: WebGLRenderingContext | WebGL2RenderingContext | null = null;
-    try {
-      renderingContext = rendererCanvas.getContext("webgl2", contextOptions) as WebGL2RenderingContext | null;
-      renderingContext ??= rendererCanvas.getContext("webgl", contextOptions) as WebGLRenderingContext | null;
-    } catch {
-      renderingContext = null;
-    }
-    if (!renderingContext) {
-      const fallbackTimer = window.setTimeout(() => setWebglUnavailable(true), 0);
-      return () => window.clearTimeout(fallbackTimer);
-    }
-
-    const renderer = new THREE.WebGLRenderer({ canvas: rendererCanvas, context: renderingContext, antialias: true, alpha: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setClearColor(0x000000, 0);
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.18;
-    container.appendChild(renderer.domElement);
-
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.055;
-    controls.enablePan = false;
-    controls.minDistance = 7.2;
-    controls.maxDistance = 16;
-    controls.minPolarAngle = 0.42;
-    controls.maxPolarAngle = Math.PI - 0.35;
-    controls.target.set(...SAX_VIEW_PRESETS.player.target);
-    controls.autoRotate = false;
-    controls.update();
-    controlsRef.current = controls;
-
-    scene.add(new THREE.HemisphereLight(0xd7d8ff, 0x16120b, 2.4));
-    const keyLight = new THREE.DirectionalLight(0xffefb0, 6.1);
-    keyLight.position.set(-4, 7, 6);
-    scene.add(keyLight);
-    const rimLight = new THREE.DirectionalLight(0x8e7bff, 4.2);
-    rimLight.position.set(5, 2, -5);
-    scene.add(rimLight);
-    const cyanLight = new THREE.PointLight(0x08fed5, 20, 8, 2);
-    cyanLight.position.set(-2, -1, 3);
-    scene.add(cyanLight);
-
-    const { model, mechanisms: keyGroups, applyColorway } = buildEducationalAltoSaxophone(colorwayRef.current);
-    applyColorwayRef.current = applyColorway;
-    scene.add(model);
-
-    const floor = new THREE.Mesh(
-      new THREE.CircleGeometry(3.9, 64),
-      new THREE.MeshBasicMaterial({ color: 0x0e0e10, transparent: true, opacity: 0.72 }),
-    );
-    floor.rotation.x = -Math.PI / 2;
-    floor.position.y = -3.22;
-    scene.add(floor);
-    const floorRing = new THREE.Mesh(
-      new THREE.RingGeometry(2.3, 2.32, 64),
-      new THREE.MeshBasicMaterial({ color: 0x37333f, transparent: true, opacity: 0.75, side: THREE.DoubleSide }),
-    );
-    floorRing.rotation.x = -Math.PI / 2;
-    floorRing.position.y = -3.21;
-    scene.add(floorRing);
-
-    const raycaster = new THREE.Raycaster();
-    const pointer = new THREE.Vector2();
-    const hitTargets = Array.from(keyGroups.values()).flatMap((mechanism) => mechanism.hitTargets);
-    const setPointer = (event: PointerEvent) => {
-      const rect = renderer.domElement.getBoundingClientRect();
-      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-      raycaster.setFromCamera(pointer, camera);
-      return raycaster.intersectObjects(hitTargets, false);
-    };
-    const findKeyId = (object: THREE.Object3D | undefined) => object?.userData.keyId as SaxKeyId | undefined;
-    const onPointerMove = (event: PointerEvent) => {
-      renderer.domElement.style.cursor = findKeyId(setPointer(event)[0]?.object) ? "pointer" : "grab";
-    };
-    const onPointerUp = (event: PointerEvent) => {
-      const keyId = findKeyId(setPointer(event)[0]?.object);
-      if (keyId) callbackRef.current(keyId);
-    };
-    renderer.domElement.addEventListener("pointermove", onPointerMove);
-    renderer.domElement.addEventListener("pointerup", onPointerUp);
-
-    const resize = () => {
-      const width = Math.max(container.clientWidth, 1);
-      const height = Math.max(container.clientHeight, 1);
-      renderer.setSize(width, height, false);
-      camera.aspect = width / height;
-      camera.updateProjectionMatrix();
-    };
-    const observer = new ResizeObserver(resize);
-    observer.observe(container);
-    resize();
-
-    let animationFrame = 0;
-    const animate = () => {
-      animateEducationalSaxKeys(keyGroups, activeRef.current, guideRef.current);
-      controls.update();
-      renderer.render(scene, camera);
-      animationFrame = requestAnimationFrame(animate);
-    };
-    animate();
-
-    return () => {
-      cancelAnimationFrame(animationFrame);
-      observer.disconnect();
-      renderer.domElement.removeEventListener("pointermove", onPointerMove);
-      renderer.domElement.removeEventListener("pointerup", onPointerUp);
-      controls.dispose();
-      renderer.dispose();
-      applyColorwayRef.current = null;
-      scene.traverse((object) => {
-        if (object instanceof THREE.Mesh) {
-          object.geometry.dispose();
-          const materials = Array.isArray(object.material) ? object.material : [object.material];
-          materials.forEach((material) => material.dispose());
-        }
-      });
-      if (renderer.domElement.parentElement === container) container.removeChild(renderer.domElement);
-    };
-  }, []);
-
-  const fallbackStyle = {
-    "--sax-body": hexColour(colorway.body),
-    "--sax-body-hi": hexColour(colorway.bodyHighlight),
-    "--sax-metal": hexColour(colorway.keywork),
-    "--sax-metal-hi": hexColour(colorway.keyworkLight),
-  } as CSSProperties;
-
-  return (
-    <div
-      className="saxophone-canvas"
-      ref={containerRef}
-      role="img"
-      aria-label="Interactive three-dimensional alto saxophone with separately marked finger contacts and linked pads"
-      style={fallbackStyle}
-    >
-      {webglUnavailable && (
-        <div className="sax-lite-view">
-          <span className="lite-label"><Rotate3D size={13} /> Interactive lite view</span>
-          <div className="lite-sax" aria-hidden="true">
-            <i className="lite-mouthpiece" />
-            <i className="lite-neck" />
-            <i className="lite-body" />
-            <i className="lite-bow" />
-            <i className="lite-bell" />
-            <i className="lite-bell-rim" />
-            <i className="lite-rod lite-rod-left" />
-            <i className="lite-rod lite-rod-right" />
-            <i className="lite-brace" />
-          </div>
-          {SAX_KEYS.map((key) => {
-            const left = 50 + key.position[0] * 18;
-            const top = 19 + (3 - key.position[1]) * 9.5;
-            return (
-              <button
-                key={key.id}
-                className={`lite-key ${activeKeys.has(key.id) ? "is-active" : ""}`}
-                style={{ left: `${left}%`, top: `${top}%` }}
-                onClick={() => onKeyToggle(key.id)}
-                aria-label={key.name}
-              ><span>{key.short}</span></button>
-            );
-          })}
-          <p>This browser cannot draw WebGL. Every fingering control still works.</p>
-        </div>
-      )}
-    </div>
-  );
-}
 
 export function SaxophoneLab({
   onBack,
@@ -466,12 +234,28 @@ function SaxFingeringLab({ onBack, instrumentId }: { onBack: () => void; instrum
   const [showGuides, setShowGuides] = useState(false);
   const [immersive, setImmersive] = useState(false);
   const [referenceViewPreset, setReferenceViewPreset] = useState<InstrumentViewId>("front");
-  const [colorwayId, setColorwayId] = useState(SAX_COLORWAYS[0].id);
+  const [look, setLook] = useState<ModelLook>(() => loadModelLook(instrumentId, defaultSaxLook()));
+  const [lookInstrumentId, setLookInstrumentId] = useState(instrumentId);
   const [setupPartId, setSetupPartId] = useState<SetupPartId>("reed");
   const [comparisonIds, setComparisonIds] = useState<string[]>(["reed-signature", "reed-french"]);
   const [demoPlaying, setDemoPlaying] = useState<string | null>(null);
   const audioRef = useRef<AudioContext | null>(null);
   const challengeEvidenceRecordedRef = useRef(false);
+
+  // Re-hydrate the look when the instrument identity changes (adjusting
+  // state during render, not in an effect, so this never cascades).
+  if (instrumentId !== lookInstrumentId) {
+    setLookInstrumentId(instrumentId);
+    setLook(loadModelLook(instrumentId, defaultSaxLook()));
+  }
+
+  const updateLook = useCallback((next: Partial<ModelLook>) => {
+    setLook((current) => {
+      const merged = { ...current, ...next };
+      saveModelLook(instrumentId, merged);
+      return merged;
+    });
+  }, [instrumentId]);
 
   const selected = SAXOPHONE_FINGERINGS[selectedIndex];
   const choices = fingeringChoices(selected);
@@ -480,7 +264,7 @@ function SaxFingeringLab({ onBack, instrumentId }: { onBack: () => void; instrum
     () => SAXOPHONE_FINGERINGS.findIndex((fingering) => fingering.level === "Altissimo"),
     [],
   );
-  const colorway = SAX_COLORWAYS.find((candidate) => candidate.id === colorwayId) ?? SAX_COLORWAYS[0];
+  const colorway = SAX_COLORWAYS.find((candidate) => candidate.id === look.bodyFinish) ?? SAX_COLORWAYS[0];
   const setupPart = SAX_SETUP_PARTS.find((part) => part.id === setupPartId) ?? SAX_SETUP_PARTS[0];
   const activeKeyDetails = SAX_KEYS.filter((key) => activeKeys.has(key.id));
   const concertMidi = writtenToConcert(selected.midi, instrument.writtenOffset);
@@ -519,15 +303,30 @@ function SaxFingeringLab({ onBack, instrumentId }: { onBack: () => void; instrum
     const next = SAXOPHONE_FINGERINGS[wrapped];
     setSelectedIndex(wrapped);
     chooseChoice(next, 0);
-  }, [chooseChoice]);
+    // Browsing notes while a challenge is active used to leave the on-screen
+    // note and keys pointing at whatever was clicked while `checkChallenge`
+    // kept comparing against the original target -- an unwinnable desync.
+    // Retarget the challenge to the browsed note instead, the same way
+    // `startChallenge` sets one up.
+    if (trainerMode === "challenge") {
+      setChallenge(next);
+      setFeedback("idle");
+      challengeEvidenceRecordedRef.current = false;
+    }
+  }, [chooseChoice, trainerMode]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "ArrowRight") chooseNote(selectedIndex + 1);
-      if (event.key === "ArrowLeft") chooseNote(selectedIndex - 1);
+      if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
+      // The page-level workspace shortcut also listens for these on
+      // `window`; without stopping propagation here it unmounts the lab and
+      // switches to the next workspace instead of stepping notes.
+      event.preventDefault();
+      event.stopPropagation();
+      chooseNote(selectedIndex + (event.key === "ArrowRight" ? 1 : -1));
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("keydown", onKey, { capture: true });
+    return () => window.removeEventListener("keydown", onKey, { capture: true });
   }, [chooseNote, selectedIndex]);
 
   const findMatch = useCallback((next: Set<SaxKeyId>) => {
@@ -597,11 +396,15 @@ function SaxFingeringLab({ onBack, instrumentId }: { onBack: () => void; instrum
 
     const weights = [1, 0.36 + profile.brightness * 0.22, 0.17 + profile.brightness * 0.25, 0.08 + profile.brightness * 0.2, 0.04 + profile.brightness * 0.14];
     const normalizer = weights.reduce((sum, weight) => sum + weight, 0);
+    // Drive the fundamental from the selected written note (clamped to a
+    // comfortable range) instead of a fixed 220 Hz, so a bari player hears
+    // something in their own register rather than the alto's A3 sketch.
+    const fundamentalHz = Math.min(440, Math.max(110, soundingHz));
     weights.forEach((weight, index) => {
       const oscillator = context.createOscillator();
       const gain = context.createGain();
       oscillator.type = "sine";
-      oscillator.frequency.value = 220 * (index + 1);
+      oscillator.frequency.value = fundamentalHz * (index + 1);
       oscillator.detune.value = index > 0 ? (index % 2 === 0 ? 1.5 : -1.5) : 0;
       gain.gain.value = weight / normalizer;
       oscillator.connect(gain).connect(filter);
@@ -614,8 +417,10 @@ function SaxFingeringLab({ onBack, instrumentId }: { onBack: () => void; instrum
   };
 
   const startChallenge = () => {
+    // Every standard-range note is fair game, including the low pinky-table
+    // notes (Bb3-C#4) that a silent `.slice(4)` used to drop from the pool --
+    // those are exactly what a beginner needs to drill.
     const pool = SAXOPHONE_FINGERINGS
-      .slice(4)
       .filter((fingering) => includeAltissimoInChallenge || fingering.level !== "Altissimo");
     const next = pool[Math.floor(Math.random() * pool.length)];
     setTrainerMode("challenge");
@@ -785,6 +590,8 @@ function SaxFingeringLab({ onBack, instrumentId }: { onBack: () => void; instrum
               activeMarkerIds={activeKeys}
               showFingeringGuides={showGuides}
               onMarkerToggle={(id) => toggleKey(id as SaxKeyId)}
+              modelId="saxophone-alto"
+              look={look}
             />
             <div className="model-note-badge">
               <small>{trainerMode === "challenge" ? "Build this fingering" : "Written pitch"}</small>
@@ -795,6 +602,7 @@ function SaxFingeringLab({ onBack, instrumentId }: { onBack: () => void; instrum
             <div className="model-accuracy-label">Bronze study · key glows aligned to the reference mesh</div>
             <div className="drag-hint"><Rotate3D size={15} /> Drag to orbit</div>
           </section>
+          <ModelLookPanel look={look} onChange={updateLook} instrumentKind="saxophone" />
         </div>
 
         <aside className="fingering-panel">
@@ -882,7 +690,7 @@ function SaxFingeringLab({ onBack, instrumentId }: { onBack: () => void; instrum
         selectedPart={setupPart}
         onPartSelect={selectSetupPart}
         colorway={colorway}
-        onColorwaySelect={setColorwayId}
+        onColorwaySelect={(id) => updateLook({ bodyFinish: id })}
         comparisonIds={comparisonIds}
         onComparisonToggle={toggleComparison}
         onDemo={(variant) => void playCharacterDemo(variant.id, variant.tone)}
