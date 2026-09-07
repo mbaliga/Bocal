@@ -1,0 +1,119 @@
+/* WP8 model-customisation: "Look" panel for the sax and oboe labs, and the
+   selectable model stage backgrounds. Token-driven, no literal hex for text
+   or surfaces (swatches are an intentional exception -- they render the
+   actual finish colour). */
+
+.model-look-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px 16px;
+  margin-top: 10px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel-2);
+}
+
+.model-look-panel header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.model-look-kicker {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cyan);
+  font-weight: 650;
+}
+
+.model-look-panel header p {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--subtle);
+  line-height: 1.4;
+}
+
+.model-look-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.model-look-group > small {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.model-look-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.model-look-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--subtle);
+  font-size: 11.5px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.model-look-chip:hover {
+  color: var(--ink);
+  border-color: var(--cyan);
+}
+
+.model-look-chip.is-active {
+  color: var(--ink);
+  border-color: var(--cyan);
+  background: color-mix(in srgb, var(--cyan) 14%, var(--panel));
+}
+
+.model-look-chip i {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  display: inline-block;
+}
+
+.model-look-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 2px 0 0;
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.model-look-note svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--cyan);
+}
+
+/* Selectable model-stage backgrounds. The base stage gradient stays in
+   globals.css (owned by WP6); these attribute selectors only override it
+   when a viewer picks something other than the default "dark". */
+.imported-instrument-canvas[data-model-background="light"] {
+  background-color: #e4e6ea;
+  background-image: radial-gradient(circle at 32% 20%, rgba(8, 254, 213, 0.12), transparent 55%);
+}
+
+.imported-instrument-canvas[data-model-background="stage"] {
+  background-color: #0b0b0c;
+  background-image:
+    radial-gradient(circle at 50% -10%, rgba(255, 244, 214, 0.22), transparent 55%),
+    radial-gradient(circle at 50% 118%, rgba(8, 254, 213, 0.12), transparent 60%);
+}
