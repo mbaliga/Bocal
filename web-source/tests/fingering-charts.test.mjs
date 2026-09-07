@@ -19,7 +19,12 @@ test("index.ts wires every chart-tier instrument, including the oboe chart borro
   assert.match(source, /clarinet: CLARINET_CHART/);
   assert.match(source, /bassoon: BASSOON_CHART/);
   assert.match(source, /oboe: OBOE_CHART/);
-  assert.match(source, /"cor-anglais": OBOE_CHART/);
+  assert.match(source, /"cor-anglais": CENTER_ANGLAIS_CHART/);
+});
+
+test("index.ts trims the borrowed oboe chart to the cor anglais's actual written range (no low Bb)", async () => {
+  const source = await readFile(new URL("../app/fingering-charts/index.ts", import.meta.url), "utf8");
+  assert.match(source, /writtenMidi >= 59/, "cor anglais should filter out written Bb3 (58); the instrument's range starts at B3 (59)");
 });
 
 for (const [name, chart] of Object.entries(CHARTS)) {
@@ -100,6 +105,179 @@ test("the flute's universal B-flat alternate is present at both octaves and nowh
     assert.ok(fingering.alternates[0].keys.includes("thumbBb"));
   }
 });
+
+// Fixtures transcribed directly from the Woodwind Fingering Guide's
+// text-coded fingering tables (wfg.woodwind.org), fetched 2026-09-06:
+//   flute:    fl_bas_1.html (B3-C#2/first octave), fl_bas_2.html (second octave)
+//   clarinet: cl_bas_1.html (chalumeau), cl_bas_2.html (clarion)
+//   oboe:     ob_bas_1.html, ob_bas_2.html, ob_bas_3.html
+//   bassoon:  basn_bas_1.html, basn_bas_2.html, basn_bas_3.html, basn_fing.html
+// Every entry lists the pressed key ids (`keys`) and half-covered key ids
+// (`halfKeys`) as they appear in the chart data below -- this is the
+// mechanical translation of each source's text code (T/W/thumb letters,
+// LH123, RH123, half-hole/quarter-hole marks, named side and pinky keys)
+// into the ids this file's `keys` layout uses. A future edit to a
+// fingering's `keys`/`halfKeys` that silently diverges from the source will
+// fail here instead of shipping unnoticed.
+const WFG_FIXTURES = {
+  flute: {
+    c4: ["thumb", "lh1", "lh2", "lh3", "rh1", "rh2", "rh3", "lowC"],
+    cs4: ["thumb", "lh1", "lh2", "lh3", "rh1", "rh2", "rh3", "csharp"],
+    d4: ["thumb", "lh1", "lh2", "lh3", "rh1", "rh2", "rh3"],
+    eb4: ["thumb", "lh1", "lh2", "lh3", "rh1", "rh2", "rh3", "eb"],
+    e4: ["thumb", "lh1", "lh2", "lh3", "rh1", "rh2", "eb"],
+    f4: ["thumb", "lh1", "lh2", "lh3", "rh1", "eb"],
+    fs4: ["thumb", "lh1", "lh2", "lh3", "rh3", "eb"],
+    g4: ["thumb", "lh1", "lh2", "lh3", "eb"],
+    gs4: ["thumb", "lh1", "lh2", "lh3", "gsharp", "eb"],
+    a4: ["thumb", "lh1", "lh2", "eb"],
+    bb4: ["thumb", "lh1", "rh1", "eb"],
+    b4: ["thumb", "lh1", "eb"],
+    c5: ["lh1", "eb"],
+    cs5: ["eb"],
+    d5: ["thumb", "lh2", "lh3", "rh1", "rh2", "rh3"],
+    eb5: ["thumb", "lh2", "lh3", "rh1", "rh2", "rh3", "eb"],
+    e5: ["thumb", "lh1", "lh2", "lh3", "rh1", "rh2", "eb"],
+    f5: ["thumb", "lh1", "lh2", "lh3", "rh1", "eb"],
+    fs5: ["thumb", "lh1", "lh2", "lh3", "rh3", "eb"],
+    g5: ["thumb", "lh1", "lh2", "lh3", "eb"],
+    gs5: ["thumb", "lh1", "lh2", "lh3", "gsharp", "eb"],
+    a5: ["thumb", "lh1", "lh2", "eb"],
+    bb5: ["thumb", "lh1", "rh1", "eb"],
+    b5: ["thumb", "lh1", "eb"],
+    c6: ["lh1", "eb"],
+    cs6: ["eb"],
+  },
+  clarinet: {
+    e3: ["thumb", "lh1", "lh2", "lh3", "rh1", "rh2", "rh3", "rhPinkyE"],
+    f3: ["thumb", "lh1", "lh2", "lh3", "rh1", "rh2", "rh3", "rhPinkyF"],
+    fs3: ["thumb", "lh1", "lh2", "lh3", "rh1", "rh2", "rh3", "rhPinkyFs"],
+    g3: ["thumb", "lh1", "lh2", "lh3", "rh1", "rh2", "rh3"],
+    gs3: ["thumb", "lh1", "lh2", "lh3", "rh1", "rh2", "rh3", "rhPinkyGs"],
+    a3: ["thumb", "lh1", "lh2", "lh3", "rh1", "rh2"],
+    bb3: ["thumb", "lh1", "lh2", "lh3", "rh1"],
+    b3: ["thumb", "lh1", "lh2", "lh3", "rh2"],
+    c4: ["thumb", "lh1", "lh2", "lh3"],
+    cs4: ["thumb", "lh1", "lh2", "lh3", "lhPinkyCs"],
+    d4: ["thumb", "lh1", "lh2"],
+    eb4: ["thumb", "lh1", "lh2", "rhSide4"],
+    e4: ["thumb", "lh1"],
+    f4: ["thumb"],
+    fs4: ["lh1"],
+    g4: [],
+    gs4: ["lhSideGsharp"],
+    a4: ["lhSideA"],
+    bb4: ["register", "lhSideA"],
+    b4: ["register", "thumb", "lh1", "lh2", "lh3", "rh1", "rh2", "rh3", "rhPinkyE"],
+    c5: ["register", "thumb", "lh1", "lh2", "lh3", "rh1", "rh2", "rh3", "rhPinkyF"],
+    cs5: ["register", "thumb", "lh1", "lh2", "lh3", "rh1", "rh2", "rh3", "rhPinkyFs"],
+    d5: ["register", "thumb", "lh1", "lh2", "lh3", "rh1", "rh2", "rh3"],
+    eb5: ["register", "thumb", "lh1", "lh2", "lh3", "rh1", "rh2", "rh3", "rhPinkyGs"],
+    e5: ["register", "thumb", "lh1", "lh2", "lh3", "rh1", "rh2"],
+    f5: ["register", "thumb", "lh1", "lh2", "lh3", "rh1"],
+    fs5: ["register", "thumb", "lh1", "lh2", "lh3", "rh2"],
+    g5: ["register", "thumb", "lh1", "lh2", "lh3"],
+    gs5: ["register", "thumb", "lh1", "lh2", "lh3", "lhPinkyCs"],
+    a5: ["register", "thumb", "lh1", "lh2"],
+    bb5: ["register", "thumb", "lh1", "lh2", "rhSide4"],
+    b5: ["register", "thumb", "lh1"],
+    c6: ["register", "thumb"],
+  },
+  oboe: {
+    bb3: { keys: ["lh1", "lh2", "lh3", "lhBb", "rh1", "rh2", "rh3", "rhC"] },
+    b3: { keys: ["lh1", "lh2", "lh3", "lhB", "rh1", "rh2", "rh3", "rhC"] },
+    c4: { keys: ["lh1", "lh2", "lh3", "rh1", "rh2", "rh3", "rhC"] },
+    cs4: { keys: ["lh1", "lh2", "lh3", "rh1", "rh2", "rh3", "rhCsharp"] },
+    d4: { keys: ["lh1", "lh2", "lh3", "rh1", "rh2", "rh3"] },
+    eb4: { keys: ["lh1", "lh2", "lh3", "rh1", "rh2", "rh3", "rhEb"] },
+    e4: { keys: ["lh1", "lh2", "lh3", "rh1", "rh2"] },
+    f4: { keys: ["lh1", "lh2", "lh3", "rh1", "rh2", "fRes"] },
+    fs4: { keys: ["lh1", "lh2", "lh3", "rh1"] },
+    g4: { keys: ["lh1", "lh2", "lh3"] },
+    gs4: { keys: ["lh1", "lh2", "lh3", "lhGsharp"] },
+    a4: { keys: ["lh1", "lh2"] },
+    bb4: { keys: ["lh1", "lh2", "rh1"] },
+    b4: { keys: ["lh1"] },
+    c5: { keys: ["lh1", "rh1"] },
+    cs5: { halfKeys: ["lh1"], keys: ["lh2", "lh3", "rh1", "rh2", "rh3", "rhCsharp"] },
+    d5: { halfKeys: ["lh1"], keys: ["lh2", "lh3", "rh1", "rh2", "rh3"] },
+    eb5: { halfKeys: ["lh1"], keys: ["lh2", "lh3", "rh1", "rh2", "rh3", "rhEb"] },
+    e5: { keys: ["octave1", "lh1", "lh2", "lh3", "rh1", "rh2"] },
+    f5: { keys: ["octave1", "lh1", "lh2", "lh3", "rh1", "rh2", "fRes"] },
+    fs5: { keys: ["octave1", "lh1", "lh2", "lh3", "rh1"] },
+    g5: { keys: ["octave1", "lh1", "lh2", "lh3"] },
+    gs5: { keys: ["octave1", "lh1", "lh2", "lh3", "lhGsharp"] },
+    a5: { keys: ["octave2", "lh1", "lh2"] },
+    bb5: { keys: ["octave2", "lh1", "lh2", "rh1"] },
+    b5: { keys: ["octave2", "lh1"] },
+    c6: { keys: ["octave2", "lh1", "rh1"] },
+    cs6: { keys: ["lh2", "lh3", "rh1", "rhC"] },
+    d6: { halfKeys: ["lh1"], keys: ["lh2", "lh3", "rhC"] },
+    eb6: { halfKeys: ["lh1"], keys: ["lh2", "lh3", "rh2", "rh3", "rhEb"] },
+    e6: { halfKeys: ["lh1"], keys: ["octave1", "lh2", "lh3", "lhGsharp", "lhEb", "rh2", "rh3"] },
+    f6: { halfKeys: ["lh1"], keys: ["octave1", "lh2", "lhGsharp", "lhEb", "rh2", "rh3"] },
+  },
+  bassoon: {
+    bb1: ["thumbBb", "lh1", "lh2", "lh3", "rhThumbE", "rh1", "rh2", "rh3", "rhPinkyF"],
+    b1: ["thumbB", "lh1", "lh2", "lh3", "rhThumbE", "rh1", "rh2", "rh3", "rhPinkyF"],
+    c2: ["thumbC", "lh1", "lh2", "lh3", "rhThumbE", "rh1", "rh2", "rh3", "rhPinkyF"],
+    cs2: ["thumbC", "thumbD", "lhPinkyCs", "lh1", "lh2", "lh3", "rhThumbE", "rh1", "rh2", "rh3", "rhPinkyF"],
+    d2: ["thumbD", "lh1", "lh2", "lh3", "rhThumbE", "rh1", "rh2", "rh3", "rhPinkyF"],
+    eb2: ["thumbD", "lhPinkyEb", "lh1", "lh2", "lh3", "rhThumbE", "rh1", "rh2", "rh3", "rhPinkyF"],
+    e2: ["whisper", "lh1", "lh2", "lh3", "rhThumbE", "rh1", "rh2", "rh3", "rhPinkyF"],
+    f2: ["whisper", "lh1", "lh2", "lh3", "rh1", "rh2", "rh3", "rhPinkyF"],
+    fs2: ["whisper", "lh1", "lh2", "lh3", "rhThumbFsharp", "rh1", "rh2", "rh3", "rhPinkyF"],
+    g2: ["whisper", "lh1", "lh2", "lh3", "rh1", "rh2", "rh3"],
+    gs2: ["whisper", "lh1", "lh2", "lh3", "rh1", "rh2", "rh3", "rhPinkyGsharp"],
+    a2: ["whisper", "lh1", "lh2", "lh3", "rh1", "rh2"],
+    bb2: ["whisper", "lh1", "lh2", "lh3", "rhThumbBb", "rh1", "rh2"],
+    b2: ["whisper", "lh1", "lh2", "lh3", "rh1"],
+    c3: ["whisper", "lh1", "lh2", "lh3"],
+    cs3: ["whisper", "thumbCsharp", "thumbD", "lh1", "lh2", "lh3"],
+    d3: ["whisper", "lh1", "lh2"],
+    eb3: ["whisper", "lh1", "lh3"],
+    e3: ["whisper", "lh1"],
+    f3: ["whisper"],
+    fs3: { halfKeys: ["lh1"], keys: ["whisper", "lh2", "lh3", "rhThumbFsharp", "rh1", "rh2", "rh3", "rhPinkyF"] },
+    g3: { halfKeys: ["lh1"], keys: ["whisper", "lh2", "lh3", "lhPinkyEb", "rh1", "rh2", "rh3"] },
+    gs3: { halfKeys: ["lh1"], keys: ["whisper", "lh2", "lh3", "rh1", "rh2", "rh3", "rhPinkyGsharp"] },
+    a3: ["lh1", "lh2", "lh3", "rh1", "rh2"],
+    bb3: ["lh1", "lh2", "lh3", "rhThumbBb", "rh1", "rh2"],
+    b3: ["lh1", "lh2", "lh3", "rh1"],
+    c4: ["lh1", "lh2", "lh3"],
+    cs4: ["thumbCsharp", "thumbD", "lh1", "lh2", "lh3"],
+    d4: ["lh1", "lh2"],
+    eb4: ["lh1", "lh2", "rh1", "rh2", "rh3"],
+    e4: ["lh1", "lh3", "lhPinkyEb", "rh1", "rh2", "rh3"],
+    f4: ["lh1", "lh3", "lhPinkyEb", "rh1", "rh2"],
+    fs4: ["lh2", "lh3", "lhPinkyEb", "rhThumbBb", "rh1", "rh2"],
+    g4: { halfKeys: ["lh1"], keys: ["whisper", "lh2", "lh3", "lhPinkyEb", "rh1", "rhPinkyF"] },
+    gs4: { halfKeys: ["lh1"], keys: ["whisper", "lh2", "lh3", "lhPinkyEb", "rh3"] },
+  },
+};
+
+for (const [name, fixtures] of Object.entries(WFG_FIXTURES)) {
+  test(`${name} chart matches the Woodwind Fingering Guide fixture for every transcribed note`, () => {
+    const chart = CHARTS[name];
+    const byId = new Map(chart.fingerings.map((f) => [f.id, f]));
+    for (const [id, expected] of Object.entries(fixtures)) {
+      const fingering = byId.get(id);
+      assert.ok(fingering, `${name} has no fingering with id ${id}`);
+      const expectedKeys = Array.isArray(expected) ? expected : expected.keys;
+      const expectedHalf = Array.isArray(expected) ? [] : (expected.halfKeys ?? []);
+      assert.deepEqual(
+        [...fingering.keys].sort(),
+        [...expectedKeys].sort(),
+        `${name} ${id} keys diverge from the WFG fixture`,
+      );
+      assert.deepEqual(
+        [...(fingering.halfKeys ?? [])].sort(),
+        [...expectedHalf].sort(),
+        `${name} ${id} halfKeys diverge from the WFG fixture`,
+      );
+    }
+  });
+}
 
 test("the oboe and bassoon half-hole notes use halfKeys, not keys, for the half-covered hole", () => {
   const oboeHalfHole = CHARTS.oboe.fingerings.filter((f) => (f.halfKeys ?? []).includes("lh1"));

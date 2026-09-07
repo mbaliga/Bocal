@@ -146,6 +146,43 @@ test("all fingering contacts resolve and route ids are unique", () => {
   }
 });
 
+// B6/C7 fixtures transcribed directly from the Woodwind Fingering Guide's
+// "Middle Altissimo" text-coded table (sax_alt_5.html, fetched 2026-09-06):
+// every option below is a line present verbatim on that page (T = octave,
+// D/Eb/F = left-hand palm keys, LH 1 2 3, | separates hands, RH 1 2 3,
+// C/Bb = right-hand side keys, G# = left-pinky G♯). A prior version of this
+// file shipped three B6 and two C7 options that did not appear on the page
+// at all; this fixture pins the replacements to lines that do.
+const WFG_ALTISSIMO_FIXTURE = {
+  b6: {
+    primary: ["octave", "palmD", "lh3", "rh1", "rh2"], // T D--3|12-
+    alternates: [
+      ["octave", "lh1", "lh3", "rh1", "rh3"], // T 1-3|1-3, "For alto and tenor"
+      ["octave", "palmD", "lh3", "sideC", "rh1", "rh2", "rh3"], // T D--3|C123, tenor
+    ],
+  },
+  c7: {
+    primary: ["octave", "palmD", "palmEb", "sideC", "sideBb"], // T Eb D---|C Bb---
+    alternates: [
+      ["octave", "palmD", "palmEb", "lh3"], // T Eb D--3|---
+      ["octave", "palmD", "palmEb", "gsharp"], // T Eb D---G#|---
+    ],
+  },
+};
+
+test("B6 and C7 altissimo fingerings match lines present on the cited WFG page", () => {
+  const byId = Object.fromEntries(data.ALTO_FINGERINGS.map((note) => [note.id, note]));
+  for (const [id, fixture] of Object.entries(WFG_ALTISSIMO_FIXTURE)) {
+    const note = byId[id];
+    assert.ok(note, `missing fingering ${id}`);
+    assert.deepEqual([...note.keys].sort(), [...fixture.primary].sort(), `${id} primary diverges from WFG fixture`);
+    assert.equal(note.alternates?.length, fixture.alternates.length, `${id} alternate count diverges from WFG fixture`);
+    note.alternates.forEach((alt, i) => {
+      assert.deepEqual([...alt.keys].sort(), [...fixture.alternates[i]].sort(), `${id} alternate ${i} diverges from WFG fixture`);
+    });
+  }
+});
+
 test("specialist corrections remain encoded", () => {
   const byId = Object.fromEntries(data.ALTO_FINGERINGS.map((note) => [note.id, note]));
   assert.deepEqual(byId.fs4.alternates[0].keys, ["lh1", "lh2", "lh3", "rh1", "altFsharp"]);

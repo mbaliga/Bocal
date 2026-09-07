@@ -27,10 +27,12 @@ import type { Fingering, FingeringChart } from "./types";
  * for an honest picture of the instrument, per a real diagram, but pressed
  * by no fingering here -- they are for trills and fast chromatic runs, out
  * of scope for a standard-range chart). The low-B foot joint (brief said
- * skip it). The "Eb resonance key" some references show held through E4-B4
- * and their octave-5 equivalents: only one of the two sources above
- * documents it clearly, so it is left off rather than asserted as
- * universal -- every simplified chart in wide teaching use omits it too.
+ * skip it).
+ *
+ * The E♭ (D♯) key: WFG fl_bas_1/2 documents it held down on every note from
+ * E4 through C♯6 (both octaves), and it is standard teaching -- without it
+ * E4-B4 (and their octave-5 equivalents) are flat and stuffy on a
+ * closed-G♯ flute. It is included on every one of those notes below.
  */
 
 const keys: FingeringChart["keys"] = [
@@ -39,8 +41,8 @@ const keys: FingeringChart["keys"] = [
   { id: "lh1", label: "1", hand: "L", x: 50, y: 16 },
   { id: "lh2", label: "2", hand: "L", x: 50, y: 25 },
   { id: "lh3", label: "3", hand: "L", x: 50, y: 34 },
-  { id: "trill1", label: "Trill 1", hand: "L", x: 63, y: 20, r: 3.4 },
-  { id: "trill2", label: "Trill 2", hand: "L", x: 63, y: 29, r: 3.4 },
+  { id: "trill1", label: "D trill", hand: "R", x: 63, y: 55.5, r: 3.4 },
+  { id: "trill2", label: "D♯ trill", hand: "R", x: 63, y: 64.5, r: 3.4 },
   { id: "gsharp", label: "G♯", hand: "L", x: 36, y: 41, shape: "lever", r: 4 },
   { id: "rh1", label: "4", hand: "R", x: 50, y: 51 },
   { id: "rh2", label: "5", hand: "R", x: 50, y: 60 },
@@ -55,44 +57,44 @@ const fingerings: Fingering[] = [
   { id: "cs4", writtenMidi: 61, keys: ["thumb", "lh1", "lh2", "lh3", "rh1", "rh2", "rh3", "csharp"], hint: "Same as low C, but roll the right pinky up to the C♯ key." },
   { id: "d4", writtenMidi: 62, keys: ["thumb", "lh1", "lh2", "lh3", "rh1", "rh2", "rh3"], hint: "Thumb and all six main fingers. No foot keys." },
   { id: "eb4", writtenMidi: 63, keys: ["thumb", "lh1", "lh2", "lh3", "rh1", "rh2", "rh3", "eb"], hint: "Six main fingers and thumb, plus the right-pinky E♭ key." },
-  { id: "e4", writtenMidi: 64, keys: ["thumb", "lh1", "lh2", "lh3", "rh1", "rh2"], hint: "Thumb and five fingers; lift the right ring finger off hole 6." },
-  { id: "f4", writtenMidi: 65, keys: ["thumb", "lh1", "lh2", "lh3", "rh1"], hint: "Thumb, left hand down, and the right index finger only." },
-  { id: "fs4", writtenMidi: 66, keys: ["thumb", "lh1", "lh2", "lh3", "rh3"], hint: "Thumb and left hand down; the right hand plays hole 6 (ring finger), not the index." },
-  { id: "g4", writtenMidi: 67, keys: ["thumb", "lh1", "lh2", "lh3"], hint: "Thumb and the three left-hand fingers. Right hand fully off." },
-  { id: "gs4", writtenMidi: 68, keys: ["thumb", "lh1", "lh2", "lh3", "gsharp"], hint: "Finger G and add the left-pinky G♯ key." },
-  { id: "a4", writtenMidi: 69, keys: ["thumb", "lh1", "lh2"], hint: "Thumb, left index and middle fingers." },
+  { id: "e4", writtenMidi: 64, keys: ["thumb", "lh1", "lh2", "lh3", "rh1", "rh2", "eb"], hint: "Thumb and five fingers; lift the right ring finger off hole 6. Add the right-pinky E♭ key." },
+  { id: "f4", writtenMidi: 65, keys: ["thumb", "lh1", "lh2", "lh3", "rh1", "eb"], hint: "Thumb, left hand down, right index only, plus the right-pinky E♭ key." },
+  { id: "fs4", writtenMidi: 66, keys: ["thumb", "lh1", "lh2", "lh3", "rh3", "eb"], hint: "Thumb and left hand down; the right hand plays hole 6 (ring finger), not the index. Add the E♭ key." },
+  { id: "g4", writtenMidi: 67, keys: ["thumb", "lh1", "lh2", "lh3", "eb"], hint: "Thumb and the three left-hand fingers. Right hand fully off except the E♭ key." },
+  { id: "gs4", writtenMidi: 68, keys: ["thumb", "lh1", "lh2", "lh3", "gsharp", "eb"], hint: "Finger G and add the left-pinky G♯ key and the right-pinky E♭ key." },
+  { id: "a4", writtenMidi: 69, keys: ["thumb", "lh1", "lh2", "eb"], hint: "Thumb, left index and middle fingers, plus the right-pinky E♭ key." },
   {
     id: "bb4", writtenMidi: 70,
-    keys: ["lh1", "rh1"], hint: "\"1 and 1\": left index and right index only, thumb off.",
+    keys: ["thumb", "lh1", "rh1", "eb"], hint: "\"1 and 1\": thumb, left index and right index, plus the E♭ key.",
     alternates: [{
-      label: "Thumb B♭", keys: ["thumbBb", "lh1"],
-      hint: "Left thumb rolls onto the small B♭ lever; left index stays down. Nothing else pressed.",
+      label: "Thumb B♭", keys: ["thumbBb", "lh1", "eb"],
+      hint: "Left thumb rolls onto the small B♭ lever; left index stays down, plus the E♭ key.",
       useWhen: "Common in flat keys and fast passages so the thumb doesn't have to jump; check which your own flute's thumb key is set to.",
     }],
   },
-  { id: "b4", writtenMidi: 71, keys: ["thumb", "lh1"], hint: "Thumb and the left index finger only." },
-  { id: "c5", writtenMidi: 72, keys: ["lh1"], hint: "Left index finger alone. Thumb off." },
-  { id: "cs5", writtenMidi: 73, keys: [], hint: "Fully open -- no keys pressed at all." },
-  { id: "d5", writtenMidi: 74, keys: ["thumb", "lh2", "lh3"], hint: "Thumb, left middle and ring fingers; the left index lifts off." },
-  { id: "eb5", writtenMidi: 75, keys: ["thumb", "lh2", "lh3", "eb"], hint: "Same shape as D5, plus the right-pinky E♭ key." },
-  { id: "e5", writtenMidi: 76, keys: ["thumb", "lh1", "lh2", "lh3", "rh1", "rh2"], hint: "The same fingering as middle E, overblown." },
-  { id: "f5", writtenMidi: 77, keys: ["thumb", "lh1", "lh2", "lh3", "rh1"], hint: "The same fingering as middle F, overblown." },
-  { id: "fs5", writtenMidi: 78, keys: ["thumb", "lh1", "lh2", "lh3", "rh3"], hint: "The same fingering as middle F♯, overblown." },
-  { id: "g5", writtenMidi: 79, keys: ["thumb", "lh1", "lh2", "lh3"], hint: "The same fingering as middle G, overblown." },
-  { id: "gs5", writtenMidi: 80, keys: ["thumb", "lh1", "lh2", "lh3", "gsharp"], hint: "The same fingering as middle G♯, overblown." },
-  { id: "a5", writtenMidi: 81, keys: ["thumb", "lh1", "lh2"], hint: "The same fingering as middle A, overblown." },
+  { id: "b4", writtenMidi: 71, keys: ["thumb", "lh1", "eb"], hint: "Thumb and the left index finger, plus the E♭ key." },
+  { id: "c5", writtenMidi: 72, keys: ["lh1", "eb"], hint: "Left index finger and the E♭ key. Thumb off." },
+  { id: "cs5", writtenMidi: 73, keys: ["eb"], hint: "Fully open except the E♭ key." },
+  { id: "d5", writtenMidi: 74, keys: ["thumb", "lh2", "lh3", "rh1", "rh2", "rh3"], hint: "Thumb, left middle and ring fingers with the left index lifted, plus all three right-hand fingers." },
+  { id: "eb5", writtenMidi: 75, keys: ["thumb", "lh2", "lh3", "rh1", "rh2", "rh3", "eb"], hint: "Same shape as D5, plus the right-pinky E♭ key." },
+  { id: "e5", writtenMidi: 76, keys: ["thumb", "lh1", "lh2", "lh3", "rh1", "rh2", "eb"], hint: "The same fingering as middle E, overblown." },
+  { id: "f5", writtenMidi: 77, keys: ["thumb", "lh1", "lh2", "lh3", "rh1", "eb"], hint: "The same fingering as middle F, overblown." },
+  { id: "fs5", writtenMidi: 78, keys: ["thumb", "lh1", "lh2", "lh3", "rh3", "eb"], hint: "The same fingering as middle F♯, overblown." },
+  { id: "g5", writtenMidi: 79, keys: ["thumb", "lh1", "lh2", "lh3", "eb"], hint: "The same fingering as middle G, overblown." },
+  { id: "gs5", writtenMidi: 80, keys: ["thumb", "lh1", "lh2", "lh3", "gsharp", "eb"], hint: "The same fingering as middle G♯, overblown." },
+  { id: "a5", writtenMidi: 81, keys: ["thumb", "lh1", "lh2", "eb"], hint: "The same fingering as middle A, overblown." },
   {
     id: "bb5", writtenMidi: 82,
-    keys: ["lh1", "rh1"], hint: "Same \"1 and 1\" grip as B♭4, overblown.",
+    keys: ["thumb", "lh1", "rh1", "eb"], hint: "Same \"1 and 1\" grip as B♭4, overblown.",
     alternates: [{
-      label: "Thumb B♭", keys: ["thumbBb", "lh1"],
-      hint: "Left thumb on the B♭ lever, left index down, nothing else.",
+      label: "Thumb B♭", keys: ["thumbBb", "lh1", "eb"],
+      hint: "Left thumb on the B♭ lever, left index down, plus the E♭ key.",
       useWhen: "Same trade-off as B♭4 -- smoother in flat keys and fast passages.",
     }],
   },
-  { id: "b5", writtenMidi: 83, keys: ["thumb", "lh1"], hint: "The same fingering as B4, overblown." },
-  { id: "c6", writtenMidi: 84, keys: ["lh1"], hint: "The same fingering as C5, overblown." },
-  { id: "cs6", writtenMidi: 85, keys: [], hint: "The same fully-open fingering as C♯5, overblown." },
+  { id: "b5", writtenMidi: 83, keys: ["thumb", "lh1", "eb"], hint: "The same fingering as B4, overblown." },
+  { id: "c6", writtenMidi: 84, keys: ["lh1", "eb"], hint: "The same fingering as C5, overblown." },
+  { id: "cs6", writtenMidi: 85, keys: ["eb"], hint: "The same fully-open fingering as C♯5, overblown." },
 ];
 
 export const FLUTE_CHART: FingeringChart = {

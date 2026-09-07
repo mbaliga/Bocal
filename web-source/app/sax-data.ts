@@ -465,18 +465,18 @@ export const SAXOPHONE_FINGERINGS: Fingering[] = [
   },
   {
     id: "b6", note: "B", octave: 6, midi: 95, level: "Altissimo", review: "unverified",
-    keys: ["octave", "palmD", "rh1", "rh2"], primaryLabel: "Palm D + right hand",
-    hint: "Palm D key with the right index and middle fingers.",
+    keys: ["octave", "palmD", "lh3", "rh1", "rh2"], primaryLabel: "Palm D + ring finger + right hand",
+    hint: "Palm D key with the left ring finger, right index and right middle fingers.",
     alternates: [
       {
-        id: "b6-alto-f", label: "Right F only (alto)", keys: ["octave", "rh1"],
-        hint: "Octave key and the right index F pearl alone.",
-        useWhen: "Published specifically for alto saxophone; may not speak the same way on tenor or baritone.",
+        id: "b6-alto-tenor", label: "Ring + F, both hands (alto and tenor)", keys: ["octave", "lh1", "lh3", "rh1", "rh3"],
+        hint: "Left index and ring fingers with the right index and ring fingers, no palm keys.",
+        useWhen: "Published for both alto and tenor as a palm-key-free alternative.",
         review: "unverified",
       },
       {
-        id: "b6-tenor-full", label: "Full right hand + side C (tenor)", keys: ["octave", "rh1", "rh2", "rh3", "sideC"],
-        hint: "All three right-hand fingers plus the side C vent, no left hand.",
+        id: "b6-tenor-full", label: "Palm D + ring + full right hand + side C (tenor)", keys: ["octave", "palmD", "lh3", "sideC", "rh1", "rh2", "rh3"],
+        hint: "Palm D and left ring finger, all three right-hand fingers, plus the side C vent.",
         useWhen: "Published specifically as speaking more easily on tenor.",
         review: "unverified",
       },
@@ -484,19 +484,19 @@ export const SAXOPHONE_FINGERINGS: Fingering[] = [
   },
   {
     id: "c7", note: "C", octave: 7, midi: 96, level: "Altissimo", review: "unverified",
-    keys: ["octave", "palmD", "palmEb", "sideC"], primaryLabel: "Palm D/E♭ + side C",
-    hint: "Palm D and E♭ keys with the side C vent.",
+    keys: ["octave", "palmD", "palmEb", "sideC", "sideBb"], primaryLabel: "Palm D/E♭ + side C/B♭",
+    hint: "Palm D and E♭ keys with both the side C and side B♭ vents open.",
     alternates: [
       {
-        id: "c7-full-palm", label: "Full palm stack + ring finger", keys: ["octave", "palmD", "palmEb", "palmF", "lh3"],
-        hint: "All three left-hand palm keys plus the left ring finger, no right hand.",
+        id: "c7-full-palm", label: "Palm D/E♭ + ring finger", keys: ["octave", "palmD", "palmEb", "lh3"],
+        hint: "Palm D and E♭ keys plus the left ring finger, no right hand.",
         useWhen: "Published as an alternative that avoids right-hand keys entirely.",
         review: "unverified",
       },
       {
-        id: "c7-sideC-sideBb", label: "Palm D/E♭ + side C/B♭", keys: ["octave", "palmD", "palmEb", "sideC", "sideBb"],
-        hint: "Palm D and E♭ keys with both the side C and side B♭ vents open.",
-        useWhen: "Extra venting some players add for stability at the top of this chart.",
+        id: "c7-palm-gsharp", label: "Palm D/E♭ + G♯", keys: ["octave", "palmD", "palmEb", "gsharp"],
+        hint: "Palm D and E♭ keys plus the left-pinky G♯ key.",
+        useWhen: "A published variant that swaps the right-hand side keys for the G♯ pinky key.",
         review: "unverified",
       },
     ],

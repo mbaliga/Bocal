@@ -1,7 +1,8 @@
 "use client";
 
 import { ArrowRight, ChevronLeft, ChevronRight, Info, Lightbulb, ShieldQuestion } from "lucide-react";
-import { useCallback, useEffect, useId, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import "./styles/fingering-chart.css";
 import StaffNote from "./StaffNote";
 import type { InstrumentProfile } from "./instruments";
 import { fullNoteLabel, type NotationSystem } from "./notation";
@@ -82,6 +83,8 @@ export function FingeringChart({
   const initialIndex = Math.floor(chart.fingerings.length / 3);
   const [selectedIndex, setSelectedIndex] = useState(initialIndex);
   const [choiceIndex, setChoiceIndex] = useState(0);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const activeNoteRef = useRef<HTMLButtonElement | null>(null);
 
   const selected = chart.fingerings[Math.min(selectedIndex, chart.fingerings.length - 1)];
   const choices = useMemo(() => choicesFor(selected), [selected]);
@@ -95,14 +98,29 @@ export function FingeringChart({
     setChoiceIndex(0);
   }, [chart.fingerings.length]);
 
+  // Scope the chart's own arrow-key stepping to its container instead of
+  // `window`: a global handler collided with the page's workspace-switching
+  // shortcut, so ArrowRight/ArrowLeft here used to unmount the chart and
+  // change workspaces instead of stepping notes.
   useEffect(() => {
+    const node = containerRef.current;
+    if (!node) return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "ArrowRight") chooseNote(selectedIndex + 1);
-      if (event.key === "ArrowLeft") chooseNote(selectedIndex - 1);
+      if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
+      event.preventDefault();
+      event.stopPropagation();
+      chooseNote(selectedIndex + (event.key === "ArrowRight" ? 1 : -1));
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    node.addEventListener("keydown", onKey);
+    return () => node.removeEventListener("keydown", onKey);
   }, [chooseNote, selectedIndex]);
+
+  // Scroll the active note into view whenever selection changes -- the
+  // note browser used to open on an arbitrary middle note with no way to
+  // tell, without scrolling manually, that it wasn't at either end.
+  useEffect(() => {
+    activeNoteRef.current?.scrollIntoView({ inline: "center", block: "nearest" });
+  }, [selectedIndex]);
 
   const concertMidi = selected.writtenMidi - instrument.writtenOffset;
   const writtenLabel = fullNoteLabel(selected.writtenMidi, notation, tonic);
@@ -111,7 +129,7 @@ export function FingeringChart({
   const halfDetails = chart.keys.filter((key) => halfKeys.has(key.id));
 
   return (
-    <div className="fingering-chart">
+    <div className="fingering-chart" ref={containerRef} tabIndex={-1}>
       <div className="chart-review-badge"><ShieldQuestion size={13} /> Method-book consensus, not yet teacher-reviewed</div>
       {chartOwnerName && (
         <div className="lab-instrument-notice">
@@ -126,6 +144,7 @@ export function FingeringChart({
           {chart.fingerings.map((fingering, index) => (
             <button
               key={fingering.id}
+              ref={index === selectedIndex ? activeNoteRef : undefined}
               className={index === selectedIndex ? "is-active" : ""}
               onClick={() => chooseNote(index)}
               aria-label={fullNoteLabel(fingering.writtenMidi, notation, tonic)}
