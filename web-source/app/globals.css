@@ -1777,7 +1777,7 @@ button:focus-visible, [role="button"]:focus-visible, a:focus-visible, input:focu
 .note-cloud span { min-width: 45px; padding: 8px 9px; border: 1px solid #38333d; border-radius: 13px; background: rgba(33,28,45,.56); display: grid; gap: 3px; transform: scale(var(--note-weight)); transform-origin: center; }
 .note-cloud b { color: #d1c4ff; font: 13px var(--font-geist-mono); }
 .note-cloud small { color: #7d7889; font-size: 7px; }
-.practice-empty-insight { min-height: 125px; margin: 10px 0 0; color: #747479; display: flex; align-items: center; gap: 7px; font-size: 10px; line-height: 1.5; }
+.practice-empty-insight { min-height: 125px; margin: 10px 0 0; color: var(--muted); display: flex; align-items: center; gap: 7px; font-size: 10px; line-height: 1.5; }
 .practice-empty-insight svg { flex: 0 0 auto; color: #55555a; }
 .gentle-win-card { grid-column: 1 / -1; min-height: 0 !important; display: grid; grid-template-columns: 22px auto 1fr; align-items: center; gap: 10px; background: linear-gradient(100deg, rgba(8,254,213,.1), rgba(18,18,21,.78) 48%) !important; }
 .gentle-win-card > svg { color: var(--cyan); }

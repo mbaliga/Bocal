@@ -28,6 +28,11 @@
   font-weight: 650;
 }
 
+html[data-theme="light"] .model-look-kicker {
+  /* --cyan on the light panel measures 4.19:1; the darker teal clears 4.5. */
+  color: #066b5c;
+}
+
 .model-look-panel header p {
   margin: 0;
   font-size: 11.5px;
