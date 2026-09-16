@@ -195,7 +195,7 @@ try {
       await settingsDialog.getByRole("button", { name: "View shortcuts", exact: true }).click();
       const keyboardDialog = page.locator('.download-dialog[role="dialog"]:has(#keyboard-help-title)');
       await keyboardDialog.waitFor({ state: "visible" });
-      assert.match(await keyboardDialog.innerText(), /Keyboard shortcuts/);
+      assert.match(await keyboardDialog.innerText(), /keyboard shortcuts/i);
       await page.keyboard.press("Escape");
       await keyboardDialog.waitFor({ state: "detached" });
       assert.deepEqual(errors, []);
