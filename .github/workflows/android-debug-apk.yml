@@ -55,6 +55,11 @@ jobs:
           retention-days: 3
   emulator:
     needs: apk
+    strategy:
+      fail-fast: false
+      matrix:
+        api: [26, 35]
+    name: emulator / API ${{ matrix.api }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -70,17 +75,17 @@ jobs:
           sudo udevadm trigger --name-match=kvm
       - uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 35
+          api-level: ${{ matrix.api }}
           target: google_apis
           arch: x86_64
           profile: pixel_2
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save
-          script: bash scripts/run-emulator-smoke.sh
+          script: BOCAL_EMULATOR_API=${{ matrix.api }} bash scripts/run-emulator-smoke.sh
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: bocal-android-runtime-evidence
+          name: bocal-android-runtime-evidence-api-${{ matrix.api }}
           path: qa/reports/android/
           if-no-files-found: warn
           retention-days: 3
