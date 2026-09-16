@@ -1,70 +1,62 @@
-name: Android release
-
-# Builds a signed release AAB for upload to the Play Console. Only runs the
-# signing/bundle step when the upload-keystore secrets exist, so a fork or a
-# repo without them can still exercise the rest of the pipeline.
+name: Android signed release candidate
+# Building a signed candidate is NOT device acceptance or automatic publication.
 on:
   push:
-    tags:
-      - "v*"
+    tags: ["v*"]
   workflow_dispatch:
-
+permissions:
+  contents: read
 concurrency:
   group: android-release-${{ github.ref }}
   cancel-in-progress: false
-
 jobs:
+  web:
+    uses: ./.github/workflows/web-quality.yml
   release:
+    needs: web
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22.13.0"
-          cache: npm
-          cache-dependency-path: web-source/package-lock.json
-
-      - name: Build and test the web app
-        working-directory: web-source
-        run: |
-          npm ci
-          npx tsc --noEmit -p tsconfig.json || true
-          npm run lint
-          npm run build
-          node --test tests/*.test.mjs
-          npm run preview:standalone
-          mkdir -p ../android/app/src/main/assets/www
-          cp preview-dist/index.html ../android/app/src/main/assets/www/app.html
-
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "21"
-
-      - uses: android-actions/setup-android@v3
-        with:
-          packages: "platforms;android-37.0 build-tools;36.0.0"
-
-      - uses: gradle/actions/setup-gradle@v4
-
-      - name: Check release secrets
-        id: secrets
+      - name: Require real release signing configuration
         env:
           KEYSTORE_B64: ${{ secrets.BOCAL_UPLOAD_KEYSTORE_B64 }}
           KEYSTORE_PASSWORD: ${{ secrets.BOCAL_UPLOAD_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.BOCAL_UPLOAD_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.BOCAL_UPLOAD_KEY_PASSWORD }}
         run: |
-          if [[ -n "$KEYSTORE_B64" && -n "$KEYSTORE_PASSWORD" && -n "$KEY_ALIAS" && -n "$KEY_PASSWORD" ]]; then
-            echo "present=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "present=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::Release signing secrets are not set (BOCAL_UPLOAD_KEYSTORE_B64, BOCAL_UPLOAD_KEYSTORE_PASSWORD, BOCAL_UPLOAD_KEY_ALIAS, BOCAL_UPLOAD_KEY_PASSWORD). Skipping bundleRelease."
-          fi
-
-      - name: Build signed release AAB
-        if: steps.secrets.outputs.present == 'true'
+          for name in KEYSTORE_B64 KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
+            if [[ -z "${!name}" ]]; then
+              echo "::error::Missing release signing configuration: $name. No signed candidate can be produced."
+              exit 1
+            fi
+          done
+      - name: Reject a release tag that disagrees with Android versionName
+        run: |
+          python3 - <<'PY'
+          import os, pathlib, re
+          text = pathlib.Path('android/app/build.gradle.kts').read_text()
+          version = re.search(r'versionName\s*=\s*"([^"]+)"', text).group(1)
+          ref = os.environ['GITHUB_REF']
+          if ref.startswith('refs/tags/') and ref != 'refs/tags/v' + version:
+              raise SystemExit('Release tag must match Android versionName: v' + version)
+          PY
+      - uses: actions/download-artifact@v4
+        with:
+          name: bocal-web-app
+          path: staged-web
+      - run: |
+          mkdir -p android/app/src/main/assets/www
+          cp staged-web/index.html android/app/src/main/assets/www/app.html
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: "platforms;android-37.0 build-tools;36.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build signed APK and AAB
         working-directory: android
         env:
           BOCAL_SKIP_WEB_BUILD: "1"
@@ -72,11 +64,27 @@ jobs:
           BOCAL_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.BOCAL_UPLOAD_KEYSTORE_PASSWORD }}
           BOCAL_UPLOAD_KEY_ALIAS: ${{ secrets.BOCAL_UPLOAD_KEY_ALIAS }}
           BOCAL_UPLOAD_KEY_PASSWORD: ${{ secrets.BOCAL_UPLOAD_KEY_PASSWORD }}
-        run: ./gradlew bundleRelease --console=plain
-
+        run: ./gradlew lintRelease assembleRelease bundleRelease --console=plain
+      - name: Verify signatures, payload identity and checksums
+        run: |
+          mkdir -p release-candidate
+          cp android/app/build/outputs/apk/release/app-release.apk release-candidate/bocal.apk
+          cp android/app/build/outputs/bundle/release/app-release.aab release-candidate/bocal.aab
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs release-candidate/bocal.apk > release-candidate/apk-signature.txt
+          if grep -q 'CN=Android Debug' release-candidate/apk-signature.txt; then
+            echo '::error::A debug certificate cannot be used for a release candidate.'; exit 1
+          fi
+          jarsigner -verify -verbose -certs release-candidate/bocal.aab > release-candidate/aab-signature.txt
+          python3 scripts/verify_android_artifact.py release-candidate/bocal.apk --expected-html staged-web/index.html > release-candidate/apk-verification.json
+          python3 scripts/verify_android_artifact.py release-candidate/bocal.aab --expected-html staged-web/index.html > release-candidate/aab-verification.json
+          printf 'source_sha=%s\nrun_id=%s\nstatus=SIGNED_CANDIDATE_NOT_DEVICE_ACCEPTED\n' "$GITHUB_SHA" "$GITHUB_RUN_ID" > release-candidate/BUILD.txt
+          (cd release-candidate && sha256sum bocal.apk bocal.aab > SHA256SUMS)
       - uses: actions/upload-artifact@v4
-        if: steps.secrets.outputs.present == 'true'
         with:
-          name: bocal-release-aab
-          path: android/app/build/outputs/bundle/release/app-release.aab
+          name: bocal-release-candidate
+          path: release-candidate/
           if-no-files-found: error
+          retention-days: 14
+      - name: Remove decoded signing material
+        if: always()
+        run: rm -f android/app/build/release-upload-keystore.jks

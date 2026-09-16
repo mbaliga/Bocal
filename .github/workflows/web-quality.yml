@@ -1,0 +1,44 @@
+name: Shared web quality gate
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: web-source
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.0"
+          cache: npm
+          cache-dependency-path: web-source/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm test
+      - run: npm run lint
+      - run: npm run build
+      - name: Verify built hosted output without rebuilding it
+        run: node --test tests/*.dist-test.mjs
+      - run: npm run preview:standalone
+      - name: Require real contrast and browser smoke checks
+        run: |
+          test -s preview-dist/index.html
+          node tests/theme.test.mjs
+          npm run test:e2e
+      - name: Verify packaging checker and standalone payload
+        working-directory: .
+        run: |
+          python3 -m unittest discover -s scripts -p 'test_*.py'
+          python3 scripts/verify_android_artifact.py web-source/preview-dist/index.html --html-only
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bocal-web-app
+          path: web-source/preview-dist/index.html
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 9

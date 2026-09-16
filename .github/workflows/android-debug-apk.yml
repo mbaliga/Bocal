@@ -1,102 +1,55 @@
 name: Android debug APK
-
-# Builds and tests the web app, then packages it into a debug-signed APK for
-# sideloading. Play requires a signed AAB for any real release -- see
-# release.yml for that path once the signing secrets exist.
 on:
   push:
-    branches:
-      - main
-      - "claude/**"
-    paths:
-      - "android/**"
-      - "web-source/**"
-      - ".github/workflows/android-debug-apk.yml"
+    branches: [main]
+    paths: ["android/**", "web-source/**", "scripts/**", ".github/workflows/**"]
   pull_request:
-    paths:
-      - "android/**"
-      - "web-source/**"
-      - ".github/workflows/android-debug-apk.yml"
+    paths: ["android/**", "web-source/**", "scripts/**", ".github/workflows/**"]
   workflow_dispatch:
-
+permissions:
+  contents: read
 concurrency:
   group: android-debug-${{ github.ref }}
   cancel-in-progress: true
-
 jobs:
   web:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: web-source
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22.13.0"
-          cache: npm
-          cache-dependency-path: web-source/package-lock.json
-
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium
-
-      # `npm test` runs `tsc --noEmit` (clean since the Workers types were
-      # generated) and the unit suite under the tsx loader, without a build.
-      - run: npm test
-      - run: npm run lint
-      - run: npm run build
-      - run: npm run test:dist
-      - run: npm run preview:standalone
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: bocal-web-app
-          path: web-source/preview-dist/index.html
-          if-no-files-found: error
-
+    uses: ./.github/workflows/web-quality.yml
   apk:
     needs: web
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/download-artifact@v4
         with:
           name: bocal-web-app
-          path: android/app/src/main/assets/www-staged
-
-      - name: Stage the web app bundle
+          path: staged-web
+      - name: Stage the exact tested bundle
         run: |
           mkdir -p android/app/src/main/assets/www
-          cp android/app/src/main/assets/www-staged/index.html android/app/src/main/assets/www/app.html
-          rm -rf android/app/src/main/assets/www-staged
-
+          cp staged-web/index.html android/app/src/main/assets/www/app.html
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "21"
-
       - uses: android-actions/setup-android@v3
         with:
-          # compileSdk 37 resolves to the dotted package id below, not
-          # "platforms;android-37" -- confirmed against this platform's own
-          # package.xml, which is where the first run of this workflow
-          # failed (sdkmanager: "Failed to find package 'platforms;android-37'").
           packages: "platforms;android-37.0 build-tools;36.0.0"
-
       - uses: gradle/actions/setup-gradle@v4
-
-      - name: Build debug APK
+      - name: Build debug, instrumented tests, and minified release variant
         working-directory: android
-        # The web bundle is already staged above; skip stageWebApp's own npm
-        # invocation so this job needs no Node toolchain.
         env:
           BOCAL_SKIP_WEB_BUILD: "1"
-        run: ./gradlew lintDebug assembleDebug --console=plain
-
+        run: ./gradlew lintDebug lintRelease testDebugUnitTest assembleDebug assembleDebugAndroidTest assembleRelease --console=plain
+      - name: Verify the APK contains the tested offline application
+        run: |
+          python3 scripts/verify_android_artifact.py android/app/build/outputs/apk/debug/app-debug.apk --expected-html staged-web/index.html
+          python3 scripts/verify_android_artifact.py android/app/build/outputs/apk/release/app-release-unsigned.apk --expected-html staged-web/index.html
       - uses: actions/upload-artifact@v4
         with:
           name: bocal-debug-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: |
+            android/app/build/outputs/apk/debug/app-debug.apk
+            android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
           if-no-files-found: error
+          retention-days: 3
