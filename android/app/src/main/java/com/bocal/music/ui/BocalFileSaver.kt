@@ -74,9 +74,11 @@ class BocalFileSaver(private val activity: Activity) {
                     stream.use { it.write(next.bytes); it.flush() }
                     notifyUser("Saved ${next.name}")
                 } catch (_: Exception) {
-                    // The picker created this document for this request. Remove an incomplete copy.
-                    try { activity.contentResolver.delete(uri, null, null) } catch (_: Exception) { }
-                    notifyUser("Save failed. Your recording remains in Bocal; choose another destination.")
+                    // ACTION_CREATE_DOCUMENT may return an existing document URI.
+                    // Never delete the destination on failure: it is user-owned,
+                    // and a provider does not guarantee atomic writes or rollback.
+                    // https://developer.android.com/reference/android/content/Intent#ACTION_CREATE_DOCUMENT
+                    notifyUser("Save failed; the destination may be incomplete. Your original recording remains in Bocal. Retry with a new filename.")
                 } finally {
                     synchronized(lock) { busy = false }
                 }
