@@ -3,73 +3,53 @@ package com.bocal.music.ui;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.net.Uri;
+import android.view.ViewGroup;
 import android.webkit.RenderProcessGoneDetail;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
-
 import androidx.webkit.WebViewAssetLoader;
-
 import java.io.ByteArrayInputStream;
 
-/**
- * Restricts the instrument app to bundled appassets, recovers from renderer
- * termination, and opens non-local http(s) navigations (model credit links,
- * reference sources) in the system browser instead of swallowing them.
- */
+/** No remote resource or unknown appassets URL may fall through to the network. */
 final class LocalAssetWebViewClient extends WebViewClient {
-    private static final String APPASSETS_HOST = "appassets.androidplatform.net";
-
     private final WebViewAssetLoader loader;
     private final Runnable recreateWebView;
-
     LocalAssetWebViewClient(WebViewAssetLoader loader, Runnable recreateWebView) {
         this.loader = loader;
         this.recreateWebView = recreateWebView;
     }
-
     private boolean isLocal(WebResourceRequest request) {
-        return "https".equals(request.getUrl().getScheme())
-                && APPASSETS_HOST.equals(request.getUrl().getHost());
+        Uri uri = request.getUrl();
+        return "https".equals(uri.getScheme()) && "appassets.androidplatform.net".equals(uri.getHost())
+                && (uri.getPort() == -1 || uri.getPort() == 443) && uri.getUserInfo() == null;
     }
-
+    private WebResourceResponse notFound() {
+        return new WebResourceResponse("text/plain", "UTF-8", 404, "Not Found",
+                java.util.Collections.emptyMap(), new ByteArrayInputStream(new byte[0]));
+    }
     @Override
     public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
-        if (!isLocal(request)) {
-            return new WebResourceResponse(
-                    "text/plain",
-                    "UTF-8",
-                    new ByteArrayInputStream(new byte[0])
-            );
-        }
-        return loader.shouldInterceptRequest(request.getUrl());
+        if (!isLocal(request)) return notFound();
+        WebResourceResponse response = loader.shouldInterceptRequest(request.getUrl());
+        return response != null ? response : notFound();
     }
-
     @Override
     public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-        if (isLocal(request)) {
-            return false;
-        }
+        if (isLocal(request)) return false;
         Uri uri = request.getUrl();
-        String scheme = uri.getScheme();
-        if ("http".equals(scheme) || "https".equals(scheme)) {
-            try {
-                view.getContext().startActivity(
-                        new Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-            } catch (ActivityNotFoundException ignored) {
-                // No browser available; nothing else to do.
-            }
+        if (request.isForMainFrame() && request.hasGesture() && uri.getHost() != null && uri.getUserInfo() == null
+                && ("http".equals(uri.getScheme()) || "https".equals(uri.getScheme()))) {
+            try { view.getContext().startActivity(new Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); }
+            catch (ActivityNotFoundException ignored) { }
         }
-        // blob: navigations (take download, transcript share) are left
-        // unhandled here so WebView's own DownloadListener/JS bridge path can
-        // see them; everything else that is not local is consumed.
-        return !"blob".equals(scheme);
+        return true; // Never replace the trusted page with a blob/data/remote document.
     }
-
     @Override
     public boolean onRenderProcessGone(WebView view, RenderProcessGoneDetail detail) {
-        view.destroy();
+        // Compose owns destruction in AndroidView.onRelease. Detach the dead view now.
+        if (view.getParent() instanceof ViewGroup) ((ViewGroup) view.getParent()).removeView(view);
         recreateWebView.run();
         return true;
     }
