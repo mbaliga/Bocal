@@ -1,0 +1,7 @@
+{
+  "state": "pending",
+  "reason": "Resolve the registry findings observed on 2026-09-17 before production release; refresh only the explicitly selected package families, with no npm audit fix --force.",
+  "branch": "feat/production-v1-hardening",
+  "dependencies": {"next": "16.3.5", "react": "19.2.8", "react-dom": "19.2.8"},
+  "devDependencies": {"eslint-config-next": "16.3.5", "react-server-dom-webpack": "19.2.8", "@cloudflare/vite-plugin": "1.54.11", "vite": "8.3.0", "vinext": "1.0.0-beta.10"}
+}
