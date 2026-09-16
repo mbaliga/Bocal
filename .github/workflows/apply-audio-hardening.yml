@@ -1,0 +1,62 @@
+name: Verify one-time audio hardening
+# Materialises the reviewed diff as ordinary source commits, never at app build/runtime.
+# Remove this maintenance workflow after the patch is consumed and normal CI passes.
+on:
+  pull_request:
+    paths: ["qa/source-hardening.patch", "web-source/tests/reliability-e2e.mjs", ".github/workflows/apply-audio-hardening.yml"]
+permissions:
+  contents: read
+concurrency:
+  group: bocal-reviewed-audio-hardening
+  cancel-in-progress: false
+jobs:
+  apply:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'feat/production-v1-hardening'
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - id: pending
+        run: test ! -s qa/source-hardening.patch || echo 'apply=true' >> "$GITHUB_OUTPUT"
+      - name: Check and apply only the reviewed audio-source changes
+        if: steps.pending.outputs.apply == 'true'
+        run: |
+          git apply --check qa/source-hardening.patch
+          git apply qa/source-hardening.patch
+          python3 - <<'PY'
+          import subprocess
+          expected = {'web-source/app/page.tsx','web-source/app/PulseView.tsx','web-source/app/ToneGenerator.tsx','web-source/app/GuitarStudio.tsx'}
+          actual = set(subprocess.check_output(['git','diff','--name-only'],text=True).splitlines())
+          assert actual == expected, (actual, expected)
+          PY
+      - uses: actions/setup-node@v4
+        if: steps.pending.outputs.apply == 'true'
+        with:
+          node-version: '22.13.0'
+      - name: Validate code, dependency updates and actual recording workflows
+        if: steps.pending.outputs.apply == 'true'
+        working-directory: web-source
+        run: |
+          npm ci
+          node ../scripts/audit-dependencies.mjs --enforce
+          npx playwright install --with-deps chromium
+          npm test
+          npm run lint
+          npm run build
+          npm run preview:standalone
+          node tests/reliability-e2e.mjs
+      - name: Commit the tested source and consume the patch without forcing branch history
+        if: steps.pending.outputs.apply == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh auth setup-git
+          git add web-source/app/page.tsx web-source/app/PulseView.tsx web-source/app/ToneGenerator.tsx web-source/app/GuitarStudio.tsx
+          git rm qa/source-hardening.patch
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'Stop foreground audio safely and cancel stale tuner microphone requests'
+          git push origin HEAD:refs/heads/feat/production-v1-hardening
