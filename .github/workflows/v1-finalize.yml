@@ -19,35 +19,28 @@ jobs:
         with:
           ref: feat/production-v1-hardening
           fetch-depth: 0
-
       - uses: actions/setup-node@v4
         with:
           node-version: "22.13.0"
           cache: npm
           cache-dependency-path: web-source/package-lock.json
 
-      - name: Apply final V1 candidate cleanup
+      - name: Apply validated non-workflow V1 cleanup
         run: |
           python3 - <<'PY'
           from pathlib import Path
           import json
 
-          def read(path):
-              return Path(path).read_text()
-
+          def read(path): return Path(path).read_text()
           def write(path, text):
               Path(path).parent.mkdir(parents=True, exist_ok=True)
               Path(path).write_text(text)
-
           def replace_once(path, old, new):
               text = read(path)
-              count = text.count(old)
-              if count != 1:
-                  raise SystemExit(f"{path}: expected exactly one match, found {count}: {old[:100]!r}")
+              if text.count(old) != 1:
+                  raise SystemExit(f"{path}: expected exactly one match for {old[:100]!r}")
               write(path, text.replace(old, new, 1))
 
-          # Remove the unused Drizzle/D1 template dependency chain and align the
-          # private web package with the Android V1 candidate identity.
           package_path = Path("web-source/package.json")
           package = json.loads(package_path.read_text())
           package["version"] = "1.0.0"
@@ -56,187 +49,97 @@ jobs:
           package.get("scripts", {}).pop("db:generate", None)
           package_path.write_text(json.dumps(package, indent=2) + "\n")
 
-          replace_once(
-              "web-source/app/page.tsx",
-              '''  useEffect(() => {\n    tunerMountedRef.current = true;\n    return () => {\n      tunerMountedRef.current = false;\n      tunerGateRef.current.cancel();''',
-              '''  useEffect(() => {\n    tunerMountedRef.current = true;\n    const tunerGate = tunerGateRef.current;\n    return () => {\n      tunerMountedRef.current = false;\n      tunerGate.cancel();''',
-          )
-          replace_once(
-              "web-source/app/page.tsx",
-              '''    const onKeyDown = (event: KeyboardEvent) => {\n      if (event.metaKey || event.ctrlKey || event.altKey || isTyping(event.target)) return;\n      if (instrumentPickerOpen || onboardingOpen || downloadCenterOpen || keyboardHelpOpen) return;\n\n      const digit = Number(event.key);''',
-              '''    const onKeyDown = (event: KeyboardEvent) => {\n      if (event.metaKey || event.ctrlKey || event.altKey) return;\n      if (event.key === "Escape") {\n        if (keyboardHelpOpen) setKeyboardHelpOpen(false);\n        else if (downloadCenterOpen) setDownloadCenterOpen(false);\n        else if (instrumentPickerOpen) setInstrumentPickerOpen(false);\n        else if (onboardingOpen) setOnboardingOpen(false);\n        else return;\n        event.preventDefault();\n        return;\n      }\n      if (isTyping(event.target)) return;\n      if (instrumentPickerOpen || onboardingOpen || downloadCenterOpen || keyboardHelpOpen) return;\n\n      const digit = Number(event.key);''',
-          )
-          replace_once(
-              "web-source/app/page.tsx",
-              '{ instrument: "Alto saxophone", status: "In Bocal", tone: "ready", href:',
-              '{ instrument: "Alto saxophone", status: "In Bocal · CC BY 4.0 · ANDRIANIAINAToky", tone: "ready", href:',
-          )
-          replace_once(
-              "web-source/app/page.tsx",
-              '{ instrument: "Oboe", status: "In Bocal", tone: "ready", href:',
-              '{ instrument: "Oboe", status: "In Bocal · CC BY 4.0 · WarderiiK", tone: "ready", href:',
-          )
-          replace_once(
-              "web-source/app/page.tsx",
-              '''          </div>\n        </section>\n        <div className="download-grid">''',
-              '''          </div>\n          <p className="model-credit-note">\n            Shipped 3D model credits: <strong>&quot;saxophone alto&quot;</strong> by ANDRIANIAINAToky and <strong>&quot;Oboe - Howarth Conservatoire S20C (Instrument)&quot;</strong> by WarderiiK. Both are <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">CC BY 4.0</a>. Source links are listed above. Bocal optimized the files for mobile and changes runtime materials; no endorsement is implied.\n          </p>\n        </section>\n        <div className="download-grid">''',
-          )
+          replace_once("web-source/app/page.tsx",
+            '''  useEffect(() => {\n    tunerMountedRef.current = true;\n    return () => {\n      tunerMountedRef.current = false;\n      tunerGateRef.current.cancel();''',
+            '''  useEffect(() => {\n    tunerMountedRef.current = true;\n    const tunerGate = tunerGateRef.current;\n    return () => {\n      tunerMountedRef.current = false;\n      tunerGate.cancel();''')
+          replace_once("web-source/app/page.tsx",
+            '''    const onKeyDown = (event: KeyboardEvent) => {\n      if (event.metaKey || event.ctrlKey || event.altKey || isTyping(event.target)) return;\n      if (instrumentPickerOpen || onboardingOpen || downloadCenterOpen || keyboardHelpOpen) return;\n\n      const digit = Number(event.key);''',
+            '''    const onKeyDown = (event: KeyboardEvent) => {\n      if (event.metaKey || event.ctrlKey || event.altKey) return;\n      if (event.key === "Escape") {\n        if (keyboardHelpOpen) setKeyboardHelpOpen(false);\n        else if (downloadCenterOpen) setDownloadCenterOpen(false);\n        else if (instrumentPickerOpen) setInstrumentPickerOpen(false);\n        else if (onboardingOpen) setOnboardingOpen(false);\n        else return;\n        event.preventDefault();\n        return;\n      }\n      if (isTyping(event.target)) return;\n      if (instrumentPickerOpen || onboardingOpen || downloadCenterOpen || keyboardHelpOpen) return;\n\n      const digit = Number(event.key);''')
+          replace_once("web-source/app/page.tsx",
+            '{ instrument: "Alto saxophone", status: "In Bocal", tone: "ready", href:',
+            '{ instrument: "Alto saxophone", status: "In Bocal · CC BY 4.0 · ANDRIANIAINAToky", tone: "ready", href:')
+          replace_once("web-source/app/page.tsx",
+            '{ instrument: "Oboe", status: "In Bocal", tone: "ready", href:',
+            '{ instrument: "Oboe", status: "In Bocal · CC BY 4.0 · WarderiiK", tone: "ready", href:')
+          replace_once("web-source/app/page.tsx",
+            '''          </div>\n        </section>\n        <div className="download-grid">''',
+            '''          </div>\n          <p className="model-credit-note">\n            Shipped 3D model credits: <strong>&quot;saxophone alto&quot;</strong> by ANDRIANIAINAToky and <strong>&quot;Oboe - Howarth Conservatoire S20C (Instrument)&quot;</strong> by WarderiiK. Both are <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">CC BY 4.0</a>. Source links are listed above. Bocal optimized the files for mobile and changes runtime materials; no endorsement is implied.\n          </p>\n        </section>\n        <div className="download-grid">''')
 
-          replace_once(
-              "web-source/app/globals.css",
-              '.model-source-list em.is-blocked { color: #a47f83; }',
-              '.model-source-list em.is-blocked { color: #a47f83; }\n.model-credit-note { margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; line-height: 1.55; }\n.model-credit-note a { color: var(--ink); text-underline-offset: 2px; }',
-          )
+          replace_once("web-source/app/globals.css",
+            '.model-source-list em.is-blocked { color: #a47f83; }',
+            '.model-source-list em.is-blocked { color: #a47f83; }\n.model-credit-note { margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; line-height: 1.55; }\n.model-credit-note a { color: var(--ink); text-underline-offset: 2px; }')
 
-          replace_once(
-              "web-source/tests/production-smoke.mjs",
-              '''  const profiles = [''',
-              '''  await check("settings and keyboard dialogs close with Escape", async () => {\n    const { context, page, errors } = await newPage();\n    try {\n      await page.getByRole("button", { name: "Open Bocal settings", exact: true }).click();\n      await page.getByRole("dialog").waitFor();\n      await page.keyboard.press("Escape");\n      await page.getByRole("dialog").waitFor({ state: "detached" });\n      await page.keyboard.press("Shift+/");\n      await page.getByRole("dialog").waitFor();\n      assert.match(await page.getByRole("dialog").innerText(), /Keyboard shortcuts/);\n      await page.keyboard.press("Escape");\n      await page.getByRole("dialog").waitFor({ state: "detached" });\n      assert.deepEqual(errors, []);\n    } finally { await context.close(); }\n  });\n  const profiles = [''',
-          )
+          replace_once("web-source/tests/production-smoke.mjs", '''  const profiles = [''', '''  await check("settings and keyboard dialogs close with Escape", async () => {\n    const { context, page, errors } = await newPage();\n    try {\n      await page.getByRole("button", { name: "Open Bocal settings", exact: true }).click();\n      await page.getByRole("dialog").waitFor();\n      await page.keyboard.press("Escape");\n      await page.getByRole("dialog").waitFor({ state: "detached" });\n      await page.keyboard.press("Shift+/");\n      await page.getByRole("dialog").waitFor();\n      assert.match(await page.getByRole("dialog").innerText(), /Keyboard shortcuts/);\n      await page.keyboard.press("Escape");\n      await page.getByRole("dialog").waitFor({ state: "detached" });\n      assert.deepEqual(errors, []);\n    } finally { await context.close(); }\n  });\n  const profiles = [''')
 
-          # Android system Back first dismisses a web overlay; only a second Back
-          # from the root activity exits. This mirrors the Esc contract in the web app.
-          replace_once(
-              "android/app/src/main/java/com/bocal/music/ui/WebAppScreen.kt",
-              'import androidx.activity.compose.rememberLauncherForActivityResult',
-              'import androidx.activity.compose.BackHandler\nimport androidx.activity.compose.rememberLauncherForActivityResult',
-          )
-          replace_once(
-              "android/app/src/main/java/com/bocal/music/ui/WebAppScreen.kt",
-              '''    val loader = remember {\n        WebViewAssetLoader.Builder().addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(context)).build()\n    }''',
-              '''    BackHandler {\n        val webView = webViewRef\n        if (webView == null) {\n            activity.finish()\n        } else {\n            webView.evaluateJavascript(\n                """\n                (() => {\n                  const hadOverlay = Boolean(document.querySelector('.experience-overlay, .onboarding-overlay, .download-overlay'));\n                  if (hadOverlay) window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));\n                  return hadOverlay;\n                })()\n                """.trimIndent(),\n            ) { handled ->\n                if (handled != "true") activity.runOnUiThread { activity.finish() }\n            }\n        }\n    }\n    val loader = remember {\n        WebViewAssetLoader.Builder().addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(context)).build()\n    }''',
-          )
+          replace_once("android/app/src/main/java/com/bocal/music/ui/WebAppScreen.kt",
+            'import androidx.activity.compose.rememberLauncherForActivityResult',
+            'import androidx.activity.compose.BackHandler\nimport androidx.activity.compose.rememberLauncherForActivityResult')
+          replace_once("android/app/src/main/java/com/bocal/music/ui/WebAppScreen.kt",
+            '''    val loader = remember {\n        WebViewAssetLoader.Builder().addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(context)).build()\n    }''',
+            '''    BackHandler {\n        val webView = webViewRef\n        if (webView == null) {\n            activity.finish()\n        } else {\n            webView.evaluateJavascript(\n                """\n                (() => {\n                  const hadOverlay = Boolean(document.querySelector('.experience-overlay, .onboarding-overlay, .download-overlay'));\n                  if (hadOverlay) window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));\n                  return hadOverlay;\n                })()\n                """.trimIndent(),\n            ) { handled ->\n                if (handled != "true") activity.runOnUiThread { activity.finish() }\n            }\n        }\n    }\n    val loader = remember {\n        WebViewAssetLoader.Builder().addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(context)).build()\n    }''')
+          replace_once("android/app/src/androidTest/java/com/bocal/music/BocalReleaseSmokeTest.kt",
+            'import androidx.core.content.ContextCompat\nimport androidx.test.ext.junit.rules.ActivityScenarioRule',
+            'import androidx.core.content.ContextCompat\nimport androidx.test.espresso.Espresso.pressBack\nimport androidx.test.ext.junit.rules.ActivityScenarioRule')
+          replace_once("android/app/src/androidTest/java/com/bocal/music/BocalReleaseSmokeTest.kt",
+            '''    @Test fun exportNamesAndMimeTypesAreSanitised() {''',
+            '''    @Test fun systemBackClosesSettingsBeforeLeavingTheApp() {\n        ready()\n        requireJavascriptTrue("document.querySelector('[aria-label=\\\"Open Bocal settings\\\"]').click(); true")\n        awaitTrue("document.querySelector('.download-overlay') !== null")\n        pressBack()\n        awaitTrue("document.querySelector('.download-overlay') === null")\n        awaitTrue("document.querySelectorAll('.mobile-nav button').length === 5")\n    }\n\n    @Test fun exportNamesAndMimeTypesAreSanitised() {''')
 
-          replace_once(
-              "android/app/src/androidTest/java/com/bocal/music/BocalReleaseSmokeTest.kt",
-              'import androidx.core.content.ContextCompat\nimport androidx.test.ext.junit.rules.ActivityScenarioRule',
-              'import androidx.core.content.ContextCompat\nimport androidx.test.espresso.Espresso.pressBack\nimport androidx.test.ext.junit.rules.ActivityScenarioRule',
-          )
-          replace_once(
-              "android/app/src/androidTest/java/com/bocal/music/BocalReleaseSmokeTest.kt",
-              '''    @Test fun exportNamesAndMimeTypesAreSanitised() {''',
-              '''    @Test fun systemBackClosesSettingsBeforeLeavingTheApp() {\n        ready()\n        requireJavascriptTrue("document.querySelector('[aria-label=\\\"Open Bocal settings\\\"]').click(); true")\n        awaitTrue("document.querySelector('.download-overlay') !== null")\n        pressBack()\n        awaitTrue("document.querySelector('.download-overlay') === null")\n        awaitTrue("document.querySelectorAll('.mobile-nav button').length === 5")\n    }\n\n    @Test fun exportNamesAndMimeTypesAreSanitised() {''',
-          )
-
-          replace_once(
-              "android/app/src/main/AndroidManifest.xml",
-              'android:configChanges="screenLayout|orientation|screenSize|keyboard|keyboardHidden|smallestScreenSize"',
-              'android:configChanges="screenLayout|orientation|screenSize|keyboard|keyboardHidden|smallestScreenSize|uiMode"',
-          )
+          replace_once("android/app/src/main/AndroidManifest.xml",
+            'android:configChanges="screenLayout|orientation|screenSize|keyboard|keyboardHidden|smallestScreenSize"',
+            'android:configChanges="screenLayout|orientation|screenSize|keyboard|keyboardHidden|smallestScreenSize|uiMode"')
           replace_once("android/app/build.gradle.kts", 'versionCode = 7', 'versionCode = 8')
           replace_once("android/app/build.gradle.kts", 'versionName = "0.6.0"', 'versionName = "1.0.0"')
-
-          replace_once(
-              "scripts/run-emulator-smoke.sh",
-              "printf 'source_sha=%s\\napi=35\\nphysical_device=false\\nrelease_signing=false\\n' \"${GITHUB_SHA:-local}\" > qa/reports/android/BUILD.txt",
-              "printf 'source_sha=%s\\napi=%s\\nphysical_device=false\\nrelease_signing=false\\n' \"${GITHUB_SHA:-local}\" \"${BOCAL_EMULATOR_API:-unknown}\" > qa/reports/android/BUILD.txt",
-          )
-
-          workflow = read(".github/workflows/android-debug-apk.yml")
-          old_emulator = '''  emulator:\n    needs: apk\n    runs-on: ubuntu-latest\n    timeout-minutes: 20\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/download-artifact@v4\n        with:\n          name: bocal-debug-apk\n          path: emulator-apks\n      - name: Enable KVM\n        run: |\n          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules\n          sudo udevadm control --reload-rules\n          sudo udevadm trigger --name-match=kvm\n      - uses: reactivecircus/android-emulator-runner@v2\n        with:\n          api-level: 35\n          target: google_apis\n          arch: x86_64\n          profile: pixel_2\n          disable-animations: true\n          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save\n          script: bash scripts/run-emulator-smoke.sh\n      - uses: actions/upload-artifact@v4\n        if: always()\n        with:\n          name: bocal-android-runtime-evidence\n          path: qa/reports/android/\n          if-no-files-found: warn\n          retention-days: 3\n'''
-          matrix_expr = "${" + "{ matrix.api }}"
-          new_emulator = '''  emulator:\n    needs: apk\n    strategy:\n      fail-fast: false\n      matrix:\n        api: [26, 35]\n    name: emulator / API __API__\n    runs-on: ubuntu-latest\n    timeout-minutes: 20\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/download-artifact@v4\n        with:\n          name: bocal-debug-apk\n          path: emulator-apks\n      - name: Enable KVM\n        run: |\n          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules\n          sudo udevadm control --reload-rules\n          sudo udevadm trigger --name-match=kvm\n      - uses: reactivecircus/android-emulator-runner@v2\n        with:\n          api-level: __API__\n          target: google_apis\n          arch: x86_64\n          profile: pixel_2\n          disable-animations: true\n          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save\n          script: BOCAL_EMULATOR_API=__API__ bash scripts/run-emulator-smoke.sh\n      - uses: actions/upload-artifact@v4\n        if: always()\n        with:\n          name: bocal-android-runtime-evidence-api-__API__\n          path: qa/reports/android/\n          if-no-files-found: warn\n          retention-days: 3\n'''.replace("__API__", matrix_expr)
-          if workflow.count(old_emulator) != 1:
-              raise SystemExit("android-debug-apk.yml: emulator block changed unexpectedly")
-          write(".github/workflows/android-debug-apk.yml", workflow.replace(old_emulator, new_emulator, 1))
-
-          replace_once(
-              ".github/workflows/web-quality.yml",
-              '- name: Reject high or critical dependency findings',
-              '- name: Reject dependency audit findings',
-          )
+          replace_once("scripts/run-emulator-smoke.sh",
+            "printf 'source_sha=%s\\napi=35\\nphysical_device=false\\nrelease_signing=false\\n' \"${GITHUB_SHA:-local}\" > qa/reports/android/BUILD.txt",
+            "printf 'source_sha=%s\\napi=%s\\nphysical_device=false\\nrelease_signing=false\\n' \"${GITHUB_SHA:-local}\" \"${BOCAL_EMULATOR_API:-unknown}\" > qa/reports/android/BUILD.txt")
 
           audit_path = "scripts/audit-dependencies.mjs"
-          replace_once(
-              audit_path,
-              '/** Record registry audit evidence. --enforce rejects any high/critical finding.',
-              '/** Record registry audit evidence. --enforce rejects any dependency finding.',
-          )
-          replace_once(
-              audit_path,
-              '''const { high = 0, critical = 0 } = report.metadata.vulnerabilities;\nif (high + critical > 0) {\n  console.log(`SECURITY REVIEW REQUIRED: ${high} high, ${critical} critical findings. No release approval implied.`);\n  if (enforce) process.exit(1);\n}''',
-              '''const { low = 0, moderate = 0, high = 0, critical = 0 } = report.metadata.vulnerabilities;\nconst total = low + moderate + high + critical;\nif (total > 0) {\n  console.log(`SECURITY REVIEW REQUIRED: ${low} low, ${moderate} moderate, ${high} high, ${critical} critical findings. No release approval implied.`);\n  if (enforce) process.exit(1);\n}''',
-          )
+          replace_once(audit_path,
+            '/** Record registry audit evidence. --enforce rejects any high/critical finding.',
+            '/** Record registry audit evidence. --enforce rejects any dependency finding.')
+          replace_once(audit_path,
+            '''const { high = 0, critical = 0 } = report.metadata.vulnerabilities;\nif (high + critical > 0) {\n  console.log(`SECURITY REVIEW REQUIRED: ${high} high, ${critical} critical findings. No release approval implied.`);\n  if (enforce) process.exit(1);\n}''',
+            '''const { low = 0, moderate = 0, high = 0, critical = 0 } = report.metadata.vulnerabilities;\nconst total = low + moderate + high + critical;\nif (total > 0) {\n  console.log(`SECURITY REVIEW REQUIRED: ${low} low, ${moderate} moderate, ${high} high, ${critical} critical findings. No release approval implied.`);\n  if (enforce) process.exit(1);\n}''')
 
-          # Release/store identity and factual product copy.
-          write("android/fastlane/metadata/android/en-US/short_description.txt",
-                "Local-first tuning, tone, analysis and practice for saxophone and woodwinds.\n")
+          write("android/fastlane/metadata/android/en-US/short_description.txt", "Local-first tuning, tone, analysis and practice for saxophone and woodwinds.\n")
           write("android/fastlane/metadata/android/en-US/full_description.txt", '''Bocal is a local-first practice companion for saxophone and other woodwinds, combining tuning, tone analysis, pulse work, practice tracking and instrument learning.\n\nPRACTICE TOOLS\n• Chromatic tuner with reference pitch, temperament, sensitivity, damping and precision controls.\n• Metronome, count-ins, drills, drone/reference tones and practice plans.\n• Waveform, spectrum and harmonics views, plus local recording, import, listen-back, rename, delete and export.\n• Practice history and skill evidence stored locally on your device.\n\nINSTRUMENT LEARNING\n• Alto saxophone: licensed detailed 3D model with interactive fingering tools.\n• Tenor, soprano and baritone saxophone: transposition-aware fingering practice shown on the alto model.\n• Oboe: licensed 3D anatomy model plus fingering chart.\n• Cor anglais: oboe-based proxy model/chart.\n• Flute, clarinet and bassoon: 2D fingering charts.\n• Guitar: string tuner and chord/follow tools.\n\nPRIVATE BY DESIGN\n• Pitch and tone analysis runs on your device.\n• Bocal does not use accounts, ads, analytics or tracking.\n• Audio is not recorded unless you explicitly press Record. Saved takes stay in app-private storage until you delete or export them.\n• Bocal does not upload your recordings or practice history.\n\nBocal requires microphone access for tuning and live analysis. Fingering data and model touch mappings are educational tools and are not yet specialist-certified.\n''')
           write("android/fastlane/metadata/android/en-US/changelogs/8.txt", '''Bocal 1.0 hardens the local-first practice studio: safer persistent recordings and Save As export, stronger tuner/audio lifecycle handling, improved compact/tablet/landscape navigation, light/dark accessibility fixes, clearer instrument scope and model credits, and stricter Android, browser and dependency release gates.\n''')
 
-          replace_once(
-              "README.md",
-              '**Release state: v0.6.0 production-hardening candidate, not an accepted production V1.**',
-              '**Release state: v1.0.0 release candidate, not yet an accepted/published production V1.**',
-          )
-          replace_once(
-              "README.md",
-              'The shared quality gate rejects high/critical dependency findings and retains test/security evidence.',
-              'The shared quality gate rejects any registry-reported dependency finding and retains test/security evidence.',
-          )
+          replace_once("README.md", '**Release state: v0.6.0 production-hardening candidate, not an accepted production V1.**', '**Release state: v1.0.0 release candidate, not yet an accepted/published production V1.**')
+          replace_once("README.md", 'The shared quality gate rejects high/critical dependency findings and retains test/security evidence.', 'The shared quality gate rejects any registry-reported dependency finding and retains test/security evidence.')
 
           current = read("docs/CURRENT_STATE.md")
-          current = current.replace(
-              'Bocal is a hardened **v0.6.0 release candidate**, not an accepted production V1. Android `versionCode` remains 7.',
-              'Bocal is a hardened **v1.0.0 release candidate**, not yet an accepted/published production V1. Android `versionCode` is 8.',
-          )
-          current = current.replace(
-              'Debug and release workflows share mandatory typecheck, tests, lint, builds, browser/contrast checks, and high/critical dependency gating.',
-              'Debug and release workflows share mandatory typecheck, tests, lint, builds, browser/contrast checks, and zero-finding dependency gating.',
-          )
+          current = current.replace('Bocal is a hardened **v0.6.0 release candidate**, not an accepted production V1. Android `versionCode` remains 7.', 'Bocal is a hardened **v1.0.0 release candidate**, not yet an accepted/published production V1. Android `versionCode` is 8.')
+          current = current.replace('Debug and release workflows share mandatory typecheck, tests, lint, builds, browser/contrast checks, and high/critical dependency gating.', 'Debug and release workflows share mandatory typecheck, tests, lint, builds, browser/contrast checks, and zero-finding dependency gating.')
           sec_start = current.index('## Security snapshot')
           sec_end = current.index('## Still not proven')
           current = current[:sec_start] + '''## Security snapshot\n\nThe V1 candidate removes the unused Drizzle/D1 template layer that was the only remaining npm audit advisory chain. The release gate now rejects **any** registry-reported low, moderate, high or critical dependency finding instead of accepting moderate development-tool findings. A fresh audit remains mandatory for each candidate.\n\nReact/RSC, Vite, Vinext and Cloudflare tooling remain on the registry-confirmed versions introduced by the hardening pass.\n\n''' + current[sec_end:]
           write("docs/CURRENT_STATE.md", current)
 
-          replace_once(
-              "docs/PRODUCTION_V1_ACCEPTANCE.md",
-              '- [ ] Fresh dependency audit has no high or critical findings; remaining moderate development-tool findings are reviewed and recorded.',
-              '- [ ] Fresh dependency audit reports zero low, moderate, high or critical findings.',
-          )
-          replace_once(
-              "docs/PRODUCTION_V1_ACCEPTANCE.md",
-              '- [ ] Android emulator installation/runtime tests pass, with logs retained. Emulator results remain distinct from physical-device acceptance.',
-              '- [ ] Android API 26 and API 35 emulator installation/runtime tests pass, with logs retained. Emulator results remain distinct from physical-device acceptance.',
-          )
+          replace_once("docs/PRODUCTION_V1_ACCEPTANCE.md", '- [ ] Fresh dependency audit has no high or critical findings; remaining moderate development-tool findings are reviewed and recorded.', '- [ ] Fresh dependency audit reports zero low, moderate, high or critical findings.')
+          replace_once("docs/PRODUCTION_V1_ACCEPTANCE.md", '- [ ] Android emulator installation/runtime tests pass, with logs retained. Emulator results remain distinct from physical-device acceptance.', '- [ ] Android API 26 and API 35 emulator installation/runtime tests pass, with logs retained. Emulator results remain distinct from physical-device acceptance.')
 
           play = read("docs/store/play-console.md")
           play = play.replace('| Version at time of writing | `0.6.0` (versionCode `7`) |', '| Version at time of writing | `1.0.0` (versionCode `8`) |')
           model_start = play.index('## Model licensing')
           model_end = play.index('## Deltas from the house defaults')
-          model_section = '''## Model licensing and attribution\n\nThe current bundle ships two detailed third-party glTF instruments. The repository attribution record identifies both source models as **CC BY 4.0**: the alto saxophone by ANDRIANIAINAToky and the Howarth S20C oboe by WarderiiK. Settings exposes the model source, author, licence name/link and a change notice; `web-source/public/models/ATTRIBUTION.md` records the detailed transformations.\n\nCC BY 4.0 permits redistribution and adaptation, including commercial use, when its conditions are met. The owner should still review the source records and final attribution presentation before publication; this repository record is not a substitute for legal advice. Planned/candidate models are not bundled production assets.\n\n'''
-          play = play[:model_start] + model_section + play[model_end:]
+          play = play[:model_start] + '''## Model licensing and attribution\n\nThe current bundle ships two detailed third-party glTF instruments. The repository attribution record identifies both source models as **CC BY 4.0**: the alto saxophone by ANDRIANIAINAToky and the Howarth S20C oboe by WarderiiK. Settings exposes the model source, author, licence name/link and a change notice; `web-source/public/models/ATTRIBUTION.md` records the detailed transformations.\n\nCC BY 4.0 permits redistribution and adaptation, including commercial use, when its conditions are met. The owner should still review the source records and final attribution presentation before publication; this repository record is not a substitute for legal advice. Planned/candidate models are not bundled production assets.\n\n''' + play[model_end:]
           old_claim = '''The claim that matters: **audio is analysed in real time on the device. Recording\nhappens only on explicit user action (pressing Record on the Analyze screen), the\nresulting take is stored only in the app's private on-device storage, the user can\ndelete it at any time, and it is never transmitted.** Play treats microphone access seriously, and a music app that\nrecords is a different Data safety answer from one that only listens. Make sure\nthe code matches: if takes are ever persisted (e.g. to IndexedDB/OPFS), update\nthis answer and the privacy policy together.\n'''
-          new_claim = '''The claim that matters: **audio is analysed in real time on the device. Recording happens only on explicit user action (pressing Record on the Analyze screen). Saved takes are persisted in the app's private IndexedDB storage so they survive a restart, can be renamed/deleted locally, and leave the app only when the user explicitly exports them through the system Save As flow. Bocal does not transmit them.** The privacy policy and store copy must keep saying the same thing.\n'''
-          if old_claim not in play:
-              raise SystemExit('play-console.md: old data-safety paragraph not found')
-          play = play.replace(old_claim, new_claim, 1)
+          if old_claim not in play: raise SystemExit('play-console.md data-safety paragraph changed')
+          play = play.replace(old_claim, '''The claim that matters: **audio is analysed in real time on the device. Recording happens only on explicit user action (pressing Record on the Analyze screen). Saved takes are persisted in the app's private IndexedDB storage so they survive a restart, can be renamed/deleted locally, and leave the app only when the user explicitly exports them through the system Save As flow. Bocal does not transmit them.** The privacy policy and store copy must keep saying the same thing.\n''', 1)
           checklist_start = play.index('## Pre-submit checklist')
           play = play[:checklist_start] + '''## Pre-submit checklist\n\n- [x] Record the two bundled model source/licence entries and expose in-app attribution.\n- [x] Keep recording persistence/export behaviour aligned with the privacy policy and store description.\n- [ ] Owner reviews final third-party attribution/legal posture before publication.\n- [ ] Publish/verify the hosted privacy-policy URL used by Play Console.\n- [ ] Capture final-device screenshots: 3D instrument lab, tuner mid-note, and a practice workflow.\n- [ ] Provide the remaining Play listing graphics described under `android/fastlane/metadata/android/en-US/images/README.md`.\n'''
           write("docs/store/play-console.md", play)
 
-          replace_once(
-              "android/README.md",
-              '`saveFile(name, mime, base64)` -- writes into `MediaStore` Downloads; the\n  web app falls back to its `<a download>` path when this bridge is absent\n  (i.e. in a regular browser).',
-              '`saveFile(name, mime, base64)` -- queues Android\'s permission-free system **Save As** picker. Acceptance only means the picker opened; cancellation/write failures are reported natively and the original take remains in Bocal. In a regular browser, the web app uses its normal download path.',
-          )
-          old_release = '''Generate an upload keystore once with `keytool` and store it as the base64\nsecret above; Play App Signing then holds the real app-signing key, so losing\nthe upload key is recoverable. `.github/workflows/release.yml` runs\n`./gradlew bundleRelease` on version tags (`v*`) or manual dispatch, only when\nall four secrets are present, and uploads `app-release.aab`.'''
-          new_release = '''Generate an upload keystore once with `keytool` and store it as the base64 secret above; Play App Signing can then hold the app-signing key. `.github/workflows/release.yml` runs only on version tags (`v*`) or manual dispatch, requires all four signing inputs, builds signed APK/AAB artifacts, verifies their signatures and embedded web payload/checksums, and uploads a **candidate** artifact. It does not publish to a store or claim physical-device acceptance.'''
-          replace_once("android/README.md", old_release, new_release)
+          replace_once("android/README.md", '`saveFile(name, mime, base64)` -- writes into `MediaStore` Downloads; the\n  web app falls back to its `<a download>` path when this bridge is absent\n  (i.e. in a regular browser).', '`saveFile(name, mime, base64)` -- queues Android\'s permission-free system **Save As** picker. Acceptance only means the picker opened; cancellation/write failures are reported natively and the original take remains in Bocal. In a regular browser, the web app uses its normal download path.')
+          replace_once("android/README.md", '''Generate an upload keystore once with `keytool` and store it as the base64\nsecret above; Play App Signing then holds the real app-signing key, so losing\nthe upload key is recoverable. `.github/workflows/release.yml` runs\n`./gradlew bundleRelease` on version tags (`v*`) or manual dispatch, only when\nall four secrets are present, and uploads `app-release.aab`.''', '''Generate an upload keystore once with `keytool` and store it as the base64 secret above; Play App Signing can then hold the app-signing key. `.github/workflows/release.yml` runs only on version tags (`v*`) or manual dispatch, requires all four signing inputs, builds signed APK/AAB artifacts, verifies their signatures and embedded web payload/checksums, and uploads a **candidate** artifact. It does not publish to a store or claim physical-device acceptance.''')
 
           webreadme = read("web-source/README.md")
-          old_track = '''The native Android project remains a separate parity track. This branch improves the web experience and shared product contracts; it does not claim physical-device microphone accuracy, latency, interruption, Bluetooth or rotation results without hardware.'''
-          new_track = '''The Android shell under `../android/` packages this exact standalone application, so browser and Android share the same maintained product code. Emulator CI verifies packaging/runtime compatibility; physical-device microphone accuracy, latency, interruption, Bluetooth, thermal and accessibility acceptance remain separate release gates.'''
-          if old_track in webreadme:
-              webreadme = webreadme.replace(old_track, new_track, 1)
-          webreadme = webreadme.replace(
-              'The checked-in project targets API 37 and wraps this app\'s static build in a WebView (`MainActivity` → `WebAppScreen`); the earlier Kotlin/Compose native UI and `AudioRecord`/YIN tuner remain in the tree only as an unused revert path. Build it only in an environment with JDK 17, Android SDK 37 and the matching Gradle/AGP toolchain:',
-              'The checked-in project targets API 37 and wraps this app\'s static build in a WebView (`MainActivity` → `WebAppScreen`). The retired native product surface has been removed; the web app is the maintained product. Build it with JDK 21, Android SDK 37 and the matching Gradle/AGP toolchain:',
-          )
+          webreadme = webreadme.replace('The native Android project remains a separate parity track. This branch improves the web experience and shared product contracts; it does not claim physical-device microphone accuracy, latency, interruption, Bluetooth or rotation results without hardware.', 'The Android shell under `../android/` packages this exact standalone application, so browser and Android share the same maintained product code. Emulator CI verifies packaging/runtime compatibility; physical-device microphone accuracy, latency, interruption, Bluetooth, thermal and accessibility acceptance remain separate release gates.')
+          webreadme = webreadme.replace('The checked-in project targets API 37 and wraps this app\'s static build in a WebView (`MainActivity` → `WebAppScreen`); the earlier Kotlin/Compose native UI and `AudioRecord`/YIN tuner remain in the tree only as an unused revert path. Build it only in an environment with JDK 17, Android SDK 37 and the matching Gradle/AGP toolchain:', 'The checked-in project targets API 37 and wraps this app\'s static build in a WebView (`MainActivity` → `WebAppScreen`). The retired native product surface has been removed; the web app is the maintained product. Build it with JDK 21, Android SDK 37 and the matching Gradle/AGP toolchain:')
           webreadme = webreadme.replace('gradle :app:assembleDebug\ngradle :app:testDebugUnitTest\ngradle :app:lintDebug', './gradlew :app:assembleDebug\n./gradlew :app:testDebugUnitTest\n./gradlew :app:lintDebug')
           write("web-source/README.md", webreadme)
           PY
-
           rm -rf web-source/db web-source/drizzle web-source/drizzle.config.ts
 
       - name: Regenerate lockfile and prove zero dependency findings
@@ -248,13 +151,12 @@ jobs:
           npm run typecheck
           npm run lint
 
-      - name: Commit generated candidate cleanup
+      - name: Commit validated source and lockfile changes
         run: |
           git diff --check
-          git status --short
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
+          git add -A ':!.github/workflows/v1-finalize.yml'
           git diff --cached --quiet && exit 0
           git commit -m "Finalize Bocal 1.0 release candidate"
           git push origin HEAD:feat/production-v1-hardening
