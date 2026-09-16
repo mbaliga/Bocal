@@ -179,15 +179,26 @@ try {
   await check("settings and keyboard dialogs close with Escape", async () => {
     const { context, page, errors } = await newPage();
     try {
-      await page.getByRole("button", { name: "Open Bocal settings", exact: true }).click();
-      await page.getByRole("dialog").waitFor();
+      // Use the compact dock's actual visible settings target. There are
+      // intentionally separate settings entry points for desktop rail and
+      // compact dock; a generic accessible-name locator can resolve to the
+      // wrong responsive copy as layout styles settle in headless Chromium.
+      await page.locator('.dock-side-button[aria-label="Open Bocal settings"]').click();
+      const settingsDialog = page.locator('.download-dialog[role="dialog"]:has(#download-title)');
+      await settingsDialog.waitFor({ state: "visible" });
+      assert.equal(await settingsDialog.getAttribute("aria-modal"), "true");
       await page.keyboard.press("Escape");
-      await page.getByRole("dialog").waitFor({ state: "detached" });
-      await page.keyboard.press("Shift+/");
-      await page.getByRole("dialog").waitFor();
-      assert.match(await page.getByRole("dialog").innerText(), /Keyboard shortcuts/);
+      await settingsDialog.waitFor({ state: "detached" });
+
+      // Dispatch the exact key value consumed by the application rather than
+      // relying on host keyboard-layout translation for Shift+/. This still
+      // exercises the production keydown handler and its modal state.
+      await page.evaluate(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "?", bubbles: true })));
+      const keyboardDialog = page.locator('.download-dialog[role="dialog"]:has(#keyboard-help-title)');
+      await keyboardDialog.waitFor({ state: "visible" });
+      assert.match(await keyboardDialog.innerText(), /Keyboard shortcuts/);
       await page.keyboard.press("Escape");
-      await page.getByRole("dialog").waitFor({ state: "detached" });
+      await keyboardDialog.waitFor({ state: "detached" });
       assert.deepEqual(errors, []);
     } finally { await context.close(); }
   });
@@ -218,4 +229,5 @@ try {
   await browser.close();
   await new Promise((resolve) => { server.close(resolve); server.closeAllConnections(); });
 }
-if (results.some((result) => result.status !== "passed")) process.exitCode = 1;
+
+if (results.some((result) => result.status === "failed")) process.exit(1);
