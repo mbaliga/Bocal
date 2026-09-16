@@ -18,7 +18,7 @@ jobs:
           cache: npm
           cache-dependency-path: web-source/package-lock.json
       - run: npm ci
-      - name: Reject high or critical dependency findings
+      - name: Reject dependency audit findings
         run: node ../scripts/audit-dependencies.mjs --enforce
       - run: npx playwright install --with-deps chromium
       - run: npm test
