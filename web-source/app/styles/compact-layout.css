@@ -1,5 +1,4 @@
-/* Header actions reflow instead of being clipped or hidden. Instrument and
-   navigation arc geometry remain unchanged. */
+/* Header actions reflow instead of being clipped or hidden. */
 .app-shell .top-bar { flex-wrap: wrap; gap: 8px; }
 .app-shell .instrument-picker-wrap { min-width: 0; max-width: 100%; }
 .app-shell .instrument-picker { max-width: 100%; }
@@ -64,4 +63,28 @@
   .app-shell.nav-right .mobile-nav.is-arc button.is-active:active {
     transform: translate(-50%, -50%) rotate(calc(-90deg - var(--tilt, 0deg))) scaleX(-1);
   }
+}
+/* Tablet side navigation must not apply portrait percentage-seat coordinates
+   to normal-flow children: Lab otherwise covers Tune's centre hit target.
+   Preserve the existing curved side shell and selected edge; allocate five
+   independent rows. The horizontal SVG belongs only to the rotated/portrait bar. */
+@media (orientation: landscape) and (min-width: 681px) and (min-height: 521px) {
+  .app-shell .mobile-nav.is-arc > .arc-inner {
+    position: absolute; inset: 12px 0;
+    display: grid; grid-template-columns: 1fr;
+    grid-template-rows: repeat(5, minmax(48px, 1fr));
+  }
+  .app-shell .mobile-nav.is-arc .arc-shape { display: none; }
+  .app-shell .mobile-nav.is-arc button {
+    /* These two overrides intentionally supersede inline portrait seats. */
+    left: auto !important; top: auto !important;
+    position: relative; place-self: center;
+    width: 48px; height: 48px; min-width: 48px; padding: 0; transform: none;
+  }
+  .app-shell.nav-left .mobile-nav.is-arc button:nth-of-type(2),
+  .app-shell.nav-left .mobile-nav.is-arc button:nth-of-type(4) { transform: translateX(3px); }
+  .app-shell.nav-left .mobile-nav.is-arc button:nth-of-type(3) { transform: translateX(6px); }
+  .app-shell.nav-right .mobile-nav.is-arc button:nth-of-type(2),
+  .app-shell.nav-right .mobile-nav.is-arc button:nth-of-type(4) { transform: translateX(-3px); }
+  .app-shell.nav-right .mobile-nav.is-arc button:nth-of-type(3) { transform: translateX(-6px); }
 }
