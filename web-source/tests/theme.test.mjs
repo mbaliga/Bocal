@@ -1,229 +1,129 @@
-// Playwright-driven contrast audit over every workspace and extended state,
-// in both themes. Adapted from `scratchpad/review/light-theme/audit.mjs`
-// (WP6's own review tooling). Not part of the `node --test` unit suite --
-// run it explicitly via `npm run test:theme` after `npm run preview:standalone`,
-// since it drives a real browser against the built preview bundle.
-//
-// Passes only when there are zero text-contrast failures against the
-// documented threshold (4.5:1, or 3:1 for large/bold text) in every
-// recorded state, in both light and dark, except:
-//   - `.skip-to-content` (its cyan-chip family is documented as a known
-//     trade-off; also excluded so the audit doesn't require a11y-focus
-//     navigation to reach it)
-//   - disabled controls (`:disabled`, `[aria-disabled="true"]`), which
-//     WCAG itself exempts from the minimum and which this app keeps at a
-//     legible ~3:1 "inactive but present" recipe rather than 4.5:1.
-import { existsSync } from "node:fs";
-import { pathToFileURL } from "node:url";
+// Real browser text-contrast gate. Both themes must pass; a historical failure
+// count is not an acceptance threshold. This is not complete accessibility QA.
+import assert from "node:assert/strict";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { launchChromium } from "./browser.mjs";
+import { servePreview } from "./preview-server.mjs";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DIST = process.env.THEME_AUDIT_DIST || path.resolve(__dirname, "../preview-dist/index.html");
-
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+const DIST = process.env.THEME_AUDIT_DIST || path.resolve(HERE, "../preview-dist/index.html");
 if (!existsSync(DIST)) {
-  // This file matches the `tests/*.test.mjs` glob the unit suite (`npm test`)
-  // runs, but the WP6 plan keeps it out of that suite -- it drives a real
-  // browser against the built preview bundle, which the unit suite does not
-  // produce. Skip quietly rather than failing when that bundle is absent;
-  // `npm run test:theme` builds it first, so that's where this really runs.
-  console.log(`theme audit: skipped (${DIST} not found -- run "npm run test:theme", which builds it first).`);
+  if (process.env.BOCAL_REQUIRE_PREVIEW === "1") throw new Error("Required preview build is missing.");
+  console.log("theme audit: browser gate runs after preview:standalone, not in the unbuilt unit suite.");
   process.exit(0);
 }
-
-const url = pathToFileURL(DIST).href;
+const reportDir = path.resolve(HERE, "../../qa/reports");
+mkdirSync(reportDir, { recursive: true });
 
 const AUDIT_FN = `(() => {
-  const parse = (c) => { const m = c.match(/rgba?\\(([^)]+)\\)/); if (!m) return null; const parts = m[1].split(/[\\s,\\/]+/).filter(Boolean).map(Number); const [r, g, b, a = 1] = parts; return { r, g, b, a }; };
-  const lum = ({ r, g, b }) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
-  const blend = (fg, bg) => ({ r: fg.r * fg.a + bg.r * (1 - fg.a), g: fg.g * fg.a + bg.g * (1 - fg.a), b: fg.b * fg.a + bg.b * (1 - fg.a), a: 1 });
-  const ratioOf = (a, b) => { const l1 = lum(a), l2 = lum(b); return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05); };
-  const hex = (c) => "#" + [c.r, c.g, c.b].map((v) => Math.round(v).toString(16).padStart(2, "0")).join("");
-  const rootBg = parse(getComputedStyle(document.documentElement).backgroundColor) || { r: 6, g: 6, b: 7, a: 1 };
-  const layerOf = (n, pseudo) => {
-    const cs = getComputedStyle(n, pseudo);
-    if (pseudo && (cs.content === "none" || cs.content === "normal" || cs.position !== "absolute")) return null;
-    const layers = [];
-    const bi = cs.backgroundImage;
-    if (bi && bi !== "none") { const stops = [...bi.matchAll(/rgba?\\([^)]+\\)/g)].map((m) => parse(m[0])).filter(Boolean); if (stops.length) { const avg = stops.reduce((a, c) => ({ r: a.r + c.r * c.a / stops.length, g: a.g + c.g * c.a / stops.length, b: a.b + c.b * c.a / stops.length }), { r: 0, g: 0, b: 0 }); const cover = stops.reduce((a, c) => a + c.a, 0) / stops.length; layers.push({ ...avg, a: cover }); } }
-    const c = parse(cs.backgroundColor); if (c && c.a > 0) layers.push(c);
-    const op = Number(cs.opacity); return { layers, op };
-  };
-  const effBg = (el) => {
-    let bg = rootBg; const chain = [];
-    for (let n = el; n; n = n.parentElement) chain.push(n);
-    chain.reverse();
-    for (const n of chain) {
-      const own = layerOf(n, null);
-      for (const l of own.layers) bg = blend(l, bg);
-      if (n !== el) { const after = layerOf(n, "::after"); if (after) for (const l of after.layers) bg = blend({ ...l, a: l.a * after.op }, bg); }
+  const parse = (c) => { const m = c.match(/rgba?\\(([^)]+)\\)/); if (!m) return null; const parts = m[1].split(/[\\s,\\/]+/).filter(Boolean).map(Number); const [r,g,b,a=1] = parts; return {r,g,b,a}; };
+  const lum = ({r,g,b}) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126*f(r)+0.7152*f(g)+0.0722*f(b); };
+  const blend = (fg,bg) => ({r:fg.r*fg.a+bg.r*(1-fg.a),g:fg.g*fg.a+bg.g*(1-fg.a),b:fg.b*fg.a+bg.b*(1-fg.a),a:1});
+  const ratioOf = (a,b) => { const x=lum(a),y=lum(b); return (Math.max(x,y)+0.05)/(Math.min(x,y)+0.05); };
+  const hex = c => '#'+[c.r,c.g,c.b].map(v=>Math.round(v).toString(16).padStart(2,'0')).join('');
+  const rootBg = parse(getComputedStyle(document.documentElement).backgroundColor) || {r:6,g:6,b:7,a:1};
+  const layerOf = (n,pseudo) => {
+    const cs=getComputedStyle(n,pseudo);
+    if(pseudo && (cs.content==='none'||cs.content==='normal'||cs.position!=='absolute'))return null;
+    const layers=[];
+    const bi=cs.backgroundImage;
+    if(bi && bi!=='none') {
+      const stops=[...bi.matchAll(/rgba?\\([^)]+\\)/g)].map(m=>parse(m[0])).filter(Boolean);
+      if(stops.length){const avg=stops.reduce((a,c)=>({r:a.r+c.r*c.a/stops.length,g:a.g+c.g*c.a/stops.length,b:a.b+c.b*c.a/stops.length}),{r:0,g:0,b:0});const cover=stops.reduce((a,c)=>a+c.a,0)/stops.length;layers.push({...avg,a:cover});}
     }
+    const c=parse(cs.backgroundColor);if(c&&c.a>0)layers.push(c);
+    return {layers,op:Number(cs.opacity)};
+  };
+  const effBg = el => {
+    let bg=rootBg;const chain=[];for(let n=el;n;n=n.parentElement)chain.push(n);chain.reverse();
+    for(const n of chain){const own=layerOf(n,null);for(const l of own.layers)bg=blend(l,bg);if(n!==el){const after=layerOf(n,'::after');if(after)for(const l of after.layers)bg=blend({...l,a:l.a*after.op},bg);}}
     return bg;
   };
-  const visible = (el) => { const r = el.getBoundingClientRect(); if (r.width === 0 || r.height === 0) return false; const cs = getComputedStyle(el); if (cs.visibility === "hidden" || cs.display === "none" || Number(cs.opacity) === 0) return false; return true; };
-  const opacityOf = (el) => { let op = 1; for (let n = el; n; n = n.parentElement) op *= Number(getComputedStyle(n).opacity); return op; };
-  // A handful of selectors sit on backgrounds this DOM-only probe cannot
-  // measure correctly, documented the same way light-theme.md's own audit
-  // documented them ("gradient backgrounds are averaged, so a handful of
-  // rows are artefacts and are excluded"):
-  //   - .dock-pill / .mobile-nav.is-arc buttons paint their track as an SVG
-  //     sibling, not a CSS background, so effBg falls through to the page
-  //     behind it instead of the real (dark) keycap track under the label;
-  //   - .variant-visual/.gentle-win-card sit on multi-stop gradients this
-  //     probe averages unweighted, ignoring stop position and angle, which
-  //     over- or under-estimates how light/dark the rendered surface is;
-  //   - .goal-ring's conic-gradient centre is covered by an inset box-shadow
-  //     "hole" the probe does not model, so it scores the ring's track
-  //     color instead of the panel color the text actually sits on;
-  //   - .other-instruments layers a mix-blend-mode (multiply/screen)
-  //     pattern via ::before, which this probe (normal alpha blending only)
-  //     estimates far darker than the browser actually renders it.
-  const ARTEFACT_SELECTORS = [".dock-pill button", ".mobile-nav.is-arc button", ".variant-visual", ".gentle-win-card", ".goal-ring", ".other-instruments-heading"];
-  const isExempt = (el) => {
-    for (let n = el; n; n = n.parentElement) {
-      if (n.classList && n.classList.contains("skip-to-content")) return true;
-      if (n.disabled === true) return true;
-      if (n.getAttribute && n.getAttribute("aria-disabled") === "true") return true;
-      for (const s of ARTEFACT_SELECTORS) if (n.matches && n.matches(s)) return true;
-    }
-    return false;
-  };
-  const sel = (el) => { const parts = []; for (let n = el, i = 0; n && n !== document.body && i < 3; n = n.parentElement, i++) { const cls = (typeof n.className === "string" ? n.className : "").trim().split(/\\s+/).filter(Boolean).slice(0, 2).join("."); parts.unshift(n.tagName.toLowerCase() + (cls ? "." + cls : "")); } return parts.join(" > "); };
-  return { parse, lum, blend, ratioOf, hex, effBg, visible, opacityOf, isExempt, sel };
+  const visible=el=>{const r=el.getBoundingClientRect();if(!r.width||!r.height)return false;const cs=getComputedStyle(el);return cs.visibility!=='hidden'&&cs.display!=='none'&&Number(cs.opacity)!==0;};
+  const opacityOf=el=>{let op=1;for(let n=el;n;n=n.parentElement)op*=Number(getComputedStyle(n).opacity);return op;};
+  // Existing documented exclusions: SVG-painted nav tracks, positioned gradients,
+  // the shadow-filled goal ring and blend-mode artwork need screenshot/manual QA.
+  const artefacts=['.dock-pill button','.mobile-nav.is-arc button','.variant-visual','.gentle-win-card','.goal-ring','.other-instruments-heading'];
+  const isExempt=el=>{for(let n=el;n;n=n.parentElement){if(n.classList?.contains('skip-to-content')||n.disabled===true||n.getAttribute?.('aria-disabled')==='true')return true;for(const s of artefacts)if(n.matches?.(s))return true;}return false;};
+  const sel=el=>{const parts=[];for(let n=el,i=0;n&&n!==document.body&&i<3;n=n.parentElement,i++){const cls=(typeof n.className==='string'?n.className:'').trim().split(/\\s+/).filter(Boolean).slice(0,2).join('.');parts.unshift(n.tagName.toLowerCase()+(cls?'.'+cls:''));}return parts.join(' > ');};
+  return {parse,lum,blend,ratioOf,hex,effBg,visible,opacityOf,isExempt,sel};
 })()`;
 
-const textAudit = (page, scope) => page.evaluate(({ helpers, scope }) => {
-  const H = eval(helpers);
-  const root = scope ? document.querySelector(scope) : document.body; if (!root) return { error: "no scope " + scope };
-  const out = []; const seen = new Set();
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-  while (walker.nextNode()) {
-    const t = walker.currentNode; const text = t.textContent.trim(); if (text.length < 2) continue;
-    const el = t.parentElement; if (!el || seen.has(el)) continue; seen.add(el);
-    if (!H.visible(el)) continue;
-    if (H.isExempt(el)) continue;
-    const cs = getComputedStyle(el);
-    const fg = H.parse(cs.color); if (!fg) continue;
-    const bg = H.effBg(el);
-    const fgb = H.blend({ ...fg, a: fg.a * H.opacityOf(el) }, bg);
-    const ratio = H.ratioOf(fgb, bg);
-    const px = parseFloat(cs.fontSize); const bold = Number(cs.fontWeight) >= 700;
-    const large = px >= 24 || (px >= 18.66 && bold);
-    const threshold = large ? 3 : 4.5;
-    if (ratio < threshold) out.push({ ratio: +ratio.toFixed(2), threshold, px, text: text.slice(0, 34), sel: H.sel(el), fg: H.hex(fgb), bg: H.hex(bg) });
+const textAudit=(page,scope)=>page.evaluate(({helpers,scope})=>{
+  const H=eval(helpers);
+  const root=scope?document.querySelector(scope):document.body;
+  if(!root)return {error:'no scope '+scope};
+  const out=[],seen=new Set();
+  const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
+  while(walker.nextNode()){
+    const t=walker.currentNode,text=t.textContent.trim();if(text.length<2)continue;
+    const el=t.parentElement;if(!el||seen.has(el))continue;seen.add(el);
+    if(!H.visible(el)||H.isExempt(el))continue;
+    const cs=getComputedStyle(el),fg=H.parse(cs.color);if(!fg)continue;
+    const bg=H.effBg(el),fgb=H.blend({...fg,a:fg.a*H.opacityOf(el)},bg),ratio=H.ratioOf(fgb,bg);
+    const px=parseFloat(cs.fontSize),large=px>=24||(px>=18.66&&Number(cs.fontWeight)>=700),threshold=large?3:4.5;
+    if(ratio<threshold)out.push({ratio:+ratio.toFixed(2),threshold,px,text:text.slice(0,34),sel:H.sel(el),fg:H.hex(fgb),bg:H.hex(bg)});
   }
-  return out.sort((a, b) => a.ratio - b.ratio);
-}, { helpers: AUDIT_FN, scope });
+  return out.sort((a,b)=>a.ratio-b.ratio);
+},{helpers:AUDIT_FN,scope});
 
-async function walkStates(page, theme, results) {
-  const record = async (state, scope) => {
-    const text = await textAudit(page, scope);
-    results.push({ theme, state, text: Array.isArray(text) ? text : [] });
-    if (Array.isArray(text) && text.length) {
-      console.log(`  [${theme}] ${state}: ${text.length} failure(s)`);
-      for (const f of text.slice(0, 12)) console.log(`      ${f.sel} "${f.text}" ${f.ratio}:1 (need ${f.threshold}) ${f.fg} on ${f.bg}`);
-    }
+async function walkStates(page,theme,instrument,results){
+  const record=async(state,scope)=>{
+    const text=await textAudit(page,scope);
+    assert.ok(Array.isArray(text),`${instrument}/${state}: missing required scope ${scope}`);
+    results.push({theme,instrument,state,text});
+    if(text.length){console.log(`${theme}/${instrument}/${state}: ${text.length} contrast failures`);for(const f of text)console.log(`  ${f.sel} "${f.text}" ${f.ratio}:1, need ${f.threshold}, ${f.fg} on ${f.bg}`);}
   };
-  await page.evaluate(() => document.querySelectorAll(".experience-overlay,.onboarding-overlay").forEach((n) => n.remove()));
-
-  await page.keyboard.press("1"); await page.waitForTimeout(500);
-  await record("tune");
-  await page.click(".calibration-toggle").catch(() => {});
-  await page.waitForTimeout(250);
-  await record("tune/calibration-open", ".calibration-picker");
-  await page.click(".calibration-toggle").catch(() => {});
-  await page.waitForTimeout(150);
-
-  await page.click(".instrument-picker").catch(() => {}); await page.waitForTimeout(400);
-  await record("instrument-picker-overlay", ".experience-overlay");
-  await page.keyboard.press("Escape"); await page.waitForTimeout(250);
-
-  await page.click('button[aria-label="Open settings and handoff"]').catch(() => {}); await page.waitForTimeout(400);
-  await record("overflow-menu", ".download-overlay");
-  await page.click(".download-dialog > header > button").catch(() => {}); await page.waitForTimeout(200);
-
-  await page.keyboard.press("4"); await page.waitForTimeout(500);
-  await record("analyze");
-  await page.click(".analysis-tabs button:has-text('Harmonics')").catch(() => {}); await page.waitForTimeout(250);
-  await record("analyze/harmonics-idle", ".analysis-card");
-
-  await page.keyboard.press("3"); await page.waitForTimeout(500);
-  await record("pulse");
-
-  await page.keyboard.press("2"); await page.waitForTimeout(700);
-  await record("lab/learn");
-  await page.click(".lab-mode-switch button:has-text('Challenge')").catch(() => {}); await page.waitForTimeout(300);
-  await record("lab/challenge", ".fingering-panel");
-  await page.click(".lab-mode-switch button:has-text('Learn')").catch(() => {}); await page.waitForTimeout(200);
-
-  await page.keyboard.press("5"); await page.waitForTimeout(600);
-  await record("practice");
+  const select=async digit=>{
+    const button=page.locator(`.mobile-nav button[aria-keyshortcuts="${digit}"]`);
+    await button.click();
+    await page.waitForFunction(d=>document.querySelector(`.mobile-nav button[aria-keyshortcuts="${d}"]`)?.getAttribute('aria-current')==='page',digit);
+    await page.waitForTimeout(200);
+  };
+  await select(1);await record('tune');
+  const calibration=page.locator('.calibration-toggle');
+  if(await calibration.isVisible()){await calibration.click();await record('tune/calibration-open','.calibration-picker');await calibration.click();}
+  await page.getByRole('button',{name:'Choose instrument',exact:true}).click();
+  await record('instrument-picker-overlay','.experience-overlay');
+  await page.getByRole('button',{name:'Close instrument selection'}).click();
+  await page.getByRole('button',{name:'Open settings and handoff'}).click();
+  await record('overflow-menu','.download-overlay');
+  await page.locator('.download-dialog > header > button').click();
+  await select(4);await page.locator('.analysis-tabs').waitFor();await record('analyze');
+  await page.locator('.analysis-tabs button').filter({hasText:'Harmonics'}).click();await record('analyze/harmonics-idle','.analysis-card');
+  await select(3);await record('pulse');
+  await select(2);await page.waitForTimeout(500);await record('lab/learn');
+  const challenge=page.locator('.lab-mode-switch button').filter({hasText:'Challenge'});
+  if(await challenge.isVisible()){await challenge.click();await record('lab/challenge','.fingering-panel');}
+  await select(5);await record('practice');
 }
 
-// Playwright's Chromium build is provided by the harness rather than as a
-// package dependency here; fall back to the "playwright" package (e.g. a
-// CI image that installs it) if the sandbox path is not present.
-import { launchChromium } from "./browser.mjs";
-
-async function run() {
-  const browser = await launchChromium();
-  const failures = [];
-  const counts = {}; // `${theme}/${instrument}/${state}` -> failure count
-
-  for (const theme of ["light", "dark"]) {
-    console.log(`\n=== ${theme} ===`);
-    for (const instrument of ["alto-sax", "guitar"]) {
-      const ctx = await browser.newContext({ viewport: { width: 412, height: 915 } });
-      const page = await ctx.newPage();
-      await page.addInitScript((t, i) => {
-        localStorage.setItem("bocal-onboarding-v2", "complete");
-        localStorage.setItem("bocal-theme", t);
-        localStorage.setItem("bocal-instrument", i);
-      }, theme, instrument);
-      await page.goto(url);
-      await page.waitForTimeout(900);
-      const results = [];
-      await walkStates(page, theme, results);
-      for (const r of results) {
-        const key = `${theme}/${instrument}/${r.state}`;
-        counts[key] = r.text.length;
-        for (const f of r.text) failures.push({ theme, instrument, state: r.state, ...f });
-      }
-      await ctx.close();
-    }
+const preview=await servePreview(DIST);
+const browser=await launchChromium();
+const failures=[],counts={};
+try {
+  for(const theme of ['light','dark'])for(const instrument of ['alto-sax','guitar','clarinet','oboe']){
+    const context=await browser.newContext({viewport:{width:412,height:915}});
+    try {
+      const page=await context.newPage();page.setDefaultTimeout(10000);
+      // Playwright accepts ONE argument. The old second positional argument was
+      // ignored, leaving the instrument undefined and testing alto twice.
+      await page.addInitScript(({theme,instrument})=>{
+        localStorage.setItem('bocal-onboarding-v2','complete');localStorage.setItem('bocal-theme',theme);localStorage.setItem('bocal-instrument',instrument);
+      },{theme,instrument});
+      await page.goto(preview.url);await page.locator('.app-shell').waitFor();await page.waitForTimeout(400);
+      assert.equal(await page.locator('.onboarding-overlay').count(),0,'Completed onboarding must stay dismissed');
+      assert.equal(await page.evaluate(()=>document.documentElement.dataset.theme),theme);
+      const results=[];await walkStates(page,theme,instrument,results);
+      for(const result of results){counts[`${theme}/${instrument}/${result.state}`]=result.text.length;for(const item of result.text)failures.push({theme,instrument,state:result.state,...item});}
+    } finally {await context.close();}
   }
-  await browser.close();
-
-  if (process.env.THEME_AUDIT_DUMP) {
-    const { writeFileSync } = await import("node:fs");
-    writeFileSync(process.env.THEME_AUDIT_DUMP, JSON.stringify(counts, null, 2));
-    console.log(`\nwrote counts to ${process.env.THEME_AUDIT_DUMP}`);
-  }
-
-  // Acceptance bar (per WP6): zero light failures (exemptions already
-  // filtered above); dark must not regress past its checked-in baseline
-  // (captured from `main` at 9ac2301, before this pass) -- dark started
-  // this wave with roughly twice light's failure count (per light-theme.md)
-  // and driving it to zero is out of WP6's scope, but making it worse is not.
-  const baselinePath = path.resolve(__dirname, "theme-baseline.json");
-  const baseline = existsSync(baselinePath) ? JSON.parse((await import("node:fs")).readFileSync(baselinePath, "utf8")) : {};
-
-  const lightFailures = failures.filter((f) => f.theme === "light");
-  const regressions = [];
-  for (const [key, count] of Object.entries(counts)) {
-    if (!key.startsWith("dark/")) continue;
-    const before = baseline[key];
-    if (before !== undefined && count > before) regressions.push({ key, before, after: count });
-  }
-
-  console.log(`\ntheme audit: ${lightFailures.length} light failure(s) (must be 0), ${regressions.length} dark regression(s) vs baseline (must be 0).`);
-  if (lightFailures.length > 0 || regressions.length > 0) {
-    if (regressions.length) console.error("Dark regressions:", regressions);
-    console.error("FAIL: light must be zero and dark must not regress (see log above).");
-    process.exitCode = 1;
-  } else {
-    console.log("PASS: zero light-theme text-contrast failures; dark did not regress (skip-to-content and disabled controls exempt in both).");
-  }
+} finally {
+  await browser.close();await preview.close();
+  writeFileSync(path.join(reportDir,'contrast.json'),JSON.stringify({counts,failures,scope:'DOM text contrast in recorded states, not full accessibility certification',exemptions:'Disabled controls, skip link and documented SVG/gradient artefacts in AUDIT_FN'},null,2));
 }
-
-await run();
+if(process.env.THEME_AUDIT_DUMP)writeFileSync(process.env.THEME_AUDIT_DUMP,JSON.stringify(counts,null,2));
+console.log(`Contrast: ${Object.keys(counts).length} states, ${failures.length} failures across both themes.`);
+assert.equal(failures.length,0,'Both light AND dark text contrast must pass. See qa/reports/contrast.json.');

@@ -5,6 +5,7 @@ import Home from "../app/page";
 import { RuntimeSafety } from "../app/RuntimeSafety";
 import "../app/globals.css";
 import "./preview-fonts.css";
+import "../app/styles/contrast.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode><RuntimeSafety><Home /></RuntimeSafety></StrictMode>,

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { RuntimeSafety } from "./RuntimeSafety";
 import "./globals.css";
+import "./styles/contrast.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
@@ -19,7 +20,7 @@ const themeBootstrap = `(() => {
 })();`;
 
 export const metadata: Metadata = {
-  title: "Bocal \u2014 The clearer way to practise",
+  title: "Bocal — The clearer way to practise",
   description: "A private, instrument-first practice studio for woodwind players, with a cinematic path into other instrument families.",
   icons: { icon: "/favicon.svg", shortcut: "/favicon.svg" },
 };
