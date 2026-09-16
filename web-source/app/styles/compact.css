@@ -1,0 +1,11 @@
+/* Compact phones retain full labels and 44px system-action hit targets. */
+@media (max-width: 400px) {
+  .top-bar { padding-inline: 8px; gap: 6px; }
+  .instrument-picker-wrap { min-width: 0; }
+  .instrument-picker { max-width: 100%; gap: 5px; }
+  .instrument-picker span:nth-child(2) { min-width: 0; overflow-wrap: anywhere; }
+  .instrument-picker > svg { flex-shrink: 0; }
+  .top-actions { gap: 6px; flex-shrink: 0; }
+  .top-actions .button.secondary { padding-inline: 10px; white-space: nowrap; }
+  .top-actions .icon-button { flex: 0 0 44px; }
+}

@@ -6,6 +6,7 @@ import { RuntimeSafety } from "../app/RuntimeSafety";
 import "../app/globals.css";
 import "./preview-fonts.css";
 import "../app/styles/contrast.css";
+import "../app/styles/compact.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode><RuntimeSafety><Home /></RuntimeSafety></StrictMode>,

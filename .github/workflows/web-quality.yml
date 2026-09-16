@@ -33,6 +33,7 @@ jobs:
           node tests/theme.test.mjs
           npm run test:e2e
           node tests/production-smoke.mjs
+          node tests/reliability-e2e.mjs
       - name: Verify packaging checker and standalone payload
         working-directory: .
         run: |
