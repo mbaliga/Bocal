@@ -4,6 +4,7 @@ import { ArrowRight, ChevronLeft, ChevronRight, Info, Lightbulb, ShieldQuestion 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import "./styles/fingering-chart.css";
 import StaffNote from "./StaffNote";
+import { centerNoteInStrip } from "./horizontal-scroll";
 import type { InstrumentProfile } from "./instruments";
 import { fullNoteLabel, type NotationSystem } from "./notation";
 import type { ChartKey, Fingering, FingeringChart as FingeringChartData } from "./fingering-charts";
@@ -86,7 +87,8 @@ export function FingeringChart({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const activeNoteRef = useRef<HTMLButtonElement | null>(null);
 
-  const selected = chart.fingerings[Math.min(selectedIndex, chart.fingerings.length - 1)];
+  const activeIndex = Math.min(selectedIndex, chart.fingerings.length - 1);
+  const selected = chart.fingerings[activeIndex];
   const choices = useMemo(() => choicesFor(selected), [selected]);
   const choice = choices[Math.min(choiceIndex, choices.length - 1)];
   const activeKeys = useMemo(() => new Set(choice.keys), [choice]);
@@ -109,18 +111,17 @@ export function FingeringChart({
       if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
       event.preventDefault();
       event.stopPropagation();
-      chooseNote(selectedIndex + (event.key === "ArrowRight" ? 1 : -1));
+      chooseNote(activeIndex + (event.key === "ArrowRight" ? 1 : -1));
     };
     node.addEventListener("keydown", onKey);
     return () => node.removeEventListener("keydown", onKey);
-  }, [chooseNote, selectedIndex]);
+  }, [chooseNote, activeIndex]);
 
-  // Scroll the active note into view whenever selection changes -- the
-  // note browser used to open on an arbitrary middle note with no way to
-  // tell, without scrolling manually, that it wasn't at either end.
+  // Center only the horizontal note strip. scrollIntoView also scrolled the
+  // entire page past the oboe model when this below-model chart mounted.
   useEffect(() => {
-    activeNoteRef.current?.scrollIntoView({ inline: "center", block: "nearest" });
-  }, [selectedIndex]);
+    centerNoteInStrip(activeNoteRef.current);
+  }, [activeIndex, chart]);
 
   const concertMidi = selected.writtenMidi - instrument.writtenOffset;
   const writtenLabel = fullNoteLabel(selected.writtenMidi, notation, tonic);
@@ -139,13 +140,14 @@ export function FingeringChart({
       )}
 
       <div className="note-browser" aria-label="Written note selector">
-        <button className="note-arrow" aria-label="Previous note" onClick={() => chooseNote(selectedIndex - 1)}><ChevronLeft size={18} /></button>
+        <button className="note-arrow" aria-label="Previous note" onClick={() => chooseNote(activeIndex - 1)}><ChevronLeft size={18} /></button>
         <div className="note-scroll">
           {chart.fingerings.map((fingering, index) => (
             <button
               key={fingering.id}
-              ref={index === selectedIndex ? activeNoteRef : undefined}
-              className={index === selectedIndex ? "is-active" : ""}
+              ref={index === activeIndex ? activeNoteRef : undefined}
+              className={index === activeIndex ? "is-active" : ""}
+              aria-pressed={index === activeIndex}
               onClick={() => chooseNote(index)}
               aria-label={fullNoteLabel(fingering.writtenMidi, notation, tonic)}
             >
@@ -153,7 +155,7 @@ export function FingeringChart({
             </button>
           ))}
         </div>
-        <button className="note-arrow" aria-label="Next note" onClick={() => chooseNote(selectedIndex + 1)}><ChevronRight size={18} /></button>
+        <button className="note-arrow" aria-label="Next note" onClick={() => chooseNote(activeIndex + 1)}><ChevronRight size={18} /></button>
       </div>
 
       <div className="chart-workspace">
