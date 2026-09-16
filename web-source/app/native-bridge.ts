@@ -1,11 +1,7 @@
-/**
- * The Android shell (android/.../BocalHost) exposes a small object on
- * `window.bocalHost`. In a plain browser it is absent, so every method is
- * optional and callers must use `window.bocalHost?.method?.(...)`.
- * This is the single declaration; do not redeclare it elsewhere.
+/** Optional Android bridge. saveFile returns acceptance, not disk-write completion.
+ * The native system picker reports completion/cancellation after the user's choice.
  */
 export {};
-
 declare global {
   interface Window {
     bocalHost?: {
