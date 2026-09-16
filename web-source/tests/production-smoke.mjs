@@ -16,7 +16,7 @@ const server = createServer((request, response) => {
   else if (request.url === "/favicon.ico") { response.writeHead(204); response.end(); }
   else { response.writeHead(404); response.end(); }
 });
-await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+await new Promise((resolve, reject) => { server.once("error", reject); server.listen(0, "127.0.0.1", resolve); });
 const url = `http://127.0.0.1:${server.address().port}/`;
 const browser = await launchChromium({ args: ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream"] });
 const results = [];
@@ -36,6 +36,10 @@ function wavFixture() {
 async function newPage(instrument = "alto-sax", theme = "light", viewport = { width: 412, height: 915 }) {
   const context = await browser.newContext({ viewport, permissions: ["microphone"], acceptDownloads: true });
   const page = await context.newPage();
+  // Bare Playwright waitForFunction has no deadline by default. A broken
+  // workspace must fail with evidence rather than consume the whole CI job.
+  page.setDefaultTimeout(10000);
+  page.setDefaultNavigationTimeout(30000);
   const errors = [];
   page.on("pageerror", (error) => errors.push(String(error)));
   await page.addInitScript(({ instrument, theme }) => {
@@ -51,12 +55,17 @@ async function newPage(instrument = "alto-sax", theme = "light", viewport = { wi
     };
   }, { instrument, theme });
   await page.goto(url);
-  await page.locator(".mobile-nav button").first().waitFor({ state: "attached" });
+  await page.locator(".mobile-nav button").first().waitFor({ state: "visible" });
   return { context, page, errors };
 }
+async function selectWorkspace(page, index) {
+  // Real visible hit targets: keyboard shortcuts could hide overlapping tabs
+  // and can race their useEffect listener during initial mount.
+  await page.locator(".mobile-nav button").nth(index).click();
+  await page.waitForFunction((index) => document.querySelectorAll(".mobile-nav button")[index]?.getAttribute("aria-current") === "page", index);
+}
 async function analyze(page) {
-  await page.locator("body").click({ position: { x: 2, y: 2 } });
-  await page.keyboard.press("4");
+  await selectWorkspace(page, 3);
   await page.locator(".analysis-layout").waitFor();
   await page.waitForFunction(() => !document.body.textContent.includes("Restoring saved recordings..."));
 }
@@ -64,6 +73,7 @@ async function stored(page) {
   return page.evaluate(() => new Promise((resolve, reject) => {
     const request = indexedDB.open("bocal-analysis-takes", 1);
     request.onerror = () => reject(request.error?.message);
+    request.onblocked = () => reject(new Error("Test recording database is blocked"));
     request.onsuccess = () => {
       const db = request.result;
       const tx = db.transaction("takes", "readonly");
@@ -175,20 +185,22 @@ try {
     const { context, page, errors } = await newPage(profile.instrument, profile.theme, profile.viewport);
     try {
       for (let index = 0; index < 5; index++) {
-        await page.keyboard.press(String(index + 1));
-        await page.waitForFunction((index) => document.querySelectorAll(".mobile-nav button")[index]?.getAttribute("aria-current") === "page", index);
+        await selectWorkspace(page, index);
         await page.waitForTimeout(350);
+        await page.screenshot({ path: path.join(reportDir, `${profile.name}-${index + 1}.png`) });
         assert.ok((await page.locator("main").innerText()).trim().length > 80, "workspace is blank");
         const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
         assert.ok(overflow <= 1, `${profile.name} workspace ${index + 1}: overflow ${overflow}px`);
-        await page.screenshot({ path: path.join(reportDir, `${profile.name}-${index + 1}.png`) });
       }
       assert.deepEqual(errors, []);
+    } catch (error) {
+      await page.screenshot({ path: path.join(reportDir, `${profile.name}-failure.png`) }).catch(() => {});
+      throw error;
     } finally { await context.close(); }
   });
 } finally {
   writeFileSync(path.join(reportDir, "production-smoke.json"), JSON.stringify({ sourceSha: process.env.GITHUB_SHA ?? null, physicalDevice: false, audioSource: "Chromium fake capture device", results }, null, 2));
   await browser.close();
-  await new Promise((resolve) => server.close(resolve));
+  await new Promise((resolve) => { server.close(resolve); server.closeAllConnections(); });
 }
 if (results.some((result) => result.status !== "passed")) process.exitCode = 1;
