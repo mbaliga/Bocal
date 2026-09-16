@@ -179,21 +179,20 @@ try {
   await check("settings and keyboard dialogs close with Escape", async () => {
     const { context, page, errors } = await newPage();
     try {
-      // Use the compact dock's actual visible settings target. There are
-      // intentionally separate settings entry points for desktop rail and
-      // compact dock; a generic accessible-name locator can resolve to the
-      // wrong responsive copy as layout styles settle in headless Chromium.
-      await page.locator('.dock-side-button[aria-label="Open Bocal settings"]').click();
+      const compactSettingsButton = page.locator('.dock-side-button[aria-label="Open Bocal settings"]');
+      await compactSettingsButton.click();
       const settingsDialog = page.locator('.download-dialog[role="dialog"]:has(#download-title)');
       await settingsDialog.waitFor({ state: "visible" });
       assert.equal(await settingsDialog.getAttribute("aria-modal"), "true");
       await page.keyboard.press("Escape");
       await settingsDialog.waitFor({ state: "detached" });
 
-      // Dispatch the exact key value consumed by the application rather than
-      // relying on host keyboard-layout translation for Shift+/. This still
-      // exercises the production keydown handler and its modal state.
-      await page.evaluate(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "?", bubbles: true })));
+      // Open Keyboard Help through the same visible Settings UI a player can
+      // use. This tests both dialog transitions without manufacturing two key
+      // events inside one React effect turn, which no physical keyboard can do.
+      await compactSettingsButton.click();
+      await settingsDialog.waitFor({ state: "visible" });
+      await settingsDialog.getByRole("button", { name: "View shortcuts", exact: true }).click();
       const keyboardDialog = page.locator('.download-dialog[role="dialog"]:has(#keyboard-help-title)');
       await keyboardDialog.waitFor({ state: "visible" });
       assert.match(await keyboardDialog.innerText(), /Keyboard shortcuts/);
