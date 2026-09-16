@@ -27,12 +27,16 @@ jobs:
       - name: Verify built hosted output without rebuilding it
         run: node --test tests/*.dist-test.mjs
       - run: npm run preview:standalone
-      - name: Require real contrast and browser smoke checks
+      - name: Require contrast, navigation, recording and audio-race acceptance
         run: |
           test -s preview-dist/index.html
-          node tests/theme.test.mjs
-          npm run test:e2e
-          node tests/production-smoke.mjs
+          # Collect each independent result; one failure must not hide others.
+          status=0
+          node tests/theme.test.mjs || status=1
+          npm run test:e2e || status=1
+          node tests/production-smoke.mjs || status=1
+          node tests/reliability-e2e.mjs || status=1
+          exit "$status"
       - name: Verify packaging checker and standalone payload
         working-directory: .
         run: |
