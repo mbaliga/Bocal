@@ -15,4 +15,4 @@ adb logcat -c
 adb shell am instrument -w -r com.bocal.music.test/androidx.test.runner.AndroidJUnitRunner | tee qa/reports/android/instrumentation.txt
 grep -Eq '^OK \([0-9]+ tests?\)' qa/reports/android/instrumentation.txt
 if grep -Eq 'FAILURES!!!|INSTRUMENTATION_FAILED|Process crashed' qa/reports/android/instrumentation.txt; then exit 1; fi
-printf 'source_sha=%s\napi=35\nphysical_device=false\nrelease_signing=false\n' "${GITHUB_SHA:-local}" > qa/reports/android/BUILD.txt
+printf 'source_sha=%s\napi=%s\nphysical_device=false\nrelease_signing=false\n' "${GITHUB_SHA:-local}" "${BOCAL_EMULATOR_API:-unknown}" > qa/reports/android/BUILD.txt

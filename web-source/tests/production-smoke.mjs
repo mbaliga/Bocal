@@ -176,6 +176,21 @@ try {
       assert.deepEqual(errors, []);
     } finally { await context.close(); }
   });
+  await check("settings and keyboard dialogs close with Escape", async () => {
+    const { context, page, errors } = await newPage();
+    try {
+      await page.getByRole("button", { name: "Open Bocal settings", exact: true }).click();
+      await page.getByRole("dialog").waitFor();
+      await page.keyboard.press("Escape");
+      await page.getByRole("dialog").waitFor({ state: "detached" });
+      await page.keyboard.press("Shift+/");
+      await page.getByRole("dialog").waitFor();
+      assert.match(await page.getByRole("dialog").innerText(), /Keyboard shortcuts/);
+      await page.keyboard.press("Escape");
+      await page.getByRole("dialog").waitFor({ state: "detached" });
+      assert.deepEqual(errors, []);
+    } finally { await context.close(); }
+  });
   const profiles = [
     { name: "compact-light", instrument: "alto-sax", theme: "light", viewport: { width: 360, height: 740 } },
     { name: "landscape-dark", instrument: "oboe", theme: "dark", viewport: { width: 915, height: 412 } },

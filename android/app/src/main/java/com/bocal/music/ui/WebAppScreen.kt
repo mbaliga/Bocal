@@ -11,6 +11,7 @@ import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebSettings
 import android.webkit.WebView
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -85,6 +86,24 @@ fun WebAppScreen() {
         val callback = pendingFileCallback
         pendingFileCallback = null
         callback?.onReceiveValue(if (uri != null) arrayOf(uri) else null)
+    }
+    BackHandler {
+        val webView = webViewRef
+        if (webView == null) {
+            activity.finish()
+        } else {
+            webView.evaluateJavascript(
+                """
+                (() => {
+                  const hadOverlay = Boolean(document.querySelector('.experience-overlay, .onboarding-overlay, .download-overlay'));
+                  if (hadOverlay) window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+                  return hadOverlay;
+                })()
+                """.trimIndent(),
+            ) { handled ->
+                if (handled != "true") activity.runOnUiThread { activity.finish() }
+            }
+        }
     }
     val loader = remember {
         WebViewAssetLoader.Builder().addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(context)).build()

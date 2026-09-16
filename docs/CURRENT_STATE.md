@@ -4,7 +4,7 @@ Updated 17 September 2026 for PR #9, `feat/production-v1-hardening`.
 
 ## Release decision
 
-Bocal is a hardened **v0.6.0 release candidate**, not an accepted production V1. Android `versionCode` remains 7. A passing build or emulator run does not establish real microphone accuracy, musical correctness, production signing, or store acceptance. The current PR's Actions run is the evidence for its exact commit; do not substitute an older green run.
+Bocal is a hardened **v1.0.0 release candidate**, not yet an accepted/published production V1. Android `versionCode` is 8. A passing build or emulator run does not establish real microphone accuracy, musical correctness, production signing, or store acceptance. The current PR's Actions run is the evidence for its exact commit; do not substitute an older green run.
 
 ## Canonical source
 
@@ -40,15 +40,15 @@ The distinctive mobile arc and configurable landscape edge remain in the shared 
 - Imports are bounded to 32 MiB; recordings stop at 10 minutes or their size limit. Stop/background/unmount cancels stale microphone requests and preserves received recording data where the browser can finish it.
 - Android uses a system Save As picker, bounded bridge transfer, background writes and cancellation/failure feedback. There is no silent blob-download fallback inside Android.
 - Trusted-origin microphone and navigation checks, explicit callback cleanup, and a shared app error boundary.
-- Debug and release workflows share mandatory typecheck, tests, lint, builds, browser/contrast checks, and high/critical dependency gating.
+- Debug and release workflows share mandatory typecheck, tests, lint, builds, browser/contrast checks, and zero-finding dependency gating.
 - APK/AAB verification checks ZIP integrity, embedded models and byte-for-byte identity with the tested standalone application.
 - Signed candidate builds require all signing inputs, verify signatures and checksums, and do not automatically publish or claim device acceptance.
 
 ## Security snapshot
 
-The 17 September lockfile refresh reduced the observed npm audit from 24 vulnerable packages (1 critical, 16 high, 6 moderate, 1 low) to **0 critical, 0 high, 4 moderate, 0 low**. The four remaining entries are the Drizzle Kit / esbuild-kit / esbuild development-tool chain. No forced downgrade was applied. Do not expose development servers; the remaining tooling advisories need continued maintenance. A fresh audit is mandatory for each candidate.
+The V1 candidate removes the unused Drizzle/D1 template layer that was the only remaining npm audit advisory chain. The release gate now rejects **any** registry-reported low, moderate, high or critical dependency finding instead of accepting moderate development-tool findings. A fresh audit remains mandatory for each candidate.
 
-Next, React/RSC, Vite, Vinext and Cloudflare tooling were updated with registry-confirmed versions and a regenerated lockfile. The temporary branch-writing maintenance workflow was removed after use.
+React/RSC, Vite, Vinext and Cloudflare tooling remain on the registry-confirmed versions introduced by the hardening pass.
 
 ## Still not proven
 

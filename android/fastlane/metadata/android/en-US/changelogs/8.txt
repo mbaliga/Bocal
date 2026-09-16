@@ -1,0 +1,1 @@
+Bocal 1.0 hardens the local-first practice studio: safer persistent recordings and Save As export, stronger tuner/audio lifecycle handling, improved compact/tablet/landscape navigation, light/dark accessibility fixes, clearer instrument scope and model credits, and stricter Android, browser and dependency release gates.

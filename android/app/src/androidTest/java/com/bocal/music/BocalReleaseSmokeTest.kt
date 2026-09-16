@@ -7,6 +7,7 @@ import android.view.ViewGroup
 import android.webkit.WebSettings
 import android.webkit.WebView
 import androidx.core.content.ContextCompat
+import androidx.test.espresso.Espresso.pressBack
 import androidx.test.ext.junit.rules.ActivityScenarioRule
 import com.bocal.music.ui.BocalFileSaver
 import java.util.concurrent.CountDownLatch
@@ -98,6 +99,15 @@ class BocalReleaseSmokeTest {
         ready()
         awaitTrue("localStorage.getItem('bocal-release-smoke-sentinel') === 'survives'")
         requireJavascriptTrue("localStorage.removeItem('bocal-release-smoke-sentinel'); true")
+    }
+
+    @Test fun systemBackClosesSettingsBeforeLeavingTheApp() {
+        ready()
+        requireJavascriptTrue("document.querySelector('[aria-label=\"Open Bocal settings\"]').click(); true")
+        awaitTrue("document.querySelector('.download-overlay') !== null")
+        pressBack()
+        awaitTrue("document.querySelector('.download-overlay') === null")
+        awaitTrue("document.querySelectorAll('.mobile-nav button').length === 5")
     }
 
     @Test fun exportNamesAndMimeTypesAreSanitised() {

@@ -2,7 +2,7 @@
 
 Local-first music practice: a stable-note tuner, metronome, tone generation, local recording/analysis, practice evidence and instrument learning.
 
-**Release state: v0.6.0 production-hardening candidate, not an accepted production V1.** Read [current capabilities](docs/CURRENT_STATE.md), [verification evidence](qa/VERIFICATION.md), and the [production acceptance gates](docs/PRODUCTION_V1_ACCEPTANCE.md). A green build does not replace physical audio testing or specialist musical review.
+**Release state: v1.0.0 release candidate, not yet an accepted/published production V1.** Read [current capabilities](docs/CURRENT_STATE.md), [verification evidence](qa/VERIFICATION.md), and the [production acceptance gates](docs/PRODUCTION_V1_ACCEPTANCE.md). A green build does not replace physical audio testing or specialist musical review.
 
 ## One maintained application
 
@@ -72,7 +72,7 @@ The signed-candidate workflow requires the owner-controlled upload keystore conf
 
 ## Production scope and boundaries
 
-Recording storage failures are visible; request success is not treated as a committed transaction. Imports/capture are bounded, old recordings are not silently evicted, deletes are confirmed, and Android exports use a system Save As picker. The shared quality gate rejects high/critical dependency findings and retains test/security evidence.
+Recording storage failures are visible; request success is not treated as a committed transaction. Imports/capture are bounded, old recordings are not silently evicted, deletes are confirmed, and Android exports use a system Save As picker. The shared quality gate rejects any registry-reported dependency finding and retains test/security evidence.
 
 Physical-device audio/routing/rotation/accessibility/performance, real signed-release installation, final visual approval and specialist fingering validation remain explicit acceptance gates. No TonalEnergy superiority or full 3D parity across every instrument is claimed.
 

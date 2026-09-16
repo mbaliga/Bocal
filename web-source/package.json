@@ -1,6 +1,6 @@
 {
   "name": "bocal-music",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "engines": {
     "node": ">=22.13.0"
@@ -18,11 +18,9 @@
     "test:theme": "npm run preview:standalone && node tests/theme.test.mjs",
     "validate:artifact": "bash scripts/validate-artifact.sh",
     "lint": "bash scripts/sites-env.sh -- eslint . --ignore-pattern dist --ignore-pattern .next --ignore-pattern preview-dist",
-    "db:generate": "bash scripts/sites-env.sh -- drizzle-kit generate",
     "preview:standalone": "node scripts/sync-handoff.mjs && vite build --config vite.preview.config.ts && node scripts/inline-preview-assets.mjs"
   },
   "dependencies": {
-    "drizzle-orm": "0.45.2",
     "lucide-react": "^0.468.0",
     "next": "16.3.5",
     "react": "19.2.8",
@@ -38,7 +36,6 @@
     "@types/three": "^0.180.0",
     "@vitejs/plugin-react": "6.0.2",
     "@vitejs/plugin-rsc": "0.5.35",
-    "drizzle-kit": "0.31.10",
     "eslint": "9.39.4",
     "eslint-config-next": "16.3.5",
     "eslint-plugin-unused-imports": "^4.1.4",

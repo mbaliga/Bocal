@@ -10,10 +10,10 @@ Record the source SHA, Actions run, APK/AAB SHA-256, versionCode/versionName, si
 
 - [ ] Latest candidate passes shared web quality (typecheck, unit tests, lint, hosted and standalone builds).
 - [ ] Explicit contrast and original E2E checks pass; production smoke report confirms real IndexedDB import/rename/reload/download/delete, capacity protection, fake-device capture cleanup and compact/landscape/tablet layouts.
-- [ ] Fresh dependency audit has no high or critical findings; remaining moderate development-tool findings are reviewed and recorded.
+- [ ] Fresh dependency audit reports zero low, moderate, high or critical findings.
 - [ ] Android debug, instrumentation APK and minified release variant compile; debug/release lint passes.
 - [ ] Packaged application is byte-identical to the tested standalone bundle and contains both licensed instrument models.
-- [ ] Android emulator installation/runtime tests pass, with logs retained. Emulator results remain distinct from physical-device acceptance.
+- [ ] Android API 26 and API 35 emulator installation/runtime tests pass, with logs retained. Emulator results remain distinct from physical-device acceptance.
 
 ## Physical device gates
 

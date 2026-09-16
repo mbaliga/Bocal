@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** Record registry audit evidence. --enforce rejects any high/critical finding.
+/** Record registry audit evidence. --enforce rejects any dependency finding.
  * Reporting mode is deliberately not a security acceptance decision. Network or
  * malformed-report errors fail in both modes, never masquerading as zero findings.
  */
@@ -30,8 +30,9 @@ for (const [name, finding] of Object.entries(report.vulnerabilities)) {
   console.log(JSON.stringify({ name, severity: finding.severity, direct: finding.isDirect,
     range: finding.range, fix: finding.fixAvailable, via: finding.via }));
 }
-const { high = 0, critical = 0 } = report.metadata.vulnerabilities;
-if (high + critical > 0) {
-  console.log(`SECURITY REVIEW REQUIRED: ${high} high, ${critical} critical findings. No release approval implied.`);
+const { low = 0, moderate = 0, high = 0, critical = 0 } = report.metadata.vulnerabilities;
+const total = low + moderate + high + critical;
+if (total > 0) {
+  console.log(`SECURITY REVIEW REQUIRED: ${low} low, ${moderate} moderate, ${high} high, ${critical} critical findings. No release approval implied.`);
   if (enforce) process.exit(1);
 }

@@ -22,9 +22,7 @@ defensively as `window.bocalHost?.…`:
   background to the page's light/dark theme.
 - `setKeepAwake(on)` -- toggles `FLAG_KEEP_SCREEN_ON` while the tuner,
   metronome or drone is running.
-- `saveFile(name, mime, base64)` -- writes into `MediaStore` Downloads; the
-  web app falls back to its `<a download>` path when this bridge is absent
-  (i.e. in a regular browser).
+- `saveFile(name, mime, base64)` -- queues Android's permission-free system **Save As** picker. Acceptance only means the picker opened; cancellation/write failures are reported natively and the original take remains in Bocal. In a regular browser, the web app uses its normal download path.
 - `openExternal(url)` -- opens `http(s)` URLs in the system browser (model
   credit links, reference sources).
 
@@ -78,11 +76,7 @@ unsigned) release build:
 | `BOCAL_UPLOAD_KEY_ALIAS` | key alias inside the keystore |
 | `BOCAL_UPLOAD_KEY_PASSWORD` | key password |
 
-Generate an upload keystore once with `keytool` and store it as the base64
-secret above; Play App Signing then holds the real app-signing key, so losing
-the upload key is recoverable. `.github/workflows/release.yml` runs
-`./gradlew bundleRelease` on version tags (`v*`) or manual dispatch, only when
-all four secrets are present, and uploads `app-release.aab`.
+Generate an upload keystore once with `keytool` and store it as the base64 secret above; Play App Signing can then hold the app-signing key. `.github/workflows/release.yml` runs only on version tags (`v*`) or manual dispatch, requires all four signing inputs, builds signed APK/AAB artifacts, verifies their signatures and embedded web payload/checksums, and uploads a **candidate** artifact. It does not publish to a store or claim physical-device acceptance.
 
 `fastlane/Appfile` reads a Play Console service-account key from the
 `SUPPLY_JSON_KEY` environment variable for `fastlane supply`.

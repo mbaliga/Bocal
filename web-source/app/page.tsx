@@ -651,9 +651,10 @@ export default function Home() {
 
   useEffect(() => {
     tunerMountedRef.current = true;
+    const tunerGate = tunerGateRef.current;
     return () => {
       tunerMountedRef.current = false;
-      tunerGateRef.current.cancel();
+      tunerGate.cancel();
       tunerPendingRef.current = false;
       referenceEpochRef.current += 1;
       if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
@@ -959,7 +960,17 @@ export default function Home() {
       return Boolean(el?.closest('[role="radiogroup"], [role="tablist"], .note-browser, .note-scroll'));
     };
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.metaKey || event.ctrlKey || event.altKey || isTyping(event.target)) return;
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      if (event.key === "Escape") {
+        if (keyboardHelpOpen) setKeyboardHelpOpen(false);
+        else if (downloadCenterOpen) setDownloadCenterOpen(false);
+        else if (instrumentPickerOpen) setInstrumentPickerOpen(false);
+        else if (onboardingOpen) setOnboardingOpen(false);
+        else return;
+        event.preventDefault();
+        return;
+      }
+      if (isTyping(event.target)) return;
       if (instrumentPickerOpen || onboardingOpen || downloadCenterOpen || keyboardHelpOpen) return;
 
       const digit = Number(event.key);
@@ -1245,8 +1256,8 @@ function DownloadCenter({
     },
   ];
   const modelSources: Array<{ instrument: string; status: string; tone: "ready" | "review" | "blocked"; href?: string }> = [
-    { instrument: "Alto saxophone", status: "In Bocal", tone: "ready", href: "https://sketchfab.com/3d-models/saxophone-alto-08448f4bfbca474b80ba35a571648a27" },
-    { instrument: "Oboe", status: "In Bocal", tone: "ready", href: "https://sketchfab.com/3d-models/oboe-howarth-conservatoire-s20c-instrument-bfa1bb7fd7ef4f7c9d3c843f481a38c8" },
+    { instrument: "Alto saxophone", status: "In Bocal · CC BY 4.0 · ANDRIANIAINAToky", tone: "ready", href: "https://sketchfab.com/3d-models/saxophone-alto-08448f4bfbca474b80ba35a571648a27" },
+    { instrument: "Oboe", status: "In Bocal · CC BY 4.0 · WarderiiK", tone: "ready", href: "https://sketchfab.com/3d-models/oboe-howarth-conservatoire-s20c-instrument-bfa1bb7fd7ef4f7c9d3c843f481a38c8" },
     { instrument: "Flute", status: "CC BY candidate · needs player review", tone: "review", href: "https://sketchfab.com/3d-models/flute-08cb4375f9924366b725c439fd6163a8" },
     { instrument: "Tenor saxophone", status: "Licensed candidate · purchase required", tone: "review", href: "https://www.cgtrader.com/3d-models/sports/music/brass-tenor-saxophone" },
     { instrument: "Bassoon", status: "Licensed candidate · purchase required", tone: "review", href: "https://www.cgtrader.com/3d-models/furniture/other/fagott-bassoon" },
@@ -1291,6 +1302,9 @@ function DownloadCenter({
               return source.href ? <a key={source.instrument} href={source.href} target="_blank" rel="noreferrer">{content}</a> : <div key={source.instrument}>{content}</div>;
             })}
           </div>
+          <p className="model-credit-note">
+            Shipped 3D model credits: <strong>&quot;saxophone alto&quot;</strong> by ANDRIANIAINAToky and <strong>&quot;Oboe - Howarth Conservatoire S20C (Instrument)&quot;</strong> by WarderiiK. Both are <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">CC BY 4.0</a>. Source links are listed above. Bocal optimized the files for mobile and changes runtime materials; no endorsement is implied.
+          </p>
         </section>
         <div className="download-grid">
           {downloads.map((item) => {
