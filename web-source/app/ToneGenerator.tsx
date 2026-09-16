@@ -2,6 +2,7 @@
 
 import { Hand, ListMusic, Music2, Pause, Play, Repeat, Volume2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useForegroundPause } from "./use-foreground-pause";
 import "./styles/tone-generator.css";
 import { recordPracticeActivity } from "./practice-data";
 import { fullNoteLabel, noteName, octaveOf, TONIC_CHOICES, type NotationSystem } from "./notation";
@@ -136,6 +137,7 @@ export function ToneGenerator({
   const [exerciseCurrentCents, setExerciseCurrentCents] = useState(0);
 
   const contextRef = useRef<AudioContext | null>(null);
+  const audioEpochRef = useRef(0);
   const limiterRef = useRef<DynamicsCompressorNode | null>(null);
   const voicesRef = useRef<Map<number, Voice>>(new Map());
   const followVoiceRef = useRef<{ oscillator: OscillatorNode; gain: GainNode; midi: number } | null>(null);
@@ -174,11 +176,12 @@ export function ToneGenerator({
   };
 
   useEffect(() => () => {
+    audioEpochRef.current += 1;
     voicesRef.current.forEach((voice) => voice.oscillators.forEach((osc) => { try { osc.stop(); } catch { /* already stopped */ } }));
     voicesRef.current.clear();
     if (followVoiceRef.current) { try { followVoiceRef.current.oscillator.stop(); } catch { /* already stopped */ } }
     followVoiceRef.current = null;
-    void contextRef.current?.close();
+    void contextRef.current?.close().catch(() => undefined);
     contextRef.current = null;
     limiterRef.current = null;
   }, []);
@@ -266,10 +269,22 @@ export function ToneGenerator({
     [...voicesRef.current.keys()].forEach(stopVoice);
   };
 
+  useForegroundPause(() => {
+    audioEpochRef.current += 1;
+    stopAllVoices();
+    setExercisePlaying(false);
+    setFollowEnabled(false);
+    setSustain(false);
+    const context = contextRef.current;
+    if (context?.state === "running") void context.suspend().catch(() => undefined);
+  });
+
   const playVoice = async (rootMidi: number) => {
+    const epoch = audioEpochRef.current;
     const context = getContext();
     const limiter = limiterRef.current!;
-    if (context.state === "suspended") await context.resume();
+    if (context.state === "suspended") { try { await context.resume(); } catch { return; } }
+    if (document.hidden || epoch !== audioEpochRef.current || context.state === "closed") return;
 
     const tones = tonesForRoot(rootMidi);
     const gain = context.createGain();

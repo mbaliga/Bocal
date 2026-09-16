@@ -1,5 +1,7 @@
 "use client";
 import "./native-bridge";
+import { CaptureRequestGate } from "./take-policy";
+import { useForegroundPause } from "./use-foreground-pause";
 
 import {
   Activity,
@@ -307,6 +309,10 @@ export default function Home() {
   const [micMessage, setMicMessage] = useState("");
   const [sessionActive, setSessionActive] = useState(false);
   const [sessionSeconds, setSessionSeconds] = useState(0);
+  const tunerGateRef = useRef(new CaptureRequestGate());
+  const tunerPendingRef = useRef(false);
+  const tunerMountedRef = useRef(true);
+  const referenceEpochRef = useRef(0);
   const audioContextRef = useRef<AudioContext | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
@@ -643,14 +649,18 @@ export default function Home() {
     return () => window.clearInterval(timer);
   }, [sessionActive]);
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    tunerMountedRef.current = true;
+    return () => {
+      tunerMountedRef.current = false;
+      tunerGateRef.current.cancel();
+      tunerPendingRef.current = false;
+      referenceEpochRef.current += 1;
       if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
       streamRef.current?.getTracks().forEach((track) => track.stop());
-      void audioContextRef.current?.close();
-    },
-    [],
-  );
+      void audioContextRef.current?.close().catch(() => undefined);
+    };
+  }, []);
 
   const saveTunerEvidence = useCallback(() => {
     const capture = tunerEvidenceRef.current;
@@ -679,6 +689,10 @@ export default function Home() {
   }, [instrument.id, instrument.shortName]);
 
   const stopListening = useCallback(() => {
+    tunerGateRef.current.cancel();
+    tunerPendingRef.current = false;
+    referenceEpochRef.current += 1;
+    setMicMessage("");
     if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
     frameRef.current = null;
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -701,11 +715,13 @@ export default function Home() {
     // Idle the AudioContext rather than leaving it running (and the device
     // awake) between tuner sessions; startListening resumes it on the next
     // "Start live tuner" press.
-    void audioContextRef.current?.suspend();
+    if (audioContextRef.current?.state === "running") void audioContextRef.current.suspend().catch(() => undefined);
   }, [saveTunerEvidence]);
 
+  useForegroundPause(stopListening);
+
   const startListening = useCallback(async () => {
-    if (listening) {
+    if (listening || streamRef.current || tunerPendingRef.current) {
       stopListening();
       return;
     }
@@ -713,14 +729,28 @@ export default function Home() {
       setMicMessage("Microphone access is not available in this browser.");
       return;
     }
+    const ticket = tunerGateRef.current.begin();
+    tunerPendingRef.current = true;
+    setMicMessage("Waiting for microphone permission. Tap the tuner button again to cancel.");
+    const stillCurrent = () => tunerMountedRef.current && tunerGateRef.current.accepts(ticket) && !document.hidden;
+    let acquiredStream: MediaStream | null = null;
+    let acquiredContext: AudioContext | null = null;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: { autoGainControl: false, echoCancellation: false, noiseSuppression: false },
       });
+      acquiredStream = stream;
+      if (!stillCurrent()) { stream.getTracks().forEach((track) => track.stop()); return; }
       const audioContext = !audioContextRef.current || audioContextRef.current.state === "closed"
         ? new AudioContext()
         : audioContextRef.current;
+      acquiredContext = audioContext;
       if (audioContext.state === "suspended") await audioContext.resume();
+      if (!stillCurrent()) {
+        stream.getTracks().forEach((track) => track.stop());
+        if (audioContext !== audioContextRef.current) void audioContext.close().catch(() => undefined);
+        return;
+      }
       const analyser = audioContext.createAnalyser();
       // A 58 Hz bassoon fundamental needs more than 3 periods of headroom
       // after YIN's maximumTau is subtracted from the window, which 4096
@@ -735,6 +765,12 @@ export default function Home() {
       const data = new Float32Array(analyser.fftSize);
       streamRef.current = stream;
       audioContextRef.current = audioContext;
+      stream.getAudioTracks().forEach((track) => track.addEventListener("ended", () => {
+        if (tunerGateRef.current.accepts(ticket)) {
+          stopListening();
+          setMicMessage("Microphone disconnected. Reconnect it and start tuning again.");
+        }
+      }, { once: true }));
       setMicMessage("");
       setListening(true);
       window.bocalHost?.setKeepAwake?.(true);
@@ -800,6 +836,10 @@ export default function Home() {
       };
       sample();
     } catch (error) {
+      acquiredStream?.getTracks().forEach((track) => track.stop());
+      if (acquiredContext && acquiredContext !== audioContextRef.current) void acquiredContext.close().catch(() => undefined);
+      if (!stillCurrent()) return;
+      stopListening();
       // Every failure used to be reported as "permission is needed", which
       // is wrong for a missing device, a device already in use, or a
       // browser without any audio input at all (engineering.md: "Every
@@ -814,25 +854,32 @@ export default function Home() {
               ? "The microphone is in use by another app."
               : "Microphone access failed. Check your device's microphone and try again.",
       );
+    } finally {
+      if (tunerGateRef.current.accepts(ticket)) tunerPendingRef.current = false;
     }
   }, [instrument.range.minHz, instrument.writtenOffset, listening, stopListening]);
 
-  const playReferenceTone = useCallback(() => {
-    const audioContext = audioContextRef.current ?? new AudioContext();
-    audioContextRef.current = audioContext;
-    const oscillator = audioContext.createOscillator();
-    const gain = audioContext.createGain();
-    oscillator.type = "sine";
-    // Concert A4 (MIDI 69) at the chosen reference pitch and temperament, so
-    // the tone itself demonstrates the calibration rather than always being
-    // a fixed 261.63 Hz regardless of what the player set it to.
-    oscillator.frequency.value = targetHzFor(69, tuningOptionsRef.current);
-    gain.gain.setValueAtTime(0.0001, audioContext.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.14, audioContext.currentTime + 0.04);
-    gain.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 1.45);
-    oscillator.connect(gain).connect(audioContext.destination);
-    oscillator.start();
-    oscillator.stop(audioContext.currentTime + 1.5);
+  const playReferenceTone = useCallback(async () => {
+    const epoch = referenceEpochRef.current;
+    try {
+      const audioContext = !audioContextRef.current || audioContextRef.current.state === "closed" ? new AudioContext() : audioContextRef.current;
+      audioContextRef.current = audioContext;
+      if (audioContext.state === "suspended") await audioContext.resume();
+      if (!tunerMountedRef.current || document.hidden || epoch !== referenceEpochRef.current) return;
+      const oscillator = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      oscillator.type = "sine";
+      oscillator.frequency.value = targetHzFor(69, tuningOptionsRef.current);
+      gain.gain.setValueAtTime(0.0001, audioContext.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.14, audioContext.currentTime + 0.04);
+      gain.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 1.45);
+      oscillator.connect(gain).connect(audioContext.destination);
+      oscillator.onended = () => { oscillator.disconnect(); gain.disconnect(); };
+      oscillator.start();
+      oscillator.stop(audioContext.currentTime + 1.5);
+    } catch {
+      if (tunerMountedRef.current) setMicMessage("Reference tone could not play. Check the audio output and try again.");
+    }
   }, []);
 
   const toggleSession = () => {
@@ -850,7 +897,7 @@ export default function Home() {
   };
 
   const selectMode = useCallback((nextMode: Mode) => {
-    if (nextMode !== "tune" && listening) stopListening();
+    if (nextMode !== "tune" && (listening || tunerPendingRef.current)) stopListening();
     setMode(nextMode);
   }, [listening, stopListening]);
 
@@ -865,7 +912,7 @@ export default function Home() {
         setInstrumentPickerOpen(false);
         return;
       }
-      if (listening) stopListening();
+      if (listening || tunerPendingRef.current) stopListening();
       setPartnerInstrumentId(instrumentId);
       setInstrumentId(nextId);
       setInstrumentPickerOpen(false);
