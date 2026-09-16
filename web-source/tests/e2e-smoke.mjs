@@ -51,8 +51,12 @@ try {
         await page.waitForFunction(s => document.querySelector(s)?.getAttribute("aria-current") === "page", selector);
         await page.waitForTimeout(digit === 2 ? 500 : 150);
         assert.ok(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth <= 1), `${label}: horizontal overflow in workspace ${digit}`);
+        if (size.width < 681 || size.height <= 520) {
+          assert.equal(await page.locator(".mobile-nav .arc-shape > path").count(), 4, "The persistent four-layer navigation arc is missing");
+          // The separate instrument switch is deliberately absent in Practice.
+          if (digit === 1) assert.equal(await page.locator(".dock-pill .pill-track > path").count(), 2, "The Tune instrument-switch arc is missing");
+        }
       }
-      if (size.width < 681 || size.height <= 520) assert.equal(await page.locator(".dock-pill svg path").count(), 2, "Instrument arc geometry missing");
       assert.deepEqual(pageErrors, [], `${label}: browser errors`);
       if (instrumentId === "alto-sax") await page.screenshot({ path: path.join(evidence, `${label}.png`) });
       results.push({ label, passed: true, workspaces: 5 });
@@ -67,6 +71,7 @@ try {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   try {
     const page = await context.newPage();
+    page.setDefaultTimeout(10000);
     await page.goto(preview.url);
     const guide = page.getByRole("dialog", { name: "Pick the instrument you’re playing." });
     await guide.waitFor();
