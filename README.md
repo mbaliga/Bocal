@@ -1,131 +1,79 @@
 # Bocal
 
-Bocal is a local-first music practice app: a stable-note tuner, pulse and practice
-tools, local analysis, and instrument-specific fingering/anatomy learning, covering
-ten instruments (nine woodwinds plus guitar).
+Local-first music practice: a stable-note tuner, metronome, tone generation, local recording/analysis, practice evidence and instrument learning.
 
-## Current product (read this first)
+**Release state: v0.6.0 production-hardening candidate, not an accepted production V1.** Read [current capabilities](docs/CURRENT_STATE.md), [verification evidence](qa/VERIFICATION.md), and the [production acceptance gates](docs/PRODUCTION_V1_ACCEPTANCE.md). A green build does not replace physical audio testing or specialist musical review.
 
-**`web-source/` is the current shipping app** and the only actively developed
-product surface. For what Bocal actually does today, read
-[`docs/BOCAL_HANDOFF.md`](docs/BOCAL_HANDOFF.md) (the single source of truth for
-product state) and [`web-source/README.md`](web-source/README.md). The rest of this
-file, `web-standalone/`, `web-source-v6/`, `models/`, `research/` and `qa/` are the
-historical record of the 0.2 → 0.5 import described below; they predate the current
-instrument set and are not maintained as part of the live product.
+## One maintained application
 
-## Layout
-
-| Path | Contents |
+| Directory | Role |
 | --- | --- |
-| `web-standalone/` | TypeScript/Vite standalone app. `dist/` is the ready-to-host static build (serve over HTTPS — microphone access requires it). |
-| `web-source/` | Next.js/vinext hosted-Sites variant, including the client-only 3D loading boundary. |
-| `web-source-v6/` | Later, divergent iteration of `web-source`. Not a drop-in replacement — see [The v6 source](#the-v6-source). |
-| `android/` | Android WebView shell (version 0.6.0, versionCode 7) hosting `web-source`'s app verbatim — see [Android and model licensing](#android-and-model-licensing). |
-| `models/` | 35 original educational woodwind GLBs, plus catalog, generator and validator. |
-| `research/` | 84-row TonalEnergy parity matrix, 10 personas × 5 workflows, source ledger, baseline delta. |
-| `docs/` | Product handoff (MD/DOCX/PDF), saxophone validation and parity spec, alto 3D model brief, music-learning baseline. |
-| `qa/` | Verification record: what was checked, and what explicitly was not. |
-| `screenshots/` | Prototype screenshots. |
+| `web-source/` | Canonical React/TypeScript product, used by both browser and Android |
+| `android/` | Local WebView shell and APK/AAB packaging for that same app |
+| `scripts/` | Packaging, dependency and runtime verification helpers |
+| `docs/` | Current state, release acceptance, product/design handoff and historical research |
+| `web-source-v6/`, `web-standalone/`, `models/glb/` | Historical prototypes/reference assets; not production build entry points |
 
-## Getting started
+The maintained app has ten instrument profiles and **two** licensed detailed 3D models (alto saxophone and Howarth oboe). The other sax profiles use the alto model; cor anglais uses the oboe model; flute/clarinet/bassoon have charts rather than equivalent 3D labs. See [model attribution](web-source/public/models/ATTRIBUTION.md). Historical counts of 35 generated models do not describe production readiness.
 
-The standalone web app is the fastest way to see Bocal running:
+## Run the maintained web app
 
-```bash
-cd web-standalone
-npm install
+Use Node 22.13 or newer and the committed lockfile:
+
+```sh
+cd web-source
+npm ci
+npm run preview:standalone
+python3 -m http.server 8080 --directory preview-dist --bind 127.0.0.1
+```
+
+Open the localhost address in a browser. `preview-dist/index.html` is the generated shared standalone application. For remote browser microphone access, use a secure HTTPS origin rather than an insecure LAN HTTP page.
+
+The hosted development/build commands remain `npm run dev` and `npm run build`; see [web-source/README.md](web-source/README.md) for hosting details. Do not edit generated standalone HTML.
+
+## Verify
+
+From `web-source/`:
+
+```sh
+npm test
+npm run lint
 npm run build
-npm run test     # smoke suite: 35 instruments, 6 workspaces
+node --test tests/*.dist-test.mjs
+npm run preview:standalone
+npx playwright install --with-deps chromium
+node tests/theme.test.mjs
+npm run test:e2e
+node tests/production-smoke.mjs
+node tests/reliability-e2e.mjs
+node ../scripts/audit-dependencies.mjs --enforce
 ```
 
-Serve `web-standalone/dist/` over HTTPS — the browser will not grant microphone
-access to a plain-HTTP origin.
+The explicit browser commands matter: some browser checks are skipped when their built preview is absent from a unit-only run. Production smoke tests use real IndexedDB and a Chromium fake capture device; they do not measure a physical microphone.
 
-To validate the 3D model set:
+From the repository root:
 
-```bash
-python3 models/validate_models.py
+```sh
+python3 -m unittest discover -s scripts -p 'test_*.py'
 ```
 
-## Status and limits
+## Android
 
-The 0.2 handoff was candid about what had and had not been verified, and that
-carries over to this import. `qa/VERIFICATION.md` is the original record.
+Install the web dependencies above, an Android SDK with the project's compile platform/build tools, and JDK 21. Then:
 
-**Verified by re-running it here:** `npm run build` and `npm run test` in
-`web-standalone/` both pass — 35 instruments, 6 workspaces, static build present. The
-rebuild reproduces the committed `web-standalone/dist/` byte-for-byte, so the
-checked-in ready-to-host build is authentic to its source. `models/validate_models.py`
-passes: 35 GLBs parse as glTF 2.0 and agree with the catalog, with 465 named
-interactive controls. In `android/`, the shell half of `static-check.sh` passes — the
-XML parses, there is no `INTERNET` permission, and the six-tab shell and local Lab are
-wired.
+```sh
+cd android
+./gradlew lintDebug lintRelease assembleDebug assembleDebugAndroidTest assembleRelease
+```
 
-**Carried over from the handoff, not re-checked here:** the 27-page document render
-and page-by-page review. The 0.2 claim that the Android asset bundle mirrored the
-standalone build no longer holds — 0.5 replaced those assets entirely.
+Gradle generates and stages the canonical web application. The debug workflow verifies that the APK contains the exact tested standalone payload, compiles the minified release variant, and runs separate emulator instrumentation. Debug builds are for testing, not production distribution.
 
-**Not verified:**
+The signed-candidate workflow requires the owner-controlled upload keystore configuration described in [Android documentation](android/README.md). It does not select a permanent signing identity or automatically publish to a store. Before replacing an installed build with a differently signed APK, export important local data; uninstalling to bypass signature mismatch can erase it.
 
-- **No signed release APK/AAB is included.** `android/` now builds and passes
-  `assembleDebug`/`assembleRelease` locally (R8 verified) and CI produces a debug APK
-  on every push, but a Play-acceptable signed AAB requires the upload-keystore
-  secrets named in `android/README.md`, which do not exist in this repository.
-  `android/build-apk.sh`, `verify-apk.sh` and `device-release-check.sh` document the
-  remaining device-validation pass.
-- **The 35 in-house 3D models are educational reference geometry, not repair or CAD
-  models.** Only the alto saxophone has a core note map. Other instruments expose
-  recognizable parts and controls but must not be presented as certified fingering
-  tutors until family specialists approve their note maps and mechanisms. In the
-  Android 0.5 app the oboe and clarinet are explicitly anatomy/part inspectors only,
-  with note-to-fingering linkage disabled.
-- Microphone accuracy, latency, octave errors, metronome long-run drift and
-  battery/thermal behavior are untested — they need labeled audio fixtures and
-  representative devices.
-- WebGL appearance was never confirmed in a real browser; the build environment's
-  WebGL process failed. Physical-browser QA remains an open gate.
-- Any claim of parity with or superiority to TonalEnergy is unproven, and would
-  require moderated matched-task studies on a shared device and audio corpus.
+## Production scope and boundaries
 
-## Android and model licensing
+Recording storage failures are visible; request success is not treated as a committed transaction. Imports/capture are bounded, old recordings are not silently evicted, deletes are confirmed, and Android exports use a system Save As picker. The shared quality gate rejects high/critical dependency findings and retains test/security evidence.
 
-`android/` is now a thin WebView shell (`MainActivity` -> `WebAppScreen`) that hosts
-`web-source`'s app verbatim from a bundled `assets/www/app.html`; the six-workspace
-native Compose UI, its five audio engines and the separate in-app 3D Lab
-(`assets/www/lab.html`, a vendored Three.js runtime and duplicate glTF model trees)
-described in earlier versions of this document have been deleted as dead code —
-nothing reachable from `MainActivity` ever loaded them, and removing them took the
-debug APK from ~34 MB to ~19 MB. `INTERNET` is still deliberately absent;
-`RECORD_AUDIO` and `VIBRATE` remain the only permissions, and `allowBackup` is now
-`false`.
+Physical-device audio/routing/rotation/accessibility/performance, real signed-release installation, final visual approval and specialist fingering validation remain explicit acceptance gates. No TonalEnergy superiority or full 3D parity across every instrument is claimed.
 
-The web app's own saxophone and oboe 3D labs inline **two** detailed third-party
-glTF models (alto sax, Howarth oboe) as base64 inside `app.html` — see
-`web-source/public/models/ATTRIBUTION.md` for licences and credits. The clarinet
-model referenced in earlier drafts of this repository was CC-BY-NC-4.0 (no
-commercial use) and is not shipped.
-
-## The v6 source
-
-`web-source-v6/` is the one part of the import that is not a subset of the 0.2
-handoff. It diverges from `web-source/`: it adds `app/alto-sax-model.ts`,
-`app/sax-setup-data.ts`, an `examples/d1` directory and a `sax-data.test.mjs` test,
-and it drops `drizzle/` and `public/`. Its README is still un-customized
-vinext-starter boilerplate, so treat it as work in progress rather than a finished
-successor. Reconciling it with `web-source/` is an open task.
-
-## Provenance
-
-Imported from `Bocal_COMPLETE_ChatGPT_Bundle_2026-08-12`. All 551 bundle checksums
-verified before import.
-
-The bundle shipped eight package snapshots, six of which were byte-identical subsets
-of the complete handoff (`android`, `models`, `research`, `web-standalone`, the
-static ready-to-host build, and the hosted-sites source fix). Those duplicates and
-the original ZIPs were dropped in favor of a single de-duplicated tree; every unique
-file is preserved. `docs/Import_Bundle_Manifest.md` and
-`docs/Bocal_0.2_Handoff_README.md` retain the original manifests.
-
-Personal saxophone reference photographs and two user-supplied motion-reference
-videos were excluded upstream as source inputs rather than publishable artifacts.
+The previous root README is retained in [the historical archive](docs/archive/README-before-v1-hardening.md). It is not a current build guide.
