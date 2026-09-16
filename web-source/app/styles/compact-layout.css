@@ -21,3 +21,10 @@
   html[data-theme="light"] .app-shell .mobile-nav button { color: #e8e3d9; }
   html[data-theme="light"] .app-shell .mobile-nav button.is-active { color: #8fffe1; }
 }
+/* Phone landscape uses an off-white raised active keycap, not the larger
+   screen's dark side-dock selection. Do not put pale lettering on that cap. */
+@media (orientation: landscape) and (min-width: 681px) and (max-height: 520px) {
+  html[data-theme="light"] .app-shell .mobile-nav.is-arc button.is-active {
+    color: var(--hy-cap-ink, #16171c);
+  }
+}
