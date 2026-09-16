@@ -1,7 +1,23 @@
-/* Keep all header actions reachable on compact phones. Wrapping the actual
-   controls fixes intrinsic flex overflow without hiding or clipping content.
-   The instrument and navigation arcs are deliberately left unchanged. */
-@media (max-width: 400px) {
-  .top-bar { flex-wrap: wrap; gap: 8px; }
-  .top-actions { margin-left: auto; flex-wrap: wrap; max-width: 100%; }
+/* Header actions reflow instead of being clipped or hidden. Instrument and
+   navigation arc geometry remain unchanged. */
+.app-shell .top-bar { flex-wrap: wrap; gap: 8px; }
+.app-shell .instrument-picker-wrap { min-width: 0; max-width: 100%; }
+.app-shell .instrument-picker { max-width: 100%; }
+.app-shell .instrument-picker span:nth-child(2) { min-width: 0; overflow-wrap: anywhere; }
+.app-shell .top-actions { margin-left: auto; max-width: 100%; flex-wrap: wrap; }
+@media (max-width: 480px) {
+  .app-shell .top-bar { padding-inline: 12px; gap: 6px; }
+  .app-shell .top-actions { gap: 6px; }
+  .app-shell .instrument-picker { padding-inline: 0; gap: 6px; }
+  .app-shell .top-actions .icon-button { flex: 0 0 44px; min-height: 44px; }
+}
+/* The wide header's fixed charcoal gradient previously put light-theme dark
+   text onto a dark surface. Preserve its shape with theme-aware materials. */
+@media (orientation: landscape) and (min-width: 681px) {
+  html[data-theme="light"] .app-shell .top-bar {
+    background: linear-gradient(135deg, var(--panel), var(--panel-2));
+    box-shadow: 0 12px 32px rgba(58,49,37,.12), inset 0 1px 0 rgba(255,255,255,.8);
+  }
+  html[data-theme="light"] .app-shell .mobile-nav button { color: #e8e3d9; }
+  html[data-theme="light"] .app-shell .mobile-nav button.is-active { color: #8fffe1; }
 }
