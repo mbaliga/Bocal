@@ -75,8 +75,11 @@ export const CORRECTION_COPY: Record<EmbouchureFamily, { sharp: string; flat: st
     flat: "Support the air and bring the pitch up without biting harder.",
   },
   "air-reed": {
-    sharp: "Roll the embouchure hole slightly out, or ease the air speed.",
-    flat: "Roll the embouchure hole slightly in, or speed the air up.",
+    // Rolling inward lowers pitch; outward raises it. These directions were
+    // reversed despite the neighbouring air-speed advice being correct.
+    // Yamaha: https://hub.yamaha.com/music-educators/instruments/winds-instruments/first-year-flutes-success/
+    sharp: "Roll the embouchure hole slightly in, or ease the air speed.",
+    flat: "Roll the embouchure hole slightly out, or speed the air up.",
   },
   "double-reed": {
     sharp: "Relax the embouchure pressure on the reed without losing support.",
