@@ -1,0 +1,17 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /web-source
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    groups:
+      react-runtime:
+        patterns: [react, react-dom, react-server-dom-webpack]
+      next-tooling:
+        patterns: [next, eslint-config-next]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 2

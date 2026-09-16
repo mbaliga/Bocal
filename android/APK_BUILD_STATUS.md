@@ -1,53 +1,17 @@
-# Bocal Android APK build status
+# Bocal Android build status
 
-Version: 0.5.0
-Date: 2026-08-14
+Updated 17 September 2026 for the production-hardening candidate in PR #9.
 
-**A debug APK now builds.** The source compiles, unit tests pass and lint is clean.
-This supersedes the previous status, which recorded that no environment with an
-Android SDK had ever been available to try.
+The maintained Android shell uses `web-source/` and generates `assets/www/app.html` from the standalone build. Version remains **0.6.0 / versionCode 7**, compile/target SDK 37, minimum SDK 26. Do not rely on the superseded August v0.5 build record for current acceptance.
 
-## What was verified
+## Build verification
 
-```
-gradle --no-daemon clean assembleDebug testDebugUnitTest lintDebug   # BUILD SUCCESSFUL
-./verify-apk.sh app/build/outputs/apk/debug/app-debug.apk            # APK container valid
-./static-check.sh                                                    # PASS, end to end
-```
+The first hardening checkpoint ba04fafdab73f3bafaac13b514422015f85248ec passed Actions run 35151199901, including debug and minified release compilation, debug/release lint, instrumentation APK compilation and exact tested-payload checks. Later commits additionally update dependencies, recording lifecycle and runtime tests. Their verification must come from their own Actions run in PR #9, not this earlier checkpoint.
 
-Toolchain used: Android SDK Platform 37.0 and Build-Tools 36.0.0, Gradle 9.5.0,
-AGP 9.3.0, JDK 21. Artifact: `app/build/outputs/apk/debug/app-debug.apk`, ~25.9 MB.
+The current workflow builds the debug APK and instrumentation APK, verifies both debug and minified release web payloads, then installs/runs the debug instrumentation suite in an API 35 emulator. A compiled instrumentation APK alone does not mean those tests ran. Refer to the separate emulator job and retained logs.
 
-APK contents confirmed by inspection: `RECORD_AUDIO` and `VIBRATE` are the only
-declared permissions, `INTERNET` is absent, and the bundled assets are the sax and
-Howarth oboe glTF models only.
+## Distribution boundary
 
-## Three source fixes were required
+`bocal-debug-apk` is for testing, not a signed production distribution. The signed-candidate workflow requires the four owner-controlled upload-keystore secrets, builds APK and AAB, verifies signatures/payload identity and emits checksums. It neither manufactures a permanent signing identity nor automatically publishes a release.
 
-None of these could have been caught without a real compile:
-
-1. `BocalApp.kt` imported `androidx.compose.foundation.layout.weight`. `weight` is a
-   `RowScope`/`ColumnScope` member, so the import resolved to an internal
-   `RowColumnParentData?.weight` property and failed compilation. Removed; the
-   scope-provided `Modifier.weight()` needs no import.
-2. `androidx.core:core-ktx:1.19.0` requires compiling against API 37, but the project
-   pinned `compileSdk = 36`, so AAR metadata validation failed. `compileSdk` is now 37.
-   `targetSdk` stays 36 and `minSdk` stays 26.
-3. `themes.xml` set `android:windowLightNavigationBar`, which is API 27, while
-   `minSdk` is 26 — a lint `NewApi` error. The attribute moved to
-   `values-v27/themes.xml`, with the base theme split out as `Theme.Bocal.Base`.
-
-## Still required for a release build
-
-The debug APK is signed with the standard Android debug key
-(`CN=Android Debug`). It is installable for testing and is **not** a distributable
-release artifact.
-
-- Release signing with a real keystore. The key identity is permanent for Play Store
-  distribution, so it is a deliberate decision, not a build step to automate.
-- `./gradlew connectedDebugAndroidTest` — the instrumentation suite has never run;
-  it needs an emulator or attached device.
-- `./device-release-check.sh` — install, cold launch and permission smoke testing on
-  a real target.
-- The manual physical-device gates in `RELEASE_HARDENING_REPORT_0.4.1.md`, including
-  microphone accuracy, metronome drift, WebGL rendering and battery/thermal behavior.
+Real-device acceptance (including older Android, audio routes, lifecycle, native Save As, TalkBack, portrait/landscape arc and heat/battery), expected production certificate validation and specialist musical review remain explicit gates in `../docs/PRODUCTION_V1_ACCEPTANCE.md`.
