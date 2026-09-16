@@ -28,3 +28,40 @@
     color: var(--hy-cap-ink, #16171c);
   }
 }
+/* Reuse the existing 4:1 arc on the selected phone-landscape edge. Instrument
+   switching and settings remain available in the header; the duplicate upper
+   dock row is omitted in this short layout. Portrait is untouched. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .app-shell { padding-bottom: 16px; }
+  .app-shell.nav-left .main-stage { padding-left: calc(25dvh + 12px); padding-right: 0; }
+  .app-shell.nav-right .main-stage { padding-right: calc(25dvh + 12px); padding-left: 0; }
+  .app-shell .mobile-dock {
+    width: calc(100dvh - 32px); max-width: none;
+    top: 50%; bottom: auto; margin: 0;
+  }
+  .app-shell.nav-left .mobile-dock {
+    left: 8px; right: auto; transform-origin: top left;
+    transform: rotate(90deg) translate(-50%, -100%); --dock-counter-turn: -90deg;
+  }
+  .app-shell.nav-right .mobile-dock {
+    left: auto; right: 8px; transform-origin: top right;
+    transform: rotate(-90deg) translate(50%, -100%); --dock-counter-turn: 90deg;
+  }
+  .app-shell .mobile-dock::before,
+  .app-shell .mobile-dock .dock-top { display: none; }
+  .app-shell .mobile-nav.is-arc button,
+  .app-shell .mobile-nav.is-arc button.is-active,
+  .app-shell .mobile-nav.is-arc button.is-active:active {
+    min-width: 44px; min-height: 44px;
+    transform: translate(-50%, -50%) rotate(calc(var(--tilt, 0deg) + var(--dock-counter-turn)));
+    animation: none;
+  }
+  /* Mirror seats, not reading order: Tune stays above Lab/Pulse/Analyze/Practice
+     on either edge. Counter-reflect glyphs so labels remain readable. */
+  .app-shell.nav-right .mobile-nav.is-arc .arc-inner { transform: scaleX(-1); }
+  .app-shell.nav-right .mobile-nav.is-arc button,
+  .app-shell.nav-right .mobile-nav.is-arc button.is-active,
+  .app-shell.nav-right .mobile-nav.is-arc button.is-active:active {
+    transform: translate(-50%, -50%) rotate(calc(-90deg - var(--tilt, 0deg))) scaleX(-1);
+  }
+}
