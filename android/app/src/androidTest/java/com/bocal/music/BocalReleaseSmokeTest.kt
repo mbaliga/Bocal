@@ -27,26 +27,46 @@ class BocalReleaseSmokeTest {
         return null
     }
 
-    private fun evaluate(script: String): String? {
+    /**
+     * evaluateJavascript callbacks can be dropped while Chromium is still
+     * attaching the first renderer after a cold emulator boot. Treat one
+     * missing callback as a transient readiness signal, not an immediate test
+     * failure; the polling helpers below reacquire the current WebView and
+     * retry until their overall deadline. Once the page is ready, every
+     * mutating assertion still has to return true.
+     */
+    private fun evaluateOnce(script: String, callbackTimeoutSeconds: Long = 5): String? {
         var result: String? = null
         val latch = CountDownLatch(1)
         activityRule.scenario.onActivity { activity ->
             val view = findWebView(activity.window.decorView)
-            if (view == null) latch.countDown()
-            else view.evaluateJavascript(script) { value -> result = value; latch.countDown() }
+            if (view == null) {
+                latch.countDown()
+            } else {
+                view.evaluateJavascript(script) { value ->
+                    result = value
+                    latch.countDown()
+                }
+            }
         }
-        assertTrue("JavaScript callback timed out", latch.await(5, TimeUnit.SECONDS))
+        if (!latch.await(callbackTimeoutSeconds, TimeUnit.SECONDS)) return null
         return result
     }
 
-    private fun awaitTrue(script: String) {
-        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30)
+    private fun awaitTrue(script: String, timeoutSeconds: Long = 30) {
+        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds)
+        var attempts = 0
+        var lastResult: String? = null
         do {
-            if (evaluate(script) == "true") return
+            attempts += 1
+            lastResult = evaluateOnce(script)
+            if (lastResult == "true") return
             Thread.sleep(100)
         } while (System.nanoTime() < deadline)
-        fail("Timed out waiting for: $script")
+        fail("Timed out waiting for JavaScript after $attempts attempts (last result=$lastResult): $script")
     }
+
+    private fun requireJavascriptTrue(script: String) = awaitTrue(script, timeoutSeconds = 15)
 
     private fun ready() = awaitTrue("document.querySelectorAll('.mobile-nav button').length === 5")
 
@@ -64,20 +84,20 @@ class BocalReleaseSmokeTest {
 
     @Test fun allWorkspacesMountInsideTheAndroidWebView() {
         ready()
-        evaluate("localStorage.setItem('bocal-onboarding-v2','complete'); true")
+        requireJavascriptTrue("localStorage.setItem('bocal-onboarding-v2','complete'); true")
         for (index in 0 until 5) {
-            evaluate("document.querySelectorAll('.mobile-nav button')[$index].click(); true")
+            requireJavascriptTrue("document.querySelectorAll('.mobile-nav button')[$index].click(); true")
             awaitTrue("document.querySelectorAll('.mobile-nav button')[$index].getAttribute('aria-current') === 'page' && document.querySelector('main').innerText.trim().length > 80")
         }
     }
 
     @Test fun localStorageSurvivesActivityRecreation() {
         ready()
-        evaluate("localStorage.setItem('bocal-release-smoke-sentinel','survives'); true")
+        requireJavascriptTrue("localStorage.setItem('bocal-release-smoke-sentinel','survives'); true")
         activityRule.scenario.recreate()
         ready()
-        assertEquals("true", evaluate("localStorage.getItem('bocal-release-smoke-sentinel') === 'survives'"))
-        evaluate("localStorage.removeItem('bocal-release-smoke-sentinel'); true")
+        awaitTrue("localStorage.getItem('bocal-release-smoke-sentinel') === 'survives'")
+        requireJavascriptTrue("localStorage.removeItem('bocal-release-smoke-sentinel'); true")
     }
 
     @Test fun exportNamesAndMimeTypesAreSanitised() {
