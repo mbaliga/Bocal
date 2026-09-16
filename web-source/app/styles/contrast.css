@@ -1,6 +1,7 @@
 /* Readable secondary text on dark panels. Preserve selector specificity so
    selected/accent states still win. Import after globals in both entrypoints.
-   This changes neither the light palette nor any arc/navigation geometry. */
+   Instrument-specific light fixes below are based on browser contrast evidence.
+   This stylesheet does not change arc/navigation geometry. */
 :root:not([data-theme="light"]) { --muted-2: #b4b4bc; }
 :where(html:not([data-theme="light"])) .rail-button,
 :where(html:not([data-theme="light"])) .privacy-dot,
@@ -135,3 +136,18 @@
 :where(html:not([data-theme="light"])) .harmonic-index,
 :where(html:not([data-theme="light"])) .harmonic-db,
 :where(html:not([data-theme="light"])) .harmonics-bars li.is-out-of-range .harmonic-cents { color: var(--muted-2); }
+
+/* Genuine multi-instrument coverage exposed these previously untested states. */
+html[data-theme="light"] .guitar-launch-card { background: linear-gradient(135deg, #f6eee2, #fffdf9); }
+html[data-theme="light"] .chord-flow button strong { color: var(--ink); }
+html[data-theme="light"] .finger-legend > span { color: var(--muted); }
+html[data-theme="light"] .guitar-auto.is-active { background: #d3eee4; color: #006855; }
+/* The oboe stage retains a dark photographic background even in the light UI. */
+html[data-theme="light"] .oboe-model-badge strong { color: #f2eee5; }
+html[data-theme="light"] .oboe-model-badge small,
+html[data-theme="light"] .oboe-model-badge span { color: #c7c7ca; }
+html[data-theme="light"] .oboe-truth-card p,
+html[data-theme="light"] .oboe-inspector .model-credit { color: #554f59; }
+html[data-theme="light"] .selected-oboe-part > small { color: #006455; }
+:where(html:not([data-theme="light"])) .variant-card > p { color: var(--muted-2); }
+:where(html:not([data-theme="light"])) .variant-card header small { color: #bdadff; }
