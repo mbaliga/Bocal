@@ -36,6 +36,7 @@ jobs:
           npm run test:e2e || status=1
           node tests/production-smoke.mjs || status=1
           node tests/reliability-e2e.mjs || status=1
+          node tests/phone-landscape.mjs || status=1
           exit "$status"
       - name: Verify packaging checker and standalone payload
         working-directory: .
