@@ -1,0 +1,7 @@
+/* Keep all header actions reachable on compact phones. Wrapping the actual
+   controls fixes intrinsic flex overflow without hiding or clipping content.
+   The instrument and navigation arcs are deliberately left unchanged. */
+@media (max-width: 400px) {
+  .top-bar { flex-wrap: wrap; gap: 8px; }
+  .top-actions { margin-left: auto; flex-wrap: wrap; max-width: 100%; }
+}
