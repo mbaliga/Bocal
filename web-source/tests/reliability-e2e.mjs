@@ -42,8 +42,10 @@ async function eventually(check, message) {
   assert.fail(message);
 }
 async function analyze(page) {
-  await page.keyboard.press("4");
-  await page.getByRole("heading", { name: "See your sound." }).waitFor();
+  // Locator clicks wait for React to mount; a key press immediately after
+  // navigation can be lost before the shortcut effect is registered.
+  await page.locator(".mobile-nav button").nth(3).click();
+  await page.locator(".analysis-layout").waitFor();
   await eventually(async () => !(await page.getByText("Restoring saved recordings...").count()), "recording restore did not complete");
 }
 async function deferredMicrophone(page) {
@@ -103,11 +105,11 @@ try {
     await eventually(async () => await page.evaluate(() => window.__stoppedTracks === 1), "late analyzer stream was not stopped");
     await page.getByRole("button", { name: "Start analysis", exact: true }).waitFor(); checks++;
 
-    await page.keyboard.press("1");
+    await page.locator(".mobile-nav button").nth(0).click();
     await deferredMicrophone(page);
     await page.getByRole("button", { name: "Start live tuner", exact: true }).click();
     await page.waitForFunction(() => typeof window.__resolveMic === "function");
-    await page.keyboard.press("4");
+    await analyze(page);
     await page.evaluate(() => window.__resolveMic());
     await eventually(async () => await page.evaluate(() => window.__stoppedTracks === 1), "late tuner stream was not stopped after navigation"); checks++;
 
