@@ -14,6 +14,7 @@ import java.io.ByteArrayInputStream;
 
 /** No remote resource or unknown appassets URL may fall through to the network. */
 final class LocalAssetWebViewClient extends WebViewClient {
+    private static final String APPASSETS_HOST = "appassets.androidplatform.net";
     private final WebViewAssetLoader loader;
     private final Runnable recreateWebView;
     LocalAssetWebViewClient(WebViewAssetLoader loader, Runnable recreateWebView) {
@@ -22,7 +23,7 @@ final class LocalAssetWebViewClient extends WebViewClient {
     }
     private boolean isLocal(WebResourceRequest request) {
         Uri uri = request.getUrl();
-        return "https".equals(uri.getScheme()) && "appassets.androidplatform.net".equals(uri.getHost())
+        return "https".equals(uri.getScheme()) && APPASSETS_HOST.equals(uri.getHost())
                 && (uri.getPort() == -1 || uri.getPort() == 443) && uri.getUserInfo() == null;
     }
     private WebResourceResponse notFound() {

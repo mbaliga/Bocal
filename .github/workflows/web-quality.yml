@@ -18,6 +18,8 @@ jobs:
           cache: npm
           cache-dependency-path: web-source/package-lock.json
       - run: npm ci
+      - name: Record dependency security findings
+        run: node ../scripts/audit-dependencies.mjs
       - run: npx playwright install --with-deps chromium
       - run: npm test
       - run: npm run lint
@@ -42,3 +44,11 @@ jobs:
           if-no-files-found: error
           retention-days: 1
           compression-level: 9
+      - name: Keep security evidence even when a later check fails
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bocal-security-evidence
+          path: qa/reports/dependency-audit.json
+          if-no-files-found: warn
+          retention-days: 3
