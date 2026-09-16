@@ -1,34 +1,23 @@
 # Verification record
 
-Snapshot: 10 August 2026
+Updated 17 September 2026. The former 10 August prototype snapshot is not current release evidence.
 
-## Passing checks
+## How to read the evidence
 
-```text
-python3 models/validate_models.py
-Validated 35 GLB files and 465 interactive controls.
+PR #9 contains the production hardening pass. Always pair results with the exact source SHA and run ID. CI logs and the retained `bocal-verification-evidence` / `bocal-android-runtime-evidence` artifacts are the authoritative execution results; the presence of a test file is not a pass.
 
-cd web-standalone
-npm run build
-Vite production build succeeded.
+The first hardening checkpoint at ba04fafdab73f3bafaac13b514422015f85248ec passed Actions run 35151199901: shared web checks, explicit browser/contrast checks, Android debug and minified release builds, instrumentation compilation, and packaged-payload verification. This was before the later recording-lifecycle changes, dependency refresh and expanded runtime tests; it does not certify those later commits.
 
-npm run test
-Smoke checks passed: 35 instruments, 6 workspaces, static build present.
-```
+Focused isolated tests during the initial implementation passed: 23 recording-storage cases, 11 packaging-verifier cases, and strict typecheck of the new storage modules. Full repository and integration validation is performed by Actions, not claimed from the isolated test run.
 
-Additional structural checks confirmed:
+## Repeatable checks
 
-- `web-standalone/dist/index.html`, `bocal.js` and `catalog.json` match the copies embedded in `android/app/src/main/assets/www`.
-- The Android asset folder contains 35 GLBs.
-- `AndroidManifest.xml` declares `RECORD_AUDIO` and `VIBRATE`, with no `INTERNET` permission.
-- `TE_Parity_Matrix.csv` contains 84 capability rows plus its header.
-- `Personas_and_50_Workflows.md` defines 10 primary personas with five numbered workflows apiece.
-- The final handoff rendered to 27 pages and every page was visually inspected for clipping, broken tables, accidental line wraps and list rendering.
+From `web-source/`: `npm ci`, `npm test`, `npm run lint`, `npm run build`, `node --test tests/*.dist-test.mjs`, `npm run preview:standalone`, `node tests/theme.test.mjs`, `npm run test:e2e`, `node tests/production-smoke.mjs`, `node ../scripts/audit-dependencies.mjs --enforce`.
 
-## Not verified here
+From the root: `python3 -m unittest discover -s scripts -p 'test_*.py'`.
 
-- Android compilation, unit-test execution, APK packaging, signing, installation and physical-device behavior: blocked by the absent Android SDK/Build Tools/Gradle toolchain.
-- Browser WebGL appearance in the execution browser: that sandbox's WebGL process failed. Static build and model structure pass, but phone/desktop visual interaction remains a physical-browser QA gate.
-- Microphone accuracy, latency, octave errors, metronome long-run drift, audio routing and battery/thermal behavior: require labeled audio fixtures and representative devices.
-- Educational correctness beyond the supplied alto core map: requires qualified family-specialist review. Structural validation is not fingering certification.
-- Comparative superiority to TonalEnergy: requires moderated matched-task studies and the same device/audio corpus for both products.
+Android's workflow stages that exact web bundle, compiles debug/instrumentation/minified release variants, verifies payload identity, and runs the debug instrumentation suite in an API 35 emulator. Browser fake capture and emulator installation are not measurements of physical mic accuracy or musical performance.
+
+## Explicit exclusions
+
+No physical-device acceptance, professional musical review, genuine production-signing identity, published store release, or TonalEnergy comparative study is asserted by this work. Follow `docs/PRODUCTION_V1_ACCEPTANCE.md` before production promotion.

@@ -1,44 +1,55 @@
-# Bocal — current state
+# Bocal current state
 
-An instrument × capability table, kept as the one place other docs point to instead
-of restating instrument counts and feature lists that drift out of date. Generated
-by hand from `web-source/app/instruments.ts` and the fingering/sax-lab/oboe-lab
-review reports as of 6 September 2026; re-check it whenever `INSTRUMENT_ORDER` or a
-`labTier` changes.
+Updated 17 September 2026 for PR #9, `feat/production-v1-hardening`.
 
-## Instrument × capability
+## Release decision
 
-| Instrument | `labTier` | Tuner | Written↔concert offset | Lab | Known chart/model issues |
-|---|---|---|---:|---|---|
-| Alto saxophone | fingering | Yes | 9 semitones | 3D fingering trainer, licensed model | Standard range only; altissimo B6/C7 fingerings not confirmed against the cited source |
-| Tenor saxophone | fingering | Yes | 14 semitones | Fingering trainer, shown on alto model | Standard range only |
-| Soprano saxophone | fingering | Yes | 2 semitones | Fingering trainer, shown on alto model | Standard range only |
-| Baritone saxophone | fingering | Yes | 21 semitones | Fingering trainer, shown on alto model | Standard range only, no low A |
-| Oboe | anatomy | Yes | 0 | 3D anatomy preview + 2D chart | D6 fingering shown with RH1 pressed, contradicting the cited source; renderer has a known 100x scale bug |
-| Cor anglais | anatomy | Yes | 7 semitones | 3D anatomy preview (oboe model) + oboe chart | Picker range starts one semitone too low (written B♭3 instead of B3) |
-| Flute | chart | Yes | 0 | 2D fingering chart, no 3D model | Thumb B♭ and E♭ key omissions against the cited source |
-| Clarinet | chart | Yes | 2 semitones | 2D fingering chart, 3D model not licensed | Chart verified against the source; considered the most reliable of the three chart-only instruments |
-| Bassoon | chart | Yes | 0 | 2D fingering chart, no 3D model | Missing LH pinky keys against the cited source |
-| Guitar | none | String tuner (no reed/embouchure model) | n/a | Chord fretboard chart + follow player | Follow-player advance is now tempo-selectable and scheduled on the AudioContext clock (fixed alongside this document) |
+Bocal is a hardened **v0.6.0 release candidate**, not an accepted production V1. Android `versionCode` remains 7. A passing build or emulator run does not establish real microphone accuracy, musical correctness, production signing, or store acceptance. The current PR's Actions run is the evidence for its exact commit; do not substitute an older green run.
 
-## Cross-cutting state
+## Canonical source
 
-| Area | State |
-|---|---|
-| Fingering/anatomy review | None reviewed by a qualified teacher; every chart and the sax altissimo set carry a "not yet teacher-reviewed" badge |
-| 3D rendering | Uniform bronze study finish on both licensed models; no per-instrument material/finish customization reaches the model yet |
-| Takes/recordings (Analyze) | Kept in memory for the session; not persisted to disk; download is the only way to keep one |
-| Practice data | Local `localStorage`, deterministic skill-rating from recorded evidence (no synthetic/demo numbers) |
-| Android shell | WebView wrapper over this web build; two third-party glTF models ship (alto sax, oboe); no signed release build exists |
-| Tests | `product-truth.test.mjs` and `human-copy.test.mjs` assert the claims above at the source-file level; keep both passing when copy changes |
+- `web-source/`: the maintained product, shared by browser and Android.
+- `android/`: thin local WebView host. Gradle packages the generated standalone web application; do not edit generated HTML.
+- `web-source-v6/`, `web-standalone/`, and the generated models in `models/glb/`: historical prototypes/reference material, not production entry points. Their instrument counts and old verification records are not current product claims.
+- `docs/PRODUCTION_V1_ACCEPTANCE.md`: remaining release gates.
 
-## Where the fuller detail lives
+## Instrument coverage
 
-- Instrument and lab-tier source of truth: `web-source/app/instruments.ts`.
-- Fingering chart data and per-instrument fixtures: `web-source/app/fingering-charts/`.
-- Full narrative handoff: `docs/BOCAL_HANDOFF.md`.
-- Detailed, cited findings per subsystem: the review reports (`tuner.md`,
-  `fingering-charts.md`, `sax-lab.md`, `3d-customization.md`, `light-theme.md`,
-  `product.md`, `android-ci.md`, `engineering.md`, `a11y-ux.md`, `analysis.md`,
-  `metronome.md`, `tone-generator.md`) alongside this file's source, and the
-  work-package plan (`PLAN.md`) that tracks which findings have been fixed.
+| Instrument | Current learning experience | Boundary |
+|---|---|---|
+| Alto saxophone | Detailed licensed 3D model, touch targets, primary/alternate fingering tools | Specialist anatomical/fingering sign-off still required |
+| Tenor / soprano / baritone saxophone | Transposition-aware practice and fingering trainer using the alto model | Not instrument-specific 3D anatomy; baritone low A unavailable |
+| Oboe | Licensed Howarth S20C 3D anatomy preview and separate 2D chart | Not a fully mapped interactive 3D fingering trainer |
+| Cor anglais | F-transposed tools, oboe-based model/chart | Proxy anatomy, not a dedicated cor anglais model |
+| Flute / clarinet / bassoon | 2D fingering charts and shared audio/practice tools | No production 3D model; clarinet sourcing has licensing restrictions |
+| Guitar | String tuner, chord diagrams and follow player | No 3D instrument lab |
+
+Ten selectable instrument profiles do not mean ten production 3D models. Two licensed GLBs ship. Reference/fixture checks are not teacher review.
+
+## Implemented product baseline
+
+PR #8 corrected the oboe's 100x scaling bug and chart inconsistencies, added instrument-specific pitch ranges and octave guards, real per-part material customization, persistent IndexedDB takes, stronger metronome/tone-generator/analysis tools, and light-theme improvements. Those are no longer pending items from the superseded 6 September status table.
+
+The distinctive mobile arc and configurable landscape edge remain in the shared UI. No replacement navigation or cosmetic redesign is part of PR #9.
+
+## Production-hardening changes in PR #9
+
+- Recording writes succeed only after an IndexedDB transaction commits; failed or blocked storage gives visible local feedback.
+- Per-take operations are ordered. A rename/delete cannot race an unfinished create. Deletion is confirmed and only removed from the UI after success.
+- Existing takes are never automatically evicted. The 12-take capacity gate runs before a new import/recording. Exports are a separate backup, not a cloud sync.
+- Imports are bounded to 32 MiB; recordings stop at 10 minutes or their size limit. Stop/background/unmount cancels stale microphone requests and preserves received recording data where the browser can finish it.
+- Android uses a system Save As picker, bounded bridge transfer, background writes and cancellation/failure feedback. There is no silent blob-download fallback inside Android.
+- Trusted-origin microphone and navigation checks, explicit callback cleanup, and a shared app error boundary.
+- Debug and release workflows share mandatory typecheck, tests, lint, builds, browser/contrast checks, and high/critical dependency gating.
+- APK/AAB verification checks ZIP integrity, embedded models and byte-for-byte identity with the tested standalone application.
+- Signed candidate builds require all signing inputs, verify signatures and checksums, and do not automatically publish or claim device acceptance.
+
+## Security snapshot
+
+The 17 September lockfile refresh reduced the observed npm audit from 24 vulnerable packages (1 critical, 16 high, 6 moderate, 1 low) to **0 critical, 0 high, 4 moderate, 0 low**. The four remaining entries are the Drizzle Kit / esbuild-kit / esbuild development-tool chain. No forced downgrade was applied. Do not expose development servers; the remaining tooling advisories need continued maintenance. A fresh audit is mandatory for each candidate.
+
+Next, React/RSC, Vite, Vinext and Cloudflare tooling were updated with registry-confirmed versions and a regenerated lockfile. The temporary branch-writing maintenance workflow was removed after use.
+
+## Still not proven
+
+Real-device audio/latency/thermal and accessibility acceptance; specialist review of fingerings and 3D touch targets; production signing identity and distribution; comprehensive TonalEnergy parity/superiority; dedicated 3D parity across the other instrument families.
