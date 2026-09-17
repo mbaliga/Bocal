@@ -11,7 +11,7 @@ tests=$(find emulator-apks -name app-debug-androidTest.apk -print -quit)
 test -n "$app" && test -n "$tests"
 adb install -r "$app"
 adb install -r "$tests"
-adb logcat -c
+adb logcat -c || { sleep 3; adb logcat -c || true; }
 adb shell am instrument -w -r com.bocal.music.test/androidx.test.runner.AndroidJUnitRunner | tee qa/reports/android/instrumentation.txt
 grep -Eq '^OK \([0-9]+ tests?\)' qa/reports/android/instrumentation.txt
 if grep -Eq 'FAILURES!!!|INSTRUMENTATION_FAILED|Process crashed' qa/reports/android/instrumentation.txt; then exit 1; fi
