@@ -51,6 +51,22 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      - name: Build debug APK for connected smoke test
+        working-directory: android
+        env:
+          BOCAL_SKIP_WEB_BUILD: "1"
+        run: ./gradlew lintDebug assembleDebug --console=plain
+
+      - name: Run connected Android smoke test
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: Pixel_2
+          disable-animations: true
+          script: cd android && ./gradlew connectedDebugAndroidTest --console=plain
+
       - name: Check release secrets
         env:
           KEYSTORE_B64: ${{ secrets.BOCAL_UPLOAD_KEYSTORE_B64 }}
