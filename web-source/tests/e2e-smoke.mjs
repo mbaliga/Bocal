@@ -53,8 +53,9 @@ try {
         assert.ok(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth <= 1), `${label}: horizontal overflow in workspace ${digit}`);
         if (size.width < 681 || size.height <= 520) {
           assert.equal(await page.locator(".mobile-nav .arc-shape > path").count(), 4, "The persistent four-layer navigation arc is missing");
-          // The separate instrument switch is deliberately absent in Practice.
-          if (digit === 1) assert.equal(await page.locator(".dock-pill .pill-track > path").count(), 2, "The Tune instrument-switch arc is missing");
+          // .dock-pill is rendered unconditionally in .mobile-dock, outside the
+          // per-mode switch, so check it on every workspace, not just Tune.
+          assert.equal(await page.locator(".dock-pill .pill-track > path").count(), 2, "The Tune instrument-switch arc is missing");
         }
       }
       assert.deepEqual(pageErrors, [], `${label}: browser errors`);
