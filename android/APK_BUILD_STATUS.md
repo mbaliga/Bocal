@@ -2,7 +2,7 @@
 
 Updated 17 September 2026 for the production-hardening candidate in PR #9.
 
-The maintained Android shell uses `web-source/` and generates `assets/www/app.html` from the standalone build. Version remains **0.6.0 / versionCode 7**, compile/target SDK 37, minimum SDK 26. Do not rely on the superseded August v0.5 build record for current acceptance.
+The maintained Android shell uses `web-source/` and generates `assets/www/app.html` from the standalone build. Version is **1.0.0-rc.1 / versionCode 8**, compile/target SDK 37, minimum SDK 26. Do not rely on the superseded August v0.5 build record for current acceptance.
 
 ## Build verification
 
