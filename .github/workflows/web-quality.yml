@@ -43,6 +43,7 @@ jobs:
         run: |
           python3 -m unittest discover -s scripts -p 'test_*.py'
           python3 scripts/verify_android_artifact.py web-source/preview-dist/index.html --html-only
+          node web-source/scripts/check-bundle-syntax.mjs
       - uses: actions/upload-artifact@v4
         with:
           name: bocal-web-app

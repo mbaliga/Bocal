@@ -28,7 +28,10 @@ function readTuningOptions(): TuningOptions {
     const savedHz = Number(window.localStorage.getItem(TUNING_KEYS.referenceHz));
     const referenceHz = Number.isFinite(savedHz) && savedHz >= REFERENCE_HZ_MIN && savedHz <= REFERENCE_HZ_MAX ? savedHz : fallback.referenceHz;
     const savedTemperament = window.localStorage.getItem(TUNING_KEYS.temperament);
-    const temperament: TemperamentId = savedTemperament && Object.hasOwn(TEMPERAMENT_PROFILES, savedTemperament) ? savedTemperament as TemperamentId : "equal";
+    // Object.hasOwn needs Chrome 93; the standalone bundle's floor is Chrome
+    // 69 (see vite.preview.config.ts), so use the classic equivalent.
+    const hasTemperament = savedTemperament ? Object.prototype.hasOwnProperty.call(TEMPERAMENT_PROFILES, savedTemperament) : false;
+    const temperament: TemperamentId = savedTemperament && hasTemperament ? savedTemperament as TemperamentId : "equal";
     const savedKeyPc = Number(window.localStorage.getItem(TUNING_KEYS.keyPc));
     return { referenceHz, temperament, keyPc: Number.isInteger(savedKeyPc) && savedKeyPc >= 0 && savedKeyPc < 12 ? savedKeyPc : 0 };
   } catch { return fallback; }
