@@ -21,6 +21,17 @@ test("the public handoff and Android release gate point to repository-owned sour
   assert.match(page, /Only models with usable rights and player-checked keywork/i);
 });
 
+test("the release workflow cannot silently skip its production gates", async () => {
+  const workflow = await readFile(new URL("../../.github/workflows/release.yml", import.meta.url), "utf8");
+  const verifier = await stat(new URL("../../android/verify-aab.sh", import.meta.url));
+  assert.ok((verifier.mode & 0o111) !== 0, "AAB verifier must remain executable");
+  assert.match(workflow, /npm run test:e2e/);
+  assert.match(workflow, /npm run test:theme/);
+  assert.match(workflow, /Missing release signing secrets/);
+  assert.match(workflow, /connectedDebugAndroidTest/);
+  assert.match(workflow, /\.\/verify-aab\.sh app\/build\/outputs\/bundle\/release\/app-release\.aab/);
+});
+
 test("the shipping Android tree (/android) is a hardened, local-first WebView shell", async () => {
   const manifest = await readFile(new URL("../../android/app/src/main/AndroidManifest.xml", import.meta.url), "utf8");
   const webAppScreen = await readFile(
