@@ -4,7 +4,7 @@ Updated 17 September 2026 for PR #9, `feat/production-v1-hardening`.
 
 ## Release decision
 
-Bocal is a hardened **v1.0.0 release candidate**, not yet an accepted/published production V1. Android `versionCode` is 8. A passing build or emulator run does not establish real microphone accuracy, musical correctness, production signing, or store acceptance. The current PR's Actions run is the evidence for its exact commit; do not substitute an older green run.
+Bocal is a hardened **v1.0.0-rc.1 release candidate**, not yet an accepted/published production V1. Android `versionCode` is 8. A passing build or emulator run does not establish real microphone accuracy, musical correctness, production signing, or store acceptance. The current PR's Actions run is the evidence for its exact commit; do not substitute an older green run.
 
 ## Canonical source
 

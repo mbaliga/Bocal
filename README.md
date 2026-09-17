@@ -2,7 +2,7 @@
 
 Local-first music practice: a stable-note tuner, metronome, tone generation, local recording/analysis, practice evidence and instrument learning.
 
-**Release state: v1.0.0 release candidate, not yet an accepted/published production V1.** Read [current capabilities](docs/CURRENT_STATE.md), [verification evidence](qa/VERIFICATION.md), and the [production acceptance gates](docs/PRODUCTION_V1_ACCEPTANCE.md). A green build does not replace physical audio testing or specialist musical review.
+**Release state: v1.0.0-rc.1 release candidate, not yet an accepted/published production V1.** Read [current capabilities](docs/CURRENT_STATE.md), [verification evidence](qa/VERIFICATION.md), and the [production acceptance gates](docs/PRODUCTION_V1_ACCEPTANCE.md). A green build does not replace physical audio testing or specialist musical review.
 
 ## One maintained application
 
