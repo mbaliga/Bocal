@@ -7,12 +7,15 @@ import android.view.ViewGroup
 import android.webkit.WebView
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import androidx.webkit.WebViewCompat
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -21,6 +24,12 @@ import org.junit.runner.RunWith
 class BocalRotationSmokeTest {
     @Test
     fun rotationRetainsTheActivityWebViewAndLiveJavascriptState() {
+        // This test is meaningless without a live WebView to rotate (see
+        // WebViewFloor.kt); both CI emulator images meet the floor after
+        // this fix. BocalWebViewGateTest covers the below-floor path.
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val versionName = WebViewCompat.getCurrentWebViewPackage(context)?.versionName
+        assumeTrue("WebView ($versionName) is below MIN_WEBVIEW_MAJOR; the app shows the update screen instead.", webViewMeetsFloor(versionName))
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
             scenario.onActivity { it.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT }
             awaitCondition("Initial portrait layout did not settle") {

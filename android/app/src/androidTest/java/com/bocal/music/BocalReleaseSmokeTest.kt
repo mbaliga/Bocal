@@ -9,16 +9,32 @@ import android.webkit.WebView
 import androidx.core.content.ContextCompat
 import androidx.test.espresso.Espresso.pressBack
 import androidx.test.ext.junit.rules.ActivityScenarioRule
+import androidx.test.platform.app.InstrumentationRegistry
+import androidx.webkit.WebViewCompat
 import com.bocal.music.ui.BocalFileSaver
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import org.junit.Assert.*
+import org.junit.Assume.assumeTrue
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 
 /** Runtime shell checks. Passing on an emulator is not a physical audio sign-off. */
 class BocalReleaseSmokeTest {
     @get:Rule val activityRule = ActivityScenarioRule(MainActivity::class.java)
+
+    // These tests exercise the live app WebView, not the native WebView-update
+    // screen (see WebViewFloor.kt). Both CI emulator images (API 26, API 35)
+    // meet MIN_WEBVIEW_MAJOR after this fix; a device below the floor skips
+    // rather than fails on assertions that assume a WebView exists.
+    // BocalWebViewGateTest covers the below-floor path itself.
+    @Before
+    fun requireTheWebViewFloorIsMet() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val versionName = WebViewCompat.getCurrentWebViewPackage(context)?.versionName
+        assumeTrue("WebView ($versionName) is below MIN_WEBVIEW_MAJOR; the app shows the update screen instead.", webViewMeetsFloor(versionName))
+    }
 
     private fun findWebView(view: View): WebView? {
         if (view is WebView) return view
