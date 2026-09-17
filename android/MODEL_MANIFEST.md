@@ -1,4 +1,4 @@
-# Bocal Android 0.5 — Model Manifest
+# Bocal Android 0.6 — Model Manifest
 
 ## Runtime policy
 
@@ -11,7 +11,7 @@ Only detailed models with usable provenance and acceptable runtime boundaries ar
 
 ## Alto saxophone
 
-**Credit:** `saxophone alto` by ANDRIANIAINAToky, licensed under CC-BY-4.0. License text: `app/src/main/assets/www/licenses/saxophone-alto-CC-BY-4.0.txt`.
+**Credit:** `saxophone alto` by ANDRIANIAINAToky, licensed under CC-BY-4.0. License text: https://creativecommons.org/licenses/by/4.0/.
 
 **What Bocal validates:**
 
@@ -25,7 +25,7 @@ Only detailed models with usable provenance and acceptable runtime boundaries ar
 
 ## Oboe
 
-**Credit:** `Oboe - Howarth Conservatoire S20C (Instrument)` by WarderiiK, licensed under CC-BY-4.0. License text: `app/src/main/assets/www/licenses/howarth-s20c-CC-BY-4.0.txt`.
+**Credit:** `Oboe - Howarth Conservatoire S20C (Instrument)` by WarderiiK, licensed under CC-BY-4.0. License text: https://creativecommons.org/licenses/by/4.0/.
 
 The model is used as a high-detail anatomy reference.
 

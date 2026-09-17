@@ -62,13 +62,18 @@ Useful checks:
 ```bash
 npm run lint
 npm test
+npm run test:dist
+npm run test:e2e       # after npm run preview:standalone
+npm run test:theme     # builds the standalone preview first
 ```
 
-`npm test` performs the verified production build before running the Node test suite.
+`npm test` runs typecheck and the source-level Node test suite. The standalone build,
+distribution checks and browser gates are explicit so a fast local test cannot be
+mistaken for full release validation.
 
 ## Android status
 
-The checked-in project targets API 37 and wraps this app's static build in a WebView (`MainActivity` → `WebAppScreen`); the earlier Kotlin/Compose native UI and `AudioRecord`/YIN tuner remain in the tree only as an unused revert path. Build it only in an environment with JDK 17, Android SDK 37 and the matching Gradle/AGP toolchain:
+The checked-in project targets API 37 and wraps this app's static build in a WebView (`MainActivity` → `WebAppScreen`). The earlier Kotlin/Compose product surface was removed; build it only in an environment with JDK 21, Android SDK 37 and the matching Gradle/AGP toolchain:
 
 ```bash
 cd android

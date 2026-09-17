@@ -371,7 +371,8 @@ button:focus-visible, [role="button"]:focus-visible, a:focus-visible, input:focu
 .legend-metal { background: #c8922f; border: 1px solid #f1c65c; }
 .model-accuracy-label { position: absolute; z-index: 3; left: 50%; bottom: 27px; transform: translateX(-50%); color: #66666a; font-size: 8px; letter-spacing: .02em; white-space: nowrap; }
 .drag-hint { position: absolute; z-index: 3; right: 20px; bottom: 21px; }
-.sax-model-credit { width: fit-content; margin: 14px auto 0; color: #66666a; display: flex; align-items: center; gap: 6px; font-size: 8px; text-decoration: none; }
+.model-credit-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 12px; margin-top: 14px; }
+.sax-model-credit { width: fit-content; margin: 0; color: #66666a; display: flex; align-items: center; gap: 6px; font-size: 8px; text-decoration: none; }
 .sax-model-credit:hover { color: #9a91c6; }
 .preview-status { min-height: 38px; padding: 0 13px; border: 1px solid #3c3758; border-radius: 11px; background: #191727; color: #b9b1e8; display: inline-flex; align-items: center; gap: 7px; font-size: 9px; white-space: nowrap; }
 .oboe-workspace { min-height: 680px; display: grid; grid-template-columns: minmax(0, 1.62fr) minmax(320px, .72fr); gap: 14px; }
@@ -394,6 +395,8 @@ button:focus-visible, [role="button"]:focus-visible, a:focus-visible, input:focu
 .oboe-truth-card p { margin: 6px 0 0; color: #747478; font-size: 8px; line-height: 1.55; }
 .model-credit { margin-top: auto; padding-top: 18px; color: #78727f; display: flex; align-items: flex-start; gap: 7px; font-size: 8px; line-height: 1.45; text-decoration: none; }
 .model-credit:hover { color: #a69add; }
+.model-license-link { margin-top: 8px; color: #78727f; display: inline-flex; align-items: center; gap: 6px; font-size: 8px; line-height: 1.45; text-decoration: none; }
+.model-license-link:hover { color: #a69add; }
 
 /* 2D fingering charts (flute, clarinet, bassoon, and the oboe/cor-anglais
    section beneath their 3D stage). Reuses the sax lab's note-browser,

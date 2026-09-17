@@ -11,8 +11,8 @@ product surface. For what Bocal actually does today, read
 [`docs/BOCAL_HANDOFF.md`](docs/BOCAL_HANDOFF.md) (the single source of truth for
 product state) and [`web-source/README.md`](web-source/README.md). The rest of this
 file, `web-standalone/`, `web-source-v6/`, `models/`, `research/` and `qa/` are the
-historical record of the 0.2 → 0.5 import described below; they predate the current
-instrument set and are not maintained as part of the live product.
+historical record of the 0.2 → 0.5 import described below; they are not maintained
+as part of the live product.
 
 ## Layout
 
@@ -30,17 +30,21 @@ instrument set and are not maintained as part of the live product.
 
 ## Getting started
 
-The standalone web app is the fastest way to see Bocal running:
+The current web app is the fastest way to see Bocal running:
 
 ```bash
-cd web-standalone
-npm install
-npm run build
-npm run test     # smoke suite: 35 instruments, 6 workspaces
+cd web-source
+npm ci
+npm run dev
 ```
 
-Serve `web-standalone/dist/` over HTTPS — the browser will not grant microphone
-access to a plain-HTTP origin.
+Run the standalone build and its browser gates before packaging Android:
+
+```bash
+npm run preview:standalone
+npm run test:e2e
+npm run test:theme
+```
 
 To validate the 3D model set:
 
@@ -53,14 +57,11 @@ python3 models/validate_models.py
 The 0.2 handoff was candid about what had and had not been verified, and that
 carries over to this import. `qa/VERIFICATION.md` is the original record.
 
-**Verified by re-running it here:** `npm run build` and `npm run test` in
-`web-standalone/` both pass — 35 instruments, 6 workspaces, static build present. The
-rebuild reproduces the committed `web-standalone/dist/` byte-for-byte, so the
-checked-in ready-to-host build is authentic to its source. `models/validate_models.py`
-passes: 35 GLBs parse as glTF 2.0 and agree with the catalog, with 465 named
-interactive controls. In `android/`, the shell half of `static-check.sh` passes — the
-XML parses, there is no `INTERNET` permission, and the six-tab shell and local Lab are
-wired.
+**Verified in the current source:** `models/validate_models.py` passes: 35 GLBs parse
+as glTF 2.0 and agree with the catalog, with 465 named interactive controls. In
+`android/`, `static-check.sh` passes — the XML parses, there is no `INTERNET`
+permission, and the WebView shell and native bridge are wired. GitHub Actions has
+also produced the current debug APK and standalone web artifact from `main`.
 
 **Carried over from the handoff, not re-checked here:** the 27-page document render
 and page-by-page review. The 0.2 claim that the Android asset bundle mirrored the
@@ -68,23 +69,23 @@ standalone build no longer holds — 0.5 replaced those assets entirely.
 
 **Not verified:**
 
-- **No signed release APK/AAB is included.** `android/` now builds and passes
-  `assembleDebug`/`assembleRelease` locally (R8 verified) and CI produces a debug APK
-  on every push, but a Play-acceptable signed AAB requires the upload-keystore
-  secrets named in `android/README.md`, which do not exist in this repository.
-  `android/build-apk.sh`, `verify-apk.sh` and `device-release-check.sh` document the
-  remaining device-validation pass.
+- **No signed release APK/AAB is included.** CI produces a debug APK on pushes, but
+  a Play-acceptable signed AAB requires the upload-keystore secrets named in
+  `android/README.md`. The release workflow now fails closed without those secrets
+  and verifies the signed AAB when they are configured. `android/build-apk.sh`,
+  `verify-apk.sh` and `device-release-check.sh` document the remaining device pass.
 - **The 35 in-house 3D models are educational reference geometry, not repair or CAD
   models.** Only the alto saxophone has a core note map. Other instruments expose
   recognizable parts and controls but must not be presented as certified fingering
   tutors until family specialists approve their note maps and mechanisms. In the
-  Android 0.5 app the oboe and clarinet are explicitly anatomy/part inspectors only,
-  with note-to-fingering linkage disabled.
+  current app exposes only the licensed sax/oboe models for 3D and uses explicit
+  2D chart tiers for the other chart-supported instruments.
 - Microphone accuracy, latency, octave errors, metronome long-run drift and
   battery/thermal behavior are untested — they need labeled audio fixtures and
   representative devices.
-- WebGL appearance was never confirmed in a real browser; the build environment's
-  WebGL process failed. Physical-browser QA remains an open gate.
+- Automated Chromium smoke and theme audits are release gates; WebGL appearance,
+  microphone accuracy and long-run behavior on representative physical devices
+  remain open gates.
 - Any claim of parity with or superiority to TonalEnergy is unproven, and would
   require moderated matched-task studies on a shared device and audio corpus.
 

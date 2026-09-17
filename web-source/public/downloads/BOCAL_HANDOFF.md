@@ -1,8 +1,8 @@
 # Bocal product and engineering handoff
 
-**Version:** 2.0
-**Date:** 6 September 2026
-**Status:** Active prototype; not yet TonalEnergy feature parity, not yet teacher-reviewed
+**Version:** 2.1
+**Date:** 18 September 2026
+**Status:** Active release candidate for the web surface; Android release and teacher review are still pending
 **Current public instruments:** Ten — see the table in §2. Nine woodwinds (alto/tenor/soprano/baritone saxophone, oboe, cor anglais, flute, clarinet, bassoon) plus guitar.
 **Product principle:** local-first, educationally honest, usable in one or two taps during real practice
 
@@ -58,8 +58,8 @@ instrument × capability matrix and known data gaps per instrument.
   drills, saved presets and multi-section sequences, plus a drone.
 - **Analyze** — live waveform and spectrum views, a harmonics/partial-level overlay,
   and named multi-take recording with import, loop, tempo playback, rename, delete
-  and download. Takes are kept in memory for the session unless downloaded; the app
-  does not persist recordings to disk on its own.
+  and download. Takes are stored locally in IndexedDB when available, with a
+  session-only fallback when it is unavailable; they are never uploaded.
 - **Practice** — local practice-time logging, weekly goals, a streak indicator,
   lesson/setup notes, deterministic (non-random) skill-rating evidence, and a coach
   board covering pitch, rhythm, technique, repertoire and reflection with an
@@ -67,20 +67,18 @@ instrument × capability matrix and known data gaps per instrument.
 
 ## 4. Known gaps (do not ship copy that contradicts these)
 
-This section exists so the handoff cannot drift out of sync with reality the way its
-predecessors did. It is not exhaustive — see the individual review reports under
-`review/` for full detail with file:line citations.
+This section exists so the handoff cannot drift out of sync with reality. It is not
+exhaustive — see the source and regression tests named below for the current detail.
 
 - No fingering chart or altissimo fingering has been reviewed by a qualified teacher.
-- Several charts (flute, bassoon, oboe) have documented data errors against the cited
-  source; see `fingering-charts.md`.
-- The tuner's pitch tracker is tuned to a single frequency range that clips some
-  instruments' extremes (e.g. bassoon's first octave); see `tuner.md`.
-- The 3D models render a uniform bronze study finish; no per-instrument
-  customization (finish, environment, camera preset) reaches the model yet.
-- Takes recorded in Analyze are session/in-memory only, not saved to persistent
-  storage, despite earlier drafts of this handoff and the privacy policy implying
-  otherwise.
+- Some charts and saxophone altissimo fingerings remain unreviewed by a qualified
+  player; source-level fixtures and badges do not replace that sign-off.
+- The pitch tracker's capture window is instrument-specific, but real microphone
+  validation at the extremes of every instrument remains outstanding.
+- The 3D models have a bronze default, with local material, keywork, mouthpiece,
+  environment and camera controls available through the Look panel.
+- Takes recorded in Analyze use local IndexedDB persistence when available and fall
+  back to session-only storage when it is not; they are never uploaded.
 - The Android shell is a WebView wrapper over this web build (`MainActivity` →
   `WebAppScreen`), not a native Kotlin/Compose UI; no signed release build exists yet.
 
@@ -97,19 +95,19 @@ predecessors did. It is not exhaustive — see the individual review reports und
   no `INTERNET`. Two third-party glTF instrument models ship in
   `android/app/src/main/assets/www/models` (alto sax, oboe); see
   `android/THIRD_PARTY_NOTICES.md` and `android/MODEL_MANIFEST.md` for licensing.
-  The earlier native Kotlin/Compose screens remain in the source tree only as an
-  unused revert path.
-- **Build/verification**: `npm run lint`, `npx tsc --noEmit`, `npm run build`,
-  `node --test tests/*.test.mjs`, `npm run preview:standalone`. See
+  The earlier native Kotlin/Compose product surface was removed; the WebView shell
+  is the only Android product surface.
+- **Build/verification**: `npm run lint`, `npm run typecheck`, `npm run build`,
+  `npm run test`, `npm run test:dist`, `npm run test:e2e`,
+  `npm run test:theme`, and `npm run preview:standalone`. See
   `web-source/README.md` for the exact commands.
 
 ## 6. Release status
 
 No signed Android release build exists. `android/fastlane/` and `docs/store/`
-describe the intended Play Store listing and privacy policy; both should be
-re-checked against §4 before any store submission, since store copy has previously
-overclaimed relative to what ships (see `product.md` and `android-ci.md` in
-`review/`).
+describe the intended Play Store listing and privacy policy; both must be checked
+against the shipped bundle before store submission. The release workflow now fails
+closed when signing secrets are absent and verifies the resulting AAB signature.
 
 ## 7. Personas and core workflows
 
@@ -138,11 +136,9 @@ beyond the initial page load.
   network request to function.
 - **Instrument-honest**: an instrument's lab tier, tuner correction copy and
   onboarding copy must describe what that specific instrument actually has, not a
-  generic "every instrument gets a 3D model" assumption. This was violated before
-  the 6 September review (`product.md` findings on the "3D lab" tab name, onboarding
-  step 2/3 copy, and the guitar sharing the sax family's embouchure correction
-  copy) and is being corrected package by package; check `docs/CURRENT_STATE.md` for
-  what has landed.
+  generic "every instrument gets a 3D model" assumption. The instrument matrix and
+  regression tests are the source of truth; check `docs/CURRENT_STATE.md` for the
+  remaining data-review work.
 - **Reviewable data**: any musical claim (a fingering, an altissimo note, a
   temperament's cent values) must be traceable to a cited source and badged
   accordingly, never presented with more confidence than a teacher's sign-off would
@@ -154,24 +150,24 @@ No signed Android release build has been produced. The web app builds via
 `npm run build` (Next.js) and has a static "standalone" export path
 (`npm run preview:standalone`) that the Android WebView shell is meant to serve.
 `android/fastlane/` scaffolds a Play Store submission (title, short/full
-description, changelogs) but the changelog for the currently tagged versionCode
-predates several shipped features — see §4 and `android-ci.md` in `review/` for the
-exact string-level mismatch and the fix (regenerate the bundled WebView asset from
-`preview:standalone` rather than hand-copying it).
+description, changelogs). The bundled WebView asset is regenerated from
+`preview:standalone`; release signing and Play Console submission remain
+release-owner steps.
 
 ## 10. QA and release gates
 
 Before any Android release is promoted beyond internal testing:
 
-1. `npx tsc --noEmit`, `npm run lint`, `npm run build`, and the full
-   `node --test tests/*.test.mjs` suite must pass with zero regressions.
-2. A Playwright pass over the onboarding flow, the instrument picker, and every
+1. `npm run typecheck`, `npm run lint`, `npm run build`, `npm run test`, and
+   `npm run test:dist` must pass with zero regressions.
+2. `npm run test:e2e` must pass over the onboarding flow, the instrument picker, and every
    `labTier` in both light and dark theme, at a phone viewport, with zero
    `pageerror` events and no horizontal overflow.
-3. A physical-device pass: microphone latency and accuracy, screen-lock behavior
+3. `npm run test:theme` must pass the light/dark contrast audit.
+4. A physical-device pass: microphone latency and accuracy, screen-lock behavior
    while the tuner or metronome is running, and status-bar/theme sync, none of
    which are exercised by the emulator-only checks above.
-4. A named, qualified reviewer's sign-off on at least the flute, clarinet and
+5. A named, qualified reviewer's sign-off on at least the flute, clarinet and
    bassoon fingering charts before removing the "not yet teacher-reviewed" badge
    from any of them.
 

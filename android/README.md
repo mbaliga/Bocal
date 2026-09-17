@@ -81,11 +81,21 @@ unsigned) release build:
 Generate an upload keystore once with `keytool` and store it as the base64
 secret above; Play App Signing then holds the real app-signing key, so losing
 the upload key is recoverable. `.github/workflows/release.yml` runs
-`./gradlew bundleRelease` on version tags (`v*`) or manual dispatch, only when
-all four secrets are present, and uploads `app-release.aab`.
+`./gradlew bundleRelease` on version tags (`v*`) or manual dispatch, fails closed
+when any signing secret is absent, verifies the result, and uploads
+`app-release.aab`.
 
 `fastlane/Appfile` reads a Play Console service-account key from the
 `SUPPLY_JSON_KEY` environment variable for `fastlane supply`.
+
+After a release bundle is built, verify its container and signature before it is
+uploaded:
+
+```bash
+./verify-aab.sh app/build/outputs/bundle/release/app-release.aab
+```
+
+The verifier rejects unsigned and Android-debug-signed bundles.
 
 ## Toolchain
 

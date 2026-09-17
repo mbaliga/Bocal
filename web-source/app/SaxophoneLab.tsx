@@ -702,7 +702,10 @@ function SaxFingeringLab({ onBack, instrumentId }: { onBack: () => void; instrum
         <article className="is-setup"><span><Headphones size={16} /> Setup</span><strong>Compare the parts that change feel and response.</strong><p>Manufacturer descriptions are labelled, fit warnings stay visible, and finish colour is treated as visual only.</p></article>
         <article className="is-routes"><span><MousePointer2 size={16} /> Alternate fingerings</span><strong>See the standard route and checked alternatives.</strong><p>Front E and F show the exact touch-pieces used, including the B pad they move.</p></article>
       </div>
-      <a className="sax-model-credit" href="https://sketchfab.com/3d-models/saxophone-alto-08448f4bfbca474b80ba35a571648a27" target="_blank" rel="noreferrer">“saxophone alto” by ANDRIANIAINAToky · CC BY 4.0 <ExternalLink size={12} /></a>
+      <div className="model-credit-links">
+        <a className="sax-model-credit" href="https://sketchfab.com/3d-models/saxophone-alto-08448f4bfbca474b80ba35a571648a27" target="_blank" rel="noreferrer">“saxophone alto” by ANDRIANIAINAToky · CC BY 4.0 <ExternalLink size={12} /></a>
+        <a className="sax-model-credit" href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">License text · CC BY 4.0 <ExternalLink size={12} /></a>
+      </div>
     </div>
   );
 }

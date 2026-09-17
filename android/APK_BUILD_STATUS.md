@@ -1,9 +1,10 @@
 # Bocal Android APK build status
 
-Version: 0.5.0
-Date: 2026-08-14
+This is a historical debug-build record from version 0.5.0 (14 August 2026).
+For the current Android 0.6.0 release path, use `android/README.md` and the CI
+workflows; this file is retained as provenance for the original compile fixes.
 
-**A debug APK now builds.** The source compiles, unit tests pass and lint is clean.
+**A debug APK built at that point.** The source compiled, unit tests passed and lint was clean.
 This supersedes the previous status, which recorded that no environment with an
 Android SDK had ever been available to try.
 
