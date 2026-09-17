@@ -38,7 +38,9 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.webkit.WebViewAssetLoader
+import androidx.webkit.WebViewCompat
 import com.bocal.music.BuildConfig
+import com.bocal.music.webViewMeetsFloor
 
 /** Shared standalone bundle, local HTTPS origin, no network fallback. */
 @Composable
@@ -46,6 +48,22 @@ import com.bocal.music.BuildConfig
 fun WebAppScreen() {
     val context = LocalContext.current
     val activity = context as Activity
+
+    // Below MIN_WEBVIEW_MAJOR, the standalone bundle throws a SyntaxError on
+    // its first script tag instead of rendering (see WebViewFloor.kt) -- so
+    // check before creating a WebView at all, not after it fails to load.
+    // `webViewCheckGeneration` re-runs the check without recreating the
+    // Activity, for the update screen's "Try again" button.
+    var webViewCheckGeneration by remember { mutableIntStateOf(0) }
+    val detectedWebViewVersion = remember(webViewCheckGeneration) { currentWebViewVersionName(context) }
+    if (!webViewMeetsFloor(detectedWebViewVersion)) {
+        WebViewUpdateScreen(
+            detectedVersion = detectedWebViewVersion,
+            onTryAgain = { webViewCheckGeneration += 1 },
+        )
+        return
+    }
+
     val lifecycleOwner = LocalLifecycleOwner.current
     var renderGeneration by remember { mutableIntStateOf(0) }
     var pendingMicRequest by remember { mutableStateOf<PermissionRequest?>(null) }
@@ -183,3 +201,16 @@ fun WebAppScreen() {
 
 internal fun isBocalOrigin(uri: Uri): Boolean = uri.scheme == "https" &&
     uri.host == "appassets.androidplatform.net" && (uri.port == -1 || uri.port == 443) && uri.userInfo == null
+
+/**
+ * The installed WebView provider's version, or null if there isn't one or
+ * it can't be read. Wrapped in a try/catch: querying the provider package
+ * is a real IPC call and a misconfigured system (no WebView provider at
+ * all) can throw rather than simply returning null.
+ */
+internal fun currentWebViewVersionName(context: android.content.Context): String? =
+    try {
+        WebViewCompat.getCurrentWebViewPackage(context)?.versionName
+    } catch (_: Exception) {
+        null
+    }
