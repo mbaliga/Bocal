@@ -31,7 +31,8 @@ class BocalHost(
     @JavascriptInterface
     fun setKeepAwake(on: Boolean) {
         activity.runOnUiThread {
-            if (on && activity.hasWindowFocus()) activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            if (activity.isDestroyed) return@runOnUiThread
+            if (on) activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             else activity.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
     }
