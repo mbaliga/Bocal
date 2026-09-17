@@ -11,8 +11,12 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Bocal"
         android:usesCleartextTraffic="false">
+        <!-- Compose and CSS resize the existing WebView. Recreating the Activity
+             here discards live JS state, an in-progress recording and Save As.
+             Process death is different: durable data restores on a cold launch. -->
         <activity
             android:name=".MainActivity"
+            android:configChanges="screenLayout|orientation|screenSize|keyboard|keyboardHidden|smallestScreenSize|uiMode"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

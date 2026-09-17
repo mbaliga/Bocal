@@ -22,6 +22,7 @@ import {
   Zap,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useForegroundPause } from "./use-foreground-pause";
 import { noteName } from "./notation";
 import {
   cycleBeatMark,
@@ -414,6 +415,15 @@ export function PulseView({ tuningOptions = EQUAL_A440 }: { tuningOptions?: Tuni
   }, [playing, droneOn]);
 
   useEffect(() => () => { void contextRef.current?.close(); contextRef.current = null; }, []);
+
+  useForegroundPause(() => {
+    setPlaying(false);
+    setDroneOn(false);
+    const context = contextRef.current;
+    if (context?.state === "running") void context.suspend().catch(() => undefined);
+    window.bocalHost?.setKeepAwake?.(false);
+    navigator.vibrate?.(0);
+  }, false);
 
   // Keep the screen on while the click or drone is actually sounding -- a
   // player's hands are on the instrument, not the phone, so the metronome

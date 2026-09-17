@@ -46,7 +46,7 @@ those cards are not selectable.
 - `docs/` — supporting research and validation notes.
 - `public/downloads/BOCAL_HANDOFF.md` — the in-app "Download handoff" copy of `../docs/BOCAL_HANDOFF.md`, the consolidated product, persona, workflow, architecture and release handoff.
 
-The native Android project remains a separate parity track. This branch improves the web experience and shared product contracts; it does not claim physical-device microphone accuracy, latency, interruption, Bluetooth or rotation results without hardware.
+The Android shell under `../android/` packages this exact standalone application, so browser and Android share the same maintained product code. Emulator CI verifies packaging/runtime compatibility; physical-device microphone accuracy, latency, interruption, Bluetooth, thermal and accessibility acceptance remain separate release gates.
 
 ## Local development
 
@@ -68,13 +68,13 @@ npm test
 
 ## Android status
 
-The checked-in project targets API 37 and wraps this app's static build in a WebView (`MainActivity` → `WebAppScreen`); the earlier Kotlin/Compose native UI and `AudioRecord`/YIN tuner remain in the tree only as an unused revert path. Build it only in an environment with JDK 17, Android SDK 37 and the matching Gradle/AGP toolchain:
+The checked-in project targets API 37 and wraps this app's static build in a WebView (`MainActivity` → `WebAppScreen`). The retired native product surface has been removed; the web app is the maintained product. Build it with JDK 21, Android SDK 37 and the matching Gradle/AGP toolchain:
 
 ```bash
 cd android
-gradle :app:assembleDebug
-gradle :app:testDebugUnitTest
-gradle :app:lintDebug
+./gradlew :app:assembleDebug
+./gradlew :app:testDebugUnitTest
+./gradlew :app:lintDebug
 ```
 
 No signing key belongs in this repository.

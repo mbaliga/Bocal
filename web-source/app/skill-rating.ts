@@ -160,7 +160,9 @@ export function calculateSkillRating(bundle: SkillEvidenceBundle): SkillRating {
     ? weightedMean(bundle.rhythmAttempts.map((attempt) => ({ value: attempt.medianAbsoluteErrorMs, weight: Math.max(1, attempt.hitCount) })))
     : null;
   const orderedMidi = [...distinctMidi].sort((left, right) => left - right);
-  const semitoneSpan = orderedMidi.length > 1 ? orderedMidi.at(-1)! - orderedMidi[0] : 0;
+  // Array.prototype.at needs Chrome 92; the standalone bundle's floor is
+  // Chrome 69 (see vite.preview.config.ts), so index from the end by hand.
+  const semitoneSpan = orderedMidi.length > 1 ? orderedMidi[orderedMidi.length - 1] - orderedMidi[0] : 0;
   const rangeScore = distinctNotes >= 5 ? clamp(((Math.min(semitoneSpan, 24) - 4) / 20) * 100) : null;
 
   const dimensions: SkillDimension[] = [

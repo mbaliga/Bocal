@@ -1,0 +1,90 @@
+/* Header actions reflow instead of being clipped or hidden. */
+.app-shell .top-bar { flex-wrap: wrap; gap: 8px; }
+.app-shell .instrument-picker-wrap { min-width: 0; max-width: 100%; }
+.app-shell .instrument-picker { max-width: 100%; }
+.app-shell .instrument-picker span:nth-child(2) { min-width: 0; overflow-wrap: anywhere; }
+.app-shell .top-actions { margin-left: auto; max-width: 100%; flex-wrap: wrap; }
+@media (max-width: 480px) {
+  .app-shell .top-bar { padding-inline: 12px; gap: 6px; }
+  .app-shell .top-actions { gap: 6px; }
+  .app-shell .instrument-picker { padding-inline: 0; gap: 6px; }
+  .app-shell .top-actions .icon-button { flex: 0 0 44px; min-height: 44px; }
+}
+/* The wide header's fixed charcoal gradient previously put light-theme dark
+   text onto a dark surface. Preserve its shape with theme-aware materials. */
+@media (orientation: landscape) and (min-width: 681px) {
+  html[data-theme="light"] .app-shell .top-bar {
+    background: linear-gradient(135deg, var(--panel), var(--panel-2));
+    box-shadow: 0 12px 32px rgba(58,49,37,.12), inset 0 1px 0 rgba(255,255,255,.8);
+  }
+  html[data-theme="light"] .app-shell .mobile-nav button { color: #e8e3d9; }
+  html[data-theme="light"] .app-shell .mobile-nav button.is-active { color: #8fffe1; }
+}
+/* Phone landscape uses an off-white raised active keycap, not the larger
+   screen's dark side-dock selection. Do not put pale lettering on that cap. */
+@media (orientation: landscape) and (min-width: 681px) and (max-height: 520px) {
+  html[data-theme="light"] .app-shell .mobile-nav.is-arc button.is-active {
+    color: var(--hy-cap-ink, #16171c);
+  }
+}
+/* Reuse the existing 4:1 arc on the selected phone-landscape edge. Instrument
+   switching and settings remain available in the header; the duplicate upper
+   dock row is omitted in this short layout. Portrait is untouched. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .app-shell { padding-bottom: 16px; }
+  .app-shell.nav-left .main-stage { padding-left: calc(25dvh + 12px); padding-right: 0; }
+  .app-shell.nav-right .main-stage { padding-right: calc(25dvh + 12px); padding-left: 0; }
+  .app-shell .mobile-dock {
+    width: calc(100dvh - 32px); max-width: none;
+    top: 50%; bottom: auto; margin: 0;
+  }
+  .app-shell.nav-left .mobile-dock {
+    left: 8px; right: auto; transform-origin: top left;
+    transform: rotate(90deg) translate(-50%, -100%); --dock-counter-turn: -90deg;
+  }
+  .app-shell.nav-right .mobile-dock {
+    left: auto; right: 8px; transform-origin: top right;
+    transform: rotate(-90deg) translate(50%, -100%); --dock-counter-turn: 90deg;
+  }
+  .app-shell .mobile-dock::before,
+  .app-shell .mobile-dock .dock-top { display: none; }
+  .app-shell .mobile-nav.is-arc button,
+  .app-shell .mobile-nav.is-arc button.is-active,
+  .app-shell .mobile-nav.is-arc button.is-active:active {
+    min-width: 44px; min-height: 44px;
+    transform: translate(-50%, -50%) rotate(calc(var(--tilt, 0deg) + var(--dock-counter-turn)));
+    animation: none;
+  }
+  /* Mirror seats, not reading order: Tune stays above Lab/Pulse/Analyze/Practice
+     on either edge. Counter-reflect glyphs so labels remain readable. */
+  .app-shell.nav-right .mobile-nav.is-arc .arc-inner { transform: scaleX(-1); }
+  .app-shell.nav-right .mobile-nav.is-arc button,
+  .app-shell.nav-right .mobile-nav.is-arc button.is-active,
+  .app-shell.nav-right .mobile-nav.is-arc button.is-active:active {
+    transform: translate(-50%, -50%) rotate(calc(-90deg - var(--tilt, 0deg))) scaleX(-1);
+  }
+}
+/* Tablet side navigation must not apply portrait percentage-seat coordinates
+   to normal-flow children: Lab otherwise covers Tune's centre hit target.
+   Preserve the existing curved side shell and selected edge; allocate five
+   independent rows. The horizontal SVG belongs only to the rotated/portrait bar. */
+@media (orientation: landscape) and (min-width: 681px) and (min-height: 521px) {
+  .app-shell .mobile-nav.is-arc > .arc-inner {
+    position: absolute; inset: 12px 0;
+    display: grid; grid-template-columns: 1fr;
+    grid-template-rows: repeat(5, minmax(48px, 1fr));
+  }
+  .app-shell .mobile-nav.is-arc .arc-shape { display: none; }
+  .app-shell .mobile-nav.is-arc button {
+    /* These two overrides intentionally supersede inline portrait seats. */
+    left: auto !important; top: auto !important;
+    position: relative; place-self: center;
+    width: 48px; height: 48px; min-width: 48px; padding: 0; transform: none;
+  }
+  .app-shell.nav-left .mobile-nav.is-arc button:nth-of-type(2),
+  .app-shell.nav-left .mobile-nav.is-arc button:nth-of-type(4) { transform: translateX(3px); }
+  .app-shell.nav-left .mobile-nav.is-arc button:nth-of-type(3) { transform: translateX(6px); }
+  .app-shell.nav-right .mobile-nav.is-arc button:nth-of-type(2),
+  .app-shell.nav-right .mobile-nav.is-arc button:nth-of-type(4) { transform: translateX(-3px); }
+  .app-shell.nav-right .mobile-nav.is-arc button:nth-of-type(3) { transform: translateX(-6px); }
+}

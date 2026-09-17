@@ -26,5 +26,14 @@ export default defineConfig({
     emptyOutDir: true,
     assetsInlineLimit: 100_000_000, // inline every asset (the cinematic .webp files included)
     cssCodeSplit: false,
+    // The standalone bundle ships inside the Android WebView, which on a
+    // device that never got a WebView update can still be Chrome 69 (the
+    // API 26 "google_apis" emulator image ships exactly that). esbuild
+    // lowers optional chaining, nullish coalescing, `??=`, class fields,
+    // private fields and numeric separators for that target so the bundle
+    // parses instead of throwing `Uncaught SyntaxError: Unexpected token
+    // ?` on first paint. Keep this target in sync with MIN_WEBVIEW_MAJOR in
+    // android/app/src/main/java/com/bocal/music/WebViewFloor.kt.
+    target: ["chrome69"],
   },
 });

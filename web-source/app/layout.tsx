@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { RuntimeSafety } from "./RuntimeSafety";
 import "./globals.css";
+import "./styles/contrast.css";
+import "./styles/compact-layout.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
@@ -22,17 +25,13 @@ export const metadata: Metadata = {
   description: "A private, instrument-first practice studio for woodwind players, with a cinematic path into other instrument families.",
   icons: { icon: "/favicon.svg", shortcut: "/favicon.svg" },
 };
-
 export const viewport = {
-  width: "device-width",
-  initialScale: 1,
-  viewportFit: "cover" as const,
+  width: "device-width", initialScale: 1, viewportFit: "cover" as const,
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#f5f1ea" },
     { media: "(prefers-color-scheme: dark)", color: "#060607" },
   ],
 };
-
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en" suppressHydrationWarning><head><script dangerouslySetInnerHTML={{ __html: themeBootstrap }} /></head><body className={`${geistSans.variable} ${geistMono.variable}`} style={{ paddingTop: "env(safe-area-inset-top)" }}>{children}</body></html>;
+  return <html lang="en" suppressHydrationWarning><head><script dangerouslySetInnerHTML={{ __html: themeBootstrap }} /></head><body className={`${geistSans.variable} ${geistMono.variable}`} style={{ paddingTop: "env(safe-area-inset-top)" }}><RuntimeSafety>{children}</RuntimeSafety></body></html>;
 }

@@ -2,6 +2,7 @@
 
 import { Check, ChevronLeft, ChevronRight, CircleDot, Ear, Guitar, Mic, Pause, Play, Sparkles, Volume2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useForegroundPause } from "./use-foreground-pause";
 import {
   CHORD_FLOW_BEATS_PER_CHORD,
   CHORD_FLOW_TEMPOS,
@@ -160,6 +161,16 @@ export function GuitarStudio({ reading, listening, onListen }: { reading: Guitar
       audioContextRef.current = null;
     };
   }, []);
+
+  useForegroundPause(() => {
+    setPlayerPlaying(false);
+    rootFrames.current = 0;
+    if (schedulerRef.current !== null) window.clearInterval(schedulerRef.current);
+    schedulerRef.current = null;
+    const context = audioContextRef.current;
+    audioContextRef.current = null;
+    if (context && context.state !== "closed") void context.close().catch(() => undefined);
+  });
 
   const togglePlayer = () => {
     getAudioContext();

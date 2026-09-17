@@ -22,9 +22,7 @@ defensively as `window.bocalHost?.…`:
   background to the page's light/dark theme.
 - `setKeepAwake(on)` -- toggles `FLAG_KEEP_SCREEN_ON` while the tuner,
   metronome or drone is running.
-- `saveFile(name, mime, base64)` -- writes into `MediaStore` Downloads; the
-  web app falls back to its `<a download>` path when this bridge is absent
-  (i.e. in a regular browser).
+- `saveFile(name, mime, base64)` -- queues Android's permission-free system **Save As** picker. Acceptance only means the picker opened; cancellation/write failures are reported natively and the original take remains in Bocal. In a regular browser, the web app uses its normal download path.
 - `openExternal(url)` -- opens `http(s)` URLs in the system browser (model
   credit links, reference sources).
 
@@ -32,6 +30,35 @@ defensively as `window.bocalHost?.…`:
 it calls `webView.onPause()` and dispatches a `bocal:host-pause` DOM event so
 the web app stops the microphone (and, per its own decision, the
 metronome/tone generator); nothing restarts automatically on resume.
+
+## WebView floor
+
+`assets/www/app.html` is built with `build.target: ["chrome69"]`
+(`web-source/vite.preview.config.ts`), so it only needs to run on **Chrome 69
+or newer -- Android System WebView from mid-2018**. Below that, esbuild's
+syntax lowering (optional chaining, nullish coalescing, class fields, ...)
+and the app's own runtime shims/guards no longer cover the gap, and an old
+WebView throws `Uncaught SyntaxError` on the very first script tag instead
+of rendering anything.
+
+`WebAppScreen` checks the installed WebView provider's version
+(`WebViewCompat.getCurrentWebViewPackage(context)?.versionName`) before
+creating a `WebView` at all. Below `MIN_WEBVIEW_MAJOR` (`WebViewFloor.kt`,
+kept in lockstep with the build target above), it renders a native Compose
+screen instead -- `WebViewUpdateScreen` -- that says plainly that Bocal
+needs a newer WebView, shows the detected version, and offers a button that
+opens the Play listing for `com.google.android.webview` (`market://`, with
+an `https://play.google.com/...` fallback) plus a "Try again" button that
+re-checks. This needs no extra permission: opening the store is an external
+`ACTION_VIEW` intent, and the app still declares no `INTERNET` permission.
+
+The API 26 `google_apis` emulator image ships Chrome 69 as its system
+WebView, so CI's API 26 job exercises this floor exactly, not just old
+`minSdk`; API 35 ships a much newer WebView and never reaches the gate.
+`webViewMeetsFloor(versionName: String?): Boolean` is a plain, pure
+function with its own JVM unit test (`app/src/test/.../WebViewFloorTest.kt`);
+`BocalWebViewGateTest` (instrumentation) exercises the gate screen itself
+but skips via `Assume` on any device that meets the floor.
 
 ## Hardening
 
@@ -78,11 +105,7 @@ unsigned) release build:
 | `BOCAL_UPLOAD_KEY_ALIAS` | key alias inside the keystore |
 | `BOCAL_UPLOAD_KEY_PASSWORD` | key password |
 
-Generate an upload keystore once with `keytool` and store it as the base64
-secret above; Play App Signing then holds the real app-signing key, so losing
-the upload key is recoverable. `.github/workflows/release.yml` runs
-`./gradlew bundleRelease` on version tags (`v*`) or manual dispatch, only when
-all four secrets are present, and uploads `app-release.aab`.
+Generate an upload keystore once with `keytool` and store it as the base64 secret above; Play App Signing can then hold the app-signing key. `.github/workflows/release.yml` runs only on version tags (`v*`) or manual dispatch, requires all four signing inputs, builds signed APK/AAB artifacts, verifies their signatures and embedded web payload/checksums, and uploads a **candidate** artifact. It does not publish to a store or claim physical-device acceptance.
 
 `fastlane/Appfile` reads a Play Console service-account key from the
 `SUPPLY_JSON_KEY` environment variable for `fastlane supply`.

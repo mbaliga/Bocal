@@ -6,6 +6,25 @@
     <meta name="theme-color" content="#f5f1ea" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#060607" media="(prefers-color-scheme: dark)" />
     <title>Bocal — preview</title>
+    <!--
+      Chrome 69 -- the standalone bundle's floor (see vite.preview.config.ts)
+      and what the API 26 WebView emulator image ships -- predates
+      `globalThis` (added in Chrome 71). Define it here, in <head>, ahead of
+      the module script below: esbuild lowers syntax for old targets but
+      does not polyfill missing globals, and the build tooling is free to
+      relocate a deferred module script within the document, so this shim
+      must not depend on its own position relative to that script -- only
+      on running as a classic (non-deferred) script before DOMContentLoaded,
+      which it does no matter where in <head>/<body> it ends up.
+      `typeof globalThis` never throws even when the identifier is
+      undeclared, so this check itself is Chrome 69-safe.
+    -->
+    <script>
+      if (typeof globalThis === "undefined") {
+        if (typeof window !== "undefined") window.globalThis = window;
+        else if (typeof self !== "undefined") self.globalThis = self;
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

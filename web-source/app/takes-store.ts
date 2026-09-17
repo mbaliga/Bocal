@@ -1,143 +1,123 @@
 import "./native-bridge";
-/**
- * IndexedDB-backed storage for Analyze takes.
- *
- * Takes used to live only in a useState array with object URLs pointing at
- * in-memory blobs: a reload, a backgrounded tab getting discarded, or the
- * Android WebView's onRenderProcessGone recreating the WebView all lost
- * every recording. IndexedDB survives all three.
- */
+import { runStoreTransaction } from "./idb-transaction";
+import { reportRuntimeStatus } from "./runtime-status";
 
 const DB_NAME = "bocal-analysis-takes";
 const DB_VERSION = 1;
 const STORE = "takes";
 export const MAX_TAKES = 12;
-
-export type StoredTake = {
-  id: string;
-  name: string;
-  createdAt: string;
-  seconds: number;
-  /** The recorder's or imported file's MIME type, used both for playback
-   *  and to give a downloaded file the right extension. */
-  mime: string;
-  blob: Blob;
-};
-
-function hasIndexedDb() {
-  return typeof indexedDB !== "undefined";
-}
+export const MAX_NATIVE_EXPORT_BYTES = 32 * 1024 * 1024;
+export type StoredTake = { id: string; name: string; createdAt: string; seconds: number; mime: string; blob: Blob };
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-    request.onupgradeneeded = () => {
-      const db = request.result;
-      if (!db.objectStoreNames.contains(STORE)) {
-        db.createObjectStore(STORE, { keyPath: "id" });
-      }
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error ?? new Error("Could not open the takes database."));
+    let settled = false;
+    const timer = setTimeout(() => fail(new Error("Recording storage did not respond. Close other Bocal tabs and retry.")), 10000);
+    function fail(error: unknown) {
+      if (settled) return;
+      settled = true; clearTimeout(timer); reject(error);
+    }
+    try {
+      const request = indexedDB.open(DB_NAME, DB_VERSION);
+      request.onupgradeneeded = () => {
+        if (settled) { request.transaction?.abort(); return; }
+        if (!request.result.objectStoreNames.contains(STORE)) request.result.createObjectStore(STORE, { keyPath: "id" });
+      };
+      request.onblocked = () => fail(new Error("Recording storage is blocked by another Bocal tab."));
+      request.onerror = () => fail(request.error ?? new Error("Could not open recording storage."));
+      request.onsuccess = () => {
+        const db = request.result;
+        if (settled) { db.close(); return; }
+        settled = true; clearTimeout(timer);
+        db.onversionchange = () => db.close();
+        resolve(db);
+      };
+    } catch (error) { fail(error); }
   });
 }
-
-async function withStore<T>(mode: IDBTransactionMode, run: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
+async function withStore<T>(mode: IDBTransactionMode, enqueue: (store: IDBObjectStore, result: (value: T) => void) => void): Promise<T> {
   const db = await openDb();
-  try {
-    return await new Promise<T>((resolve, reject) => {
-      const tx = db.transaction(STORE, mode);
-      const request = run(tx.objectStore(STORE));
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error ?? new Error("Takes database request failed."));
-    });
-  } finally {
-    db.close();
-  }
+  try { return await runStoreTransaction<T>(db, STORE, mode, enqueue); }
+  finally { db.close(); }
 }
-
-/** All stored takes, newest first. Returns [] (rather than throwing) when
- *  IndexedDB is unavailable -- Safari private mode and some embedded
- *  WebViews -- so a take still records for the session, it just won't
- *  survive a reload. */
+export function isStoredTake(value: unknown): value is StoredTake {
+  if (!value || typeof value !== "object") return false;
+  const take = value as Partial<StoredTake>;
+  return typeof take.id === "string" && take.id.length > 0 && typeof take.name === "string" && typeof take.mime === "string" &&
+    typeof take.createdAt === "string" && Number.isFinite(Date.parse(take.createdAt)) &&
+    typeof take.seconds === "number" && Number.isFinite(take.seconds) && take.seconds >= 0 && take.blob instanceof Blob;
+}
 export async function listStoredTakes(): Promise<StoredTake[]> {
-  if (!hasIndexedDb()) return [];
   try {
-    const all = await withStore<StoredTake[]>("readonly", (store) => store.getAll());
-    return all.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+    const all = await withStore<unknown[]>("readonly", (store, result) => {
+      const request = store.getAll(); request.onsuccess = () => result(request.result);
+    });
+    const valid = all.filter(isStoredTake);
+    if (valid.length !== all.length) reportRuntimeStatus("Some saved recordings could not be read. They have not been deleted.");
+    return valid.sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt) || a.id.localeCompare(b.id));
   } catch {
+    reportRuntimeStatus("Recording storage is unavailable. New takes may be session-only; export them before closing Bocal.");
     return [];
   }
 }
-
 export async function putStoredTake(take: StoredTake): Promise<boolean> {
-  if (!hasIndexedDb()) return false;
   try {
-    await withStore("readwrite", (store) => store.put(take));
+    if (!isStoredTake(take)) throw new Error("Invalid recording metadata.");
+    await withStore<void>("readwrite", (store) => { store.put(take); });
     return true;
   } catch {
+    reportRuntimeStatus("This recording was not saved to device storage. Export it before closing Bocal, then check free space.");
     return false;
   }
 }
-
-export async function deleteStoredTake(id: string): Promise<void> {
-  if (!hasIndexedDb()) return;
-  try {
-    await withStore("readwrite", (store) => store.delete(id));
-  } catch {
-    // Nothing useful to do with a failed delete of a take the UI already
-    // dropped from its own list.
-  }
+export async function deleteStoredTake(id: string): Promise<boolean> {
+  try { await withStore<void>("readwrite", (store) => { store.delete(id); }); return true; }
+  catch { reportRuntimeStatus("The recording could not be deleted from storage. It has been kept in your library; please retry."); return false; }
 }
-
-export async function renameStoredTake(id: string, name: string): Promise<void> {
-  if (!hasIndexedDb()) return;
+export async function renameStoredTake(id: string, name: string): Promise<boolean> {
   try {
-    const existing = await withStore<StoredTake | undefined>("readonly", (store) => store.get(id));
-    if (!existing) return;
-    await withStore("readwrite", (store) => store.put({ ...existing, name }));
-  } catch {
-    // Best-effort; the in-memory name still updates in the UI either way.
-  }
+    const found = await withStore<boolean>("readwrite", (store, result) => {
+      const request = store.get(id);
+      request.onsuccess = () => {
+        result(Boolean(request.result));
+        if (request.result) store.put({ ...request.result, name: name.slice(0, 60) });
+      };
+    });
+    if (!found) reportRuntimeStatus("This recording is no longer in storage. Export the session copy before closing Bocal.");
+    return found;
+  } catch { reportRuntimeStatus("The new recording name could not be saved. Please retry before closing Bocal."); return false; }
 }
-
-/** Extension to give a downloaded/exported take, derived from its MIME type
- *  rather than hard-coded to .webm -- an imported MP3 or an iOS m4a
- *  recording should keep its real container. */
 function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onloadend = () => {
-      const result = typeof reader.result === "string" ? reader.result : "";
-      resolve(result.slice(result.indexOf(",") + 1));
+    reader.onload = () => {
+      const value = typeof reader.result === "string" ? reader.result : "";
+      const comma = value.indexOf(",");
+      if (comma < 0) reject(new Error("Could not encode the export.")); else resolve(value.slice(comma + 1));
     };
-    reader.onerror = () => reject(reader.error ?? new Error("Could not read the file."));
-    reader.readAsDataURL(blob);
+    reader.onerror = () => reject(reader.error ?? new Error("Could not read the export."));
+    reader.onabort = () => reject(new Error("Export cancelled.")); reader.readAsDataURL(blob);
   });
 }
-
-/** Hands a file to the Android host's native save path when the WebView
- *  bridge is present (blob: downloads and Web Share are silently swallowed
- *  in the WebView -- see analysis.md); falls back to the ordinary
- *  anchor-download path everywhere else. */
-export async function saveOrShareFile(file: File) {
-  const host = typeof window !== "undefined" ? window.bocalHost : undefined;
-  if (host?.saveFile) {
-    try {
+/** Native acceptance is not disk completion. The system picker reports the final result.
+ * Never use a blob-download fallback in Android: that path is a silent no-op.
+ */
+export async function saveOrShareFile(file: File): Promise<void> {
+  try {
+    const host = typeof window !== "undefined" ? window.bocalHost : undefined;
+    if (host) {
+      if (!host.saveFile) throw new Error("This Android build does not support file export. Update Bocal and retry.");
+      if (file.size > MAX_NATIVE_EXPORT_BYTES) throw new Error("This export exceeds the 32 MiB Android transfer limit. Use a shorter recording.");
       const base64 = await blobToBase64(file);
-      if (host.saveFile(file.name, file.type || "application/octet-stream", base64)) return;
-    } catch {
-      // Fall through to the anchor path below.
+      if (!host.saveFile(file.name, file.type || "application/octet-stream", base64)) throw new Error("Export could not start. Finish any open save dialog, then retry.");
+      return;
     }
-  }
-  const url = URL.createObjectURL(file);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = file.name;
-  link.click();
-  URL.revokeObjectURL(url);
+    const url = URL.createObjectURL(file);
+    const link = document.createElement("a"); link.href = url; link.download = file.name; link.style.display = "none";
+    try { document.body.appendChild(link); link.click(); }
+    finally { link.remove(); setTimeout(() => URL.revokeObjectURL(url), 60000); }
+  } catch (error) { reportRuntimeStatus(error instanceof Error ? error.message : "Export failed. Your original recording has not been deleted."); }
 }
-
 export function extensionForMime(mime: string): string {
   const type = mime.toLowerCase();
   if (type.includes("mp4") || type.includes("m4a")) return "m4a";

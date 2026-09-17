@@ -1,26 +1,23 @@
-A practice companion for saxophone and other woodwinds. Tuning, tone and daily
-practice, built around an interactive 3D instrument you can turn and inspect.
+Bocal is a local-first practice companion for saxophone and other woodwinds, combining tuning, tone analysis, pulse work, practice tracking and instrument learning.
 
-WHAT IT COVERS
-• Tuning, with the pitch read from your own playing through the microphone.
-• Tone work, so you can hear and see what your sound is actually doing.
-• Practice workflows organised as sessions rather than a pile of exercises.
-• A 3D instrument lab: rotate the horn, look at the mechanism, and see which keys
-  a fingering actually closes.
+PRACTICE TOOLS
+• Chromatic tuner with reference pitch, temperament, sensitivity, damping and precision controls.
+• Metronome, count-ins, drills, drone/reference tones and practice plans.
+• Waveform, spectrum and harmonics views, plus local recording, import, listen-back, rename, delete and export.
+• Practice history and skill evidence stored locally on your device.
 
-WHY WOODWINDS SPECIFICALLY
-Intonation on a saxophone is a conversation between embouchure, air and the
-instrument, and a generic chromatic tuner tells you almost nothing about it. Bocal
-is built for the family rather than adapted to it.
+INSTRUMENT LEARNING
+• Alto saxophone: licensed detailed 3D model with interactive fingering tools.
+• Tenor, soprano and baritone saxophone: transposition-aware fingering practice shown on the alto model.
+• Oboe: licensed 3D anatomy model plus fingering chart.
+• Cor anglais: oboe-based proxy model/chart.
+• Flute, clarinet and bassoon: 2D fingering charts.
+• Guitar: string tuner and chord/follow tools.
 
-ON YOUR DEVICE
-• Pitch detection runs locally. Your audio is analysed in real time and is not
-  recorded or uploaded.
-• No account, no ads, no analytics, no tracking.
-• Your practice history stays on your device.
+PRIVATE BY DESIGN
+• Pitch and tone analysis runs on your device.
+• Bocal does not use accounts, ads, analytics or tracking.
+• Audio is not recorded unless you explicitly press Record. Saved takes stay in app-private storage until you delete or export them.
+• Bocal does not upload your recordings or practice history.
 
-Bocal needs your microphone to tune and analyse your playing; that is how the
-app works.
-
-This is an early release built from a prototype. Expect rough edges, and expect the
-practice content to grow.
+Bocal requires microphone access for tuning and live analysis. Fingering data and model touch mappings are educational tools and are not yet specialist-certified.
