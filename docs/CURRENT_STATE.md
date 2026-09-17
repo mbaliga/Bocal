@@ -43,6 +43,7 @@ The distinctive mobile arc and configurable landscape edge remain in the shared 
 - Debug and release workflows share mandatory typecheck, tests, lint, builds, browser/contrast checks, and zero-finding dependency gating.
 - APK/AAB verification checks ZIP integrity, embedded models and byte-for-byte identity with the tested standalone application.
 - Signed candidate builds require all signing inputs, verify signatures and checksums, and do not automatically publish or claim device acceptance.
+- The standalone bundle's build target is Chrome 69, and the Android shell checks the installed WebView's version before loading it: below Chrome 69 (Android System WebView from mid-2018) it shows a native "update WebView" screen with a link to the Play listing instead of a blank, silently-crashing page. The API 26 `google_apis` emulator image ships Chrome 69 exactly, so CI's API 26 job exercises the floor itself, not just old `minSdk`.
 
 ## Security snapshot
 

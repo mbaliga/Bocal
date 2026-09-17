@@ -13,7 +13,7 @@ Record the source SHA, Actions run, APK/AAB SHA-256, versionCode/versionName, si
 - [ ] Fresh dependency audit reports zero low, moderate, high or critical findings.
 - [ ] Android debug, instrumentation APK and minified release variant compile; debug/release lint passes.
 - [ ] Packaged application is byte-identical to the tested standalone bundle and contains both licensed instrument models.
-- [ ] Android API 26 and API 35 emulator installation/runtime tests pass, with logs retained. Emulator results remain distinct from physical-device acceptance.
+- [ ] Android API 26 and API 35 emulator installation/runtime tests pass, with logs retained. Emulator results remain distinct from physical-device acceptance. The API 26 `google_apis` image ships Chrome 69 as its system WebView, which is also Bocal's WebView floor (Chrome 69 -- Android System WebView from mid-2018), so that image exercises the floor exactly rather than merely running on old `minSdk`. Below the floor the app shows a native "update WebView" screen instead of a blank page; it does not attempt to load the bundle.
 
 ## Physical device gates
 

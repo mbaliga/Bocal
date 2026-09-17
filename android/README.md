@@ -31,6 +31,35 @@ it calls `webView.onPause()` and dispatches a `bocal:host-pause` DOM event so
 the web app stops the microphone (and, per its own decision, the
 metronome/tone generator); nothing restarts automatically on resume.
 
+## WebView floor
+
+`assets/www/app.html` is built with `build.target: ["chrome69"]`
+(`web-source/vite.preview.config.ts`), so it only needs to run on **Chrome 69
+or newer -- Android System WebView from mid-2018**. Below that, esbuild's
+syntax lowering (optional chaining, nullish coalescing, class fields, ...)
+and the app's own runtime shims/guards no longer cover the gap, and an old
+WebView throws `Uncaught SyntaxError` on the very first script tag instead
+of rendering anything.
+
+`WebAppScreen` checks the installed WebView provider's version
+(`WebViewCompat.getCurrentWebViewPackage(context)?.versionName`) before
+creating a `WebView` at all. Below `MIN_WEBVIEW_MAJOR` (`WebViewFloor.kt`,
+kept in lockstep with the build target above), it renders a native Compose
+screen instead -- `WebViewUpdateScreen` -- that says plainly that Bocal
+needs a newer WebView, shows the detected version, and offers a button that
+opens the Play listing for `com.google.android.webview` (`market://`, with
+an `https://play.google.com/...` fallback) plus a "Try again" button that
+re-checks. This needs no extra permission: opening the store is an external
+`ACTION_VIEW` intent, and the app still declares no `INTERNET` permission.
+
+The API 26 `google_apis` emulator image ships Chrome 69 as its system
+WebView, so CI's API 26 job exercises this floor exactly, not just old
+`minSdk`; API 35 ships a much newer WebView and never reaches the gate.
+`webViewMeetsFloor(versionName: String?): Boolean` is a plain, pure
+function with its own JVM unit test (`app/src/test/.../WebViewFloorTest.kt`);
+`BocalWebViewGateTest` (instrumentation) exercises the gate screen itself
+but skips via `Assume` on any device that meets the floor.
+
 ## Hardening
 
 - `allowFileAccess`/`allowContentAccess`/`allow*FromFileURLs` all off; mixed

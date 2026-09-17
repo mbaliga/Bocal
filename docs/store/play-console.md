@@ -47,6 +47,15 @@ The claim that matters: **audio is analysed in real time on the device. Recordin
 ### targetSdk
 `37` (`android/app/build.gradle.kts`), which meets Play's current floor.
 
+### WebView requirement
+`minSdk` is 26 (Android 8.0), but the app itself also needs **Android
+System WebView 69 or newer** (mid-2018) -- most devices get this
+automatically via Play updates to that component. On a device that never
+updated its WebView, Bocal shows a native "update WebView" screen with a
+link to the WebView's own Play listing instead of a blank page; it never
+silently fails. Worth a line in support copy/FAQ if a listing needs to
+explain "the app opened but showed an update screen."
+
 ### Content rating
 - Category `Utility, Productivity, Communication, or Other`, or `Reference, News,
   or Educational` given the category. Either yields **Everyone** here.

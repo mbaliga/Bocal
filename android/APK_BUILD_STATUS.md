@@ -10,6 +10,8 @@ The first hardening checkpoint ba04fafdab73f3bafaac13b514422015f85248ec passed A
 
 The current workflow builds the debug APK and instrumentation APK, verifies both debug and minified release web payloads, then installs/runs the debug instrumentation suite in an API 35 emulator. A compiled instrumentation APK alone does not mean those tests ran. Refer to the separate emulator job and retained logs.
 
+An API 26 `google_apis` emulator job also runs the same suite. That image's system WebView is Chrome 69, which is also Bocal's WebView floor (`android/README.md`'s "WebView floor" section): below it, the app shows a native update screen instead of loading the bundle. Chrome 69 itself is exactly at the floor, so this job is real coverage of that floor, not just an old-`minSdk` smoke check.
+
 ## Distribution boundary
 
 `bocal-debug-apk` is for testing, not a signed production distribution. The signed-candidate workflow requires the four owner-controlled upload-keystore secrets, builds APK and AAB, verifies signatures/payload identity and emits checksums. It neither manufactures a permanent signing identity nor automatically publishes a release.
