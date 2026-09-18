@@ -32,8 +32,8 @@ import {
   type PitchTrackerReading,
   type Sensitivity,
 } from "./pitch-engine";
-import { PRECISION_TOLERANCE, type PitchReading } from "./useTuner";
-import { hzToMidi } from "./music-math";
+import { formatCents as formatCentsAt, LEVEL_FLOOR_DBFS, PRECISION_TOLERANCE, type LevelMeter, type PitchReading } from "./useTuner";
+import { clamp, hzToMidi } from "./music-math";
 import { CORRECTION_COPY, type InstrumentProfile } from "./instruments";
 import StaffNote from "./StaffNote";
 import {
@@ -476,6 +476,7 @@ export const TunerView = memo(function TunerView({
   trackerReading,
   pitchTrace,
   acceptedFrames,
+  level,
   sessionSeconds,
   micMessage,
   onListen,
@@ -519,6 +520,7 @@ export const TunerView = memo(function TunerView({
   trackerReading: PitchTrackerReading;
   pitchTrace: number[];
   acceptedFrames: number;
+  level: LevelMeter;
   sessionSeconds: number;
   micMessage: string;
   onListen: () => void;
@@ -561,9 +563,18 @@ export const TunerView = memo(function TunerView({
   onOpenKeyboardHelp: () => void;
 }) {
   const tolerance = PRECISION_TOLERANCE[precision];
+  // `reading.cents` is tenths-precision internally (tuning.ts's
+  // TuningReading.centsTenths) specifically so this comparison -- and the
+  // direction/marker-position math below -- work against the unrounded
+  // value instead of two numbers already rounded to the same whole cent
+  // (tuner.md's "still missing" precision gap). Display text rounds through
+  // `formatCents` below: whole cents normally, one decimal only at Ultra
+  // (±2¢) precision, where a whole-cent readout can't show the difference
+  // the tolerance itself is drawn at.
   const inTune = trackerReading.state === "locked" && reading !== null && Math.abs(reading.cents) <= tolerance;
   const direction = reading === null ? "Waiting" : reading.cents > tolerance ? "Sharp" : reading.cents < -tolerance ? "Flat" : "Centered";
   const markerPosition = reading === null ? 50 : Math.max(4, Math.min(96, 50 + reading.cents * 0.8));
+  const formatCents = (value: number) => formatCentsAt(value, precision);
   // The concert name is always shown in letters. It exists so a player can
   // check themselves against a piano or another section, and that conversation
   // happens in letter names whatever the player reads from.
@@ -651,7 +662,7 @@ export const TunerView = memo(function TunerView({
             : inTune
               ? { title: "Right in the middle.", copy: `You’re within ${tolerance} cents. Keep your embouchure and air where they are.` }
               : {
-                  title: `${direction} by ${Math.abs(reading?.cents ?? 0)} cents.`,
+                  title: `${direction} by ${formatCents(Math.abs(reading?.cents ?? 0))} cents.`,
                   // Per-family correction copy (reed / air-reed / double-reed
                   // / string) instead of one fixed "jaw pressure" / "biting"
                   // pair shown to every instrument including guitar strings
@@ -660,7 +671,9 @@ export const TunerView = memo(function TunerView({
                   // contradicts the engine and the instrument").
                   copy: direction === "Sharp" ? CORRECTION_COPY[instrument.embouchure].sharp : CORRECTION_COPY[instrument.embouchure].flat,
                 };
-  const signalPercent = Math.min(100, Math.round((trackerReading.rms / Math.max(trackerReading.gate * 1.6, 0.0001)) * 100));
+  // dBFS level meter (replaces the old gate-relative "Input" bar): maps
+  // [LEVEL_FLOOR_DBFS, 0] to [0, 100]%.
+  const levelPercent = (dbfs: number) => clamp(((dbfs - LEVEL_FLOOR_DBFS) / -LEVEL_FLOOR_DBFS) * 100, 0, 100);
 
   return (
     <div className="content-wrap tuner-layout">
@@ -694,7 +707,7 @@ export const TunerView = memo(function TunerView({
             style={{ position: "absolute", width: 1, height: 1, padding: 0, margin: -1, overflow: "hidden", clip: "rect(0,0,0,0)", whiteSpace: "nowrap", border: 0 }}
           >
             {reading
-              ? `${displayLabel}, ${Math.abs(Math.round(reading.cents))} cents ${reading.cents === 0 ? "in tune" : reading.cents > 0 ? "sharp" : "flat"}`
+              ? `${displayLabel}, ${formatCents(Math.abs(reading.cents))} cents ${reading.cents === 0 ? "in tune" : reading.cents > 0 ? "sharp" : "flat"}`
               : trackerLabel}
           </p>
           <div className="tuner-card-top">
@@ -742,7 +755,7 @@ export const TunerView = memo(function TunerView({
               )}
             </button>
             <div className="pitch-detail">
-              <span>{reading ? `${reading.cents > 0 ? "+" : ""}${reading.cents} cents` : "Waiting for a stable tone"}</span>
+              <span>{reading ? `${reading.cents > 0 ? "+" : ""}${formatCents(reading.cents)} cents` : "Waiting for a stable tone"}</span>
               <small>{reading ? `${reading.hz.toFixed(1)} Hz · sounds ${concertNote}` : "No note is shown until confidence passes the lock threshold"}</small>
             </div>
             {pitchPipeMidi !== null && <p className="pitch-pipe-hint">Press and hold to hear it</p>}
@@ -803,7 +816,7 @@ export const TunerView = memo(function TunerView({
             aria-valuemin={-50}
             aria-valuemax={50}
             aria-valuenow={reading ? Math.round(reading.cents) : 0}
-            aria-valuetext={reading ? `${Math.abs(Math.round(reading.cents))} cents ${reading.cents < 0 ? "flat" : reading.cents > 0 ? "sharp" : "in tune"}` : "No reading"}
+            aria-valuetext={reading ? `${formatCents(Math.abs(reading.cents))} cents ${reading.cents < 0 ? "flat" : reading.cents > 0 ? "sharp" : "in tune"}` : "No reading"}
             aria-label="Pitch deviation in cents"
           >
             <div className="scale-labels"><span>−50</span><span>−25</span><strong>0</strong><span>+25</span><span>+50</span></div>
@@ -859,7 +872,21 @@ export const TunerView = memo(function TunerView({
           </section>
 
           <div className="tracker-diagnostics" aria-label="Pitch lock diagnostics">
-            <div><span>Input</span><i><b style={{ width: `${signalPercent}%` }} /></i><small>{signalPercent >= 63 ? "Above gate" : "Below gate"}</small></div>
+            <div>
+              <span>Input</span>
+              <i
+                role="meter"
+                aria-label="Input level"
+                aria-valuemin={LEVEL_FLOOR_DBFS}
+                aria-valuemax={0}
+                aria-valuenow={Math.round(level.dbfs)}
+                aria-valuetext={`${Math.round(level.dbfs)} decibels full scale${level.clipped ? ", clipping" : ""}`}
+              >
+                <b className={level.clipped ? "is-clipping" : ""} style={{ width: `${levelPercent(level.dbfs)}%` }} />
+                <span className="level-peak-mark" aria-hidden="true" style={{ left: `${levelPercent(level.peakDbfs)}%` }} />
+              </i>
+              <small>{level.clipped ? "Clipping" : `${Math.round(level.dbfs)} dBFS`}</small>
+            </div>
             <div><span>Confidence</span><strong>{trackerReading.confidence > 0 ? `${Math.round(trackerReading.confidence * 100)}%` : "—"}</strong></div>
             <div><span>Accepted</span><strong>{acceptedFrames}</strong></div>
           </div>
@@ -927,7 +954,7 @@ export const TunerView = memo(function TunerView({
       <section className="today-strip">
         <div className="today-title"><span>This session</span><strong>Your practice, as it happens.</strong></div>
         <Metric value={formatTime(sessionSeconds)} label="Practice timer" detail={sessionSeconds ? "current session" : "start when ready"} icon={TimerReset} />
-        <Metric value={reading ? `±${Math.abs(reading.cents)}¢` : "—"} label="Pitch offset" detail={trackerReading.state === "locked" ? "accepted reading" : "awaiting lock"} icon={Crosshair} />
+        <Metric value={reading ? `±${formatCents(Math.abs(reading.cents))}¢` : "—"} label="Pitch offset" detail={trackerReading.state === "locked" ? "accepted reading" : "awaiting lock"} icon={Crosshair} />
         <Metric value={`${acceptedFrames}`} label="Accepted frames" detail="this tuner run" icon={Activity} />
       </section>
     </div>

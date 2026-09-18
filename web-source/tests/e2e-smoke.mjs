@@ -89,10 +89,12 @@ try {
     results.push({ label: "fresh-onboarding-and-reload", passed: true });
   } catch (error) { errors.push(`fresh onboarding: ${error.message}`); }
   finally { await context.close(); }
-  // Manual target-note lock: pick any note via the secondary "Target"
-  // control (works without a live reading), confirm the badge appears and
-  // the picker keeps showing the locked note, then release it -- both
-  // themes.
+  // Tuner readout depth (target lock, written/concert toggle, dBFS meter):
+  // pick any note via the secondary "Target" control (works without a live
+  // reading), confirm the badge appears and the picker keeps showing the
+  // locked note, that toggling written/concert doesn't disturb the lock,
+  // that the level meter renders and labels itself in dBFS, then release
+  // the lock -- both themes.
   for (const theme of ["dark", "light"]) {
     const label = `target-lock-${theme}`;
     const context = await browser.newContext({ viewport: { width: 412, height: 915 } });
@@ -105,6 +107,12 @@ try {
       }, theme);
       await page.goto(preview.url);
       await page.locator(".app-shell").waitFor();
+      // dBFS level meter renders and labels itself honestly.
+      const meter = page.locator(".tracker-diagnostics [role='meter']");
+      await meter.waitFor();
+      assert.match(await meter.getAttribute("aria-valuetext"), /decibels full scale/, `${label}: level meter labels itself in dBFS`);
+      assert.match((await page.locator(".tracker-diagnostics").innerText()), /dBFS/, `${label}: level meter shows a dBFS reading`);
+
       const picker = page.locator(".target-lock-picker select");
       await picker.waitFor();
       const optionValue = await picker.locator("option").nth(1).getAttribute("value");

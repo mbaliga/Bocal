@@ -84,41 +84,24 @@
   text-align: center;
 }
 
-/* dBFS level meter, replacing the old gate-relative "Input" bar. */
-.level-meter {
-  position: relative;
-  height: 9px;
-  border-radius: 999px;
-  background: var(--line-soft);
-  overflow: hidden;
-}
-.level-meter > .level-meter-fill {
-  position: absolute;
-  inset: 0;
-  width: var(--level-fill, 0%);
-  background: var(--cyan);
-  border-radius: inherit;
-  transition: width 90ms linear;
-}
-.level-meter > .level-meter-peak {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: var(--level-peak, 0%);
-  width: 2px;
-  background: var(--ink);
-  opacity: 0.6;
-}
-.level-meter.is-clipping > .level-meter-fill {
+/* dBFS level meter, replacing the old gate-relative "Input" bar. Reuses
+   `.tracker-diagnostics > div:first-child > i` / `i b` from globals.css for
+   the track and fill (WP1's existing meter chrome, still correct here --
+   only what the fill width is driven by changed, from a gate-relative
+   percent to dBFS), and adds the clip colour and the peak-hold tick mark. */
+.tracker-diagnostics > div:first-child > i b.is-clipping {
   background: #ff6e6e;
 }
-html[data-theme="light"] .level-meter.is-clipping > .level-meter-fill {
+html[data-theme="light"] .tracker-diagnostics > div:first-child > i b.is-clipping {
   background: #c14a3a;
 }
-.level-meter-clip-label {
-  color: #ff6e6e;
-  font-weight: 650;
-}
-html[data-theme="light"] .level-meter-clip-label {
-  color: #c14a3a;
+.level-peak-mark {
+  position: absolute;
+  top: -1px;
+  bottom: -1px;
+  width: 2px;
+  background: var(--ink);
+  opacity: 0.7;
+  transform: translateX(-1px);
+  transition: left 90ms linear;
 }

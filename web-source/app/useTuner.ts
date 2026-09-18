@@ -47,13 +47,58 @@ export const PRECISION_TOLERANCE: Record<"standard" | "fine" | "ultra", number> 
   ultra: 2,
 };
 
+/**
+ * Formats a cents value for display: whole cents normally, one decimal only
+ * at Ultra (±2¢) precision -- a whole-cent readout can't show the
+ * difference Ultra's own tolerance is drawn at, so the readout switches
+ * resolution along with it (tuner.md's "still missing" precision gap).
+ * `PitchReading.cents` itself stays tenths-precision at every precision
+ * setting (see tuning.ts's TuningReading.centsTenths); this only controls
+ * what gets shown.
+ */
+export function formatCents(value: number, precision: "standard" | "fine" | "ultra"): string {
+  return precision === "ultra" ? value.toFixed(1) : String(Math.round(value));
+}
+
+/**
+ * dBFS level meter (replaces the old gate-relative "Input" bar -- tuner.md's
+ * "still missing" list). RMS to dBFS, a 1s peak hold, and a clip indicator
+ * latched off the raw sample peak (RMS alone underestimates a transient's
+ * true peak).
+ */
+export type LevelMeter = {
+  /** RMS, expressed as dBFS; 0 = full scale, more negative = quieter. */
+  dbfs: number;
+  /** The highest `dbfs` seen in the last PEAK_HOLD_MS, holding there before it starts following `dbfs` back down. */
+  peakDbfs: number;
+  /** True for CLIP_HOLD_MS after any sample this frame reached CLIP_SAMPLE_THRESHOLD of full scale. */
+  clipped: boolean;
+};
+export const LEVEL_FLOOR_DBFS = -60;
+const PEAK_HOLD_MS = 1000;
+const CLIP_SAMPLE_THRESHOLD = 0.98;
+const CLIP_HOLD_MS = 1500;
+const LEVEL_IDLE: LevelMeter = { dbfs: LEVEL_FLOOR_DBFS, peakDbfs: LEVEL_FLOOR_DBFS, clipped: false };
+
+/** RMS (full-scale amplitude, 0-1) to dBFS, floored at LEVEL_FLOOR_DBFS rather than -Infinity at rms=0. */
+export function rmsToDbfs(rms: number): number {
+  return Math.max(LEVEL_FLOOR_DBFS, 20 * Math.log10(Math.max(rms, 1e-6)));
+}
+
 function pitchFromFrequency(hz: number, writtenOffset: number, tuning: TuningOptions): PitchReading {
-  const { concertMidi, cents } = readingFor(hz, tuning);
+  // centsTenths, not the whole-cent `cents` tuning.ts also returns: the
+  // live tuner's ±2¢ (Ultra) precision setting needs to compare against an
+  // unrounded value, not two numbers already rounded to the same integer
+  // (tuner.md's "still missing" precision gap). Every reader of
+  // PitchReading.cents is owned by this package, so carrying tenths through
+  // it doesn't change what any other package displays -- see tuning.ts's
+  // own comment on why readingFor keeps `cents` at whole-cent resolution.
+  const { concertMidi, centsTenths } = readingFor(hz, tuning);
   return {
     hz,
     writtenMidi: concertMidi + writtenOffset,
     concertMidi,
-    cents,
+    cents: centsTenths,
   };
 }
 
@@ -91,6 +136,7 @@ export function useTuner(instrument: InstrumentProfile, options: UseTunerOptions
   const [acceptedFrames, setAcceptedFrames] = useState(0);
   const [listening, setListening] = useState(false);
   const [micMessage, setMicMessage] = useState("");
+  const [level, setLevel] = useState<LevelMeter>(LEVEL_IDLE);
   // Manual target-note lock (TonalEnergy "Target", Tunable's note lock):
   // mirrors StablePitchTracker's own target so the UI can show a lock badge
   // without reaching into the tracker instance directly. Concert MIDI, the
@@ -312,6 +358,7 @@ export function useTuner(instrument: InstrumentProfile, options: UseTunerOptions
     setListening(false);
     setReading(null);
     setTrackerReading({ state: "silence", hz: null, rawHz: null, confidence: 0, rms: 0, gate: 0.009, accepted: false });
+    setLevel(LEVEL_IDLE);
     window.bocalHost?.setKeepAwake?.(false);
     // Idle the AudioContext rather than leaving it running (and the device
     // awake) between tuner sessions; startListening resumes it on the next
@@ -378,6 +425,7 @@ export function useTuner(instrument: InstrumentProfile, options: UseTunerOptions
       setReading(null);
       setPitchTrace([]);
       setAcceptedFrames(0);
+      setLevel(LEVEL_IDLE);
       trackerRef.current!.reset();
       pitchHistoryRef.current.clear();
       tunerEvidenceRef.current = { startedAt: performance.now(), cents: [], midiNotes: [] };
@@ -393,6 +441,14 @@ export function useTuner(instrument: InstrumentProfile, options: UseTunerOptions
       // full 30ms cadence since neither goes through React state.
       let lastPublishAt = Number.NEGATIVE_INFINITY;
       let lastPublishedState = "";
+      // dBFS level meter: RMS (already computed by the tracker) converted
+      // to dBFS, a 1s peak hold, and a clip latch off the raw sample peak
+      // (RMS alone underestimates transient peaks). Refs, not state --
+      // updated every 30ms tick regardless of the publish throttle above
+      // (only the React-state snapshot in `level` is throttled with it).
+      let peakHoldDbfs = LEVEL_FLOOR_DBFS;
+      let peakHoldAt = Number.NEGATIVE_INFINITY;
+      let clipUntil = Number.NEGATIVE_INFINITY;
 
       const sample = () => {
         const now = performance.now();
@@ -403,6 +459,20 @@ export function useTuner(instrument: InstrumentProfile, options: UseTunerOptions
           const nextReading = nextTrackerReading.hz !== null
             ? pitchFromFrequency(nextTrackerReading.hz, instrument.writtenOffset, tuningOptionsRef.current)
             : null;
+
+          let samplePeak = 0;
+          for (let index = 0; index < data.length; index += 1) {
+            const magnitude = Math.abs(data[index]);
+            if (magnitude > samplePeak) samplePeak = magnitude;
+          }
+          if (samplePeak >= CLIP_SAMPLE_THRESHOLD) clipUntil = now + CLIP_HOLD_MS;
+          const dbfs = rmsToDbfs(nextTrackerReading.rms);
+          if (dbfs >= peakHoldDbfs || now - peakHoldAt > PEAK_HOLD_MS) {
+            peakHoldDbfs = dbfs;
+            peakHoldAt = now;
+          }
+          const nextLevel: LevelMeter = { dbfs, peakDbfs: peakHoldDbfs, clipped: now < clipUntil };
+
           const displaySignature = `${nextTrackerReading.state}|${nextReading ? nextReading.writtenMidi : ""}|${nextReading ? Math.round(nextReading.cents) : ""}|${Math.round(nextTrackerReading.confidence * 100)}`;
           const shouldPublish = now - lastPublishAt >= 66 || displaySignature !== lastPublishedState;
           if (shouldPublish) {
@@ -410,6 +480,7 @@ export function useTuner(instrument: InstrumentProfile, options: UseTunerOptions
             lastPublishedState = displaySignature;
             setTrackerReading(nextTrackerReading);
             setReading(nextReading);
+            setLevel(nextLevel);
           }
           if (nextTrackerReading.hz !== null && nextReading) {
             if (nextTrackerReading.accepted && tunerEvidenceRef.current) {
@@ -541,6 +612,7 @@ export function useTuner(instrument: InstrumentProfile, options: UseTunerOptions
     acceptedFrames,
     listening,
     micMessage,
+    level,
     isBusy,
     lockedTargetMidi,
     lockTarget,

@@ -546,6 +546,7 @@ export default function Home() {
             trackerReading={tuner.trackerReading}
             pitchTrace={tuner.pitchTrace}
             acceptedFrames={tuner.acceptedFrames}
+            level={tuner.level}
             sessionSeconds={sessionSeconds}
             micMessage={tuner.micMessage}
             onListen={tuner.start}

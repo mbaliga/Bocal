@@ -269,7 +269,12 @@ export type TuningOptions = {
 
 export type TuningReading = {
   concertMidi: number;
+  /** Rounded to whole cents -- the resolution every existing caller displays. */
   cents: number;
+  /** The same deviation rounded to tenths of a cent, for a caller (the live
+   *  tuner's ±2¢ precision setting) that needs finer resolution than a
+   *  whole cent to compare against its own tolerance meaningfully. */
+  centsTenths: number;
 };
 
 /** The cents-from-equal table this calibration should read from -- the fixed
@@ -303,7 +308,7 @@ export function targetHzFor(concertMidi: number, options: TuningOptions): number
  */
 export function readingFor(hz: number, options: TuningOptions): TuningReading {
   const equalNearest = Math.round(69 + 12 * Math.log2(hz / options.referenceHz));
-  let best: TuningReading | null = null;
+  let best: { concertMidi: number; cents: number } | null = null;
   for (const candidate of [equalNearest - 1, equalNearest, equalNearest + 1]) {
     const target = targetHzFor(candidate, options);
     const cents = 1200 * Math.log2(hz / target);
@@ -312,5 +317,14 @@ export function readingFor(hz: number, options: TuningOptions): TuningReading {
     }
   }
   const settled = best ?? { concertMidi: equalNearest, cents: 0 };
-  return { concertMidi: settled.concertMidi, cents: Math.round(settled.cents) };
+  // `cents` stays rounded to whole cents -- every existing caller (the
+  // transcription view among them) already displays it unrounded, so
+  // changing its resolution here would be a silent display change in files
+  // this package doesn't own. `centsTenths` is the additive, opt-in field
+  // for the live tuner's own ±2¢ precision setting (tuner.md's "still
+  // missing" gap), which needs to compare against a value finer than its
+  // own tolerance rather than two values already rounded to the same
+  // integer.
+  const centsTenths = Math.round(settled.cents * 10) / 10;
+  return { concertMidi: settled.concertMidi, cents: Math.round(settled.cents), centsTenths };
 }
