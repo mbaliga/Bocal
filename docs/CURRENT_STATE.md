@@ -32,6 +32,10 @@ PR #8 corrected the oboe's 100x scaling bug and chart inconsistencies, added ins
 
 The distinctive mobile arc and configurable landscape edge remain in the shared UI. No replacement navigation or cosmetic redesign is part of PR #9.
 
+## Wave 2: 3D model depth (W2-E)
+
+The alto saxophone's fused body mesh (neck tube, body, bow and bell in one primitive) was re-segmented into four primitives that share the original vertex data and material, so the "Look" panel can address each part independently. The neck now has three cosmetic variants (reusing the setup explorer's C1/E1/V1 neck descriptions, each applying a small illustrative bend -- it is not a claim that the model's bore taper actually differs between them) and the bell can take its own finish, independent of the rest of the body. The oboe's wooden body mesh was similarly split, by Y, into top joint, lower joint and bell, with a small procedural cork/tenon ring drawn at each seam; the exploded view now separates the two joints. Neither GLB's geometry, UVs or normals were changed -- see `web-source/public/models/ATTRIBUTION.md` for the CC BY 4.0 modification notices and `web-source/scripts/segment-model.mjs` for the method. Pad geometry (a "pads" group extracted from the keywork mesh) was investigated and not shipped: the keywork mesh has no reliable name, material or component-boundary signal separating a pad from its key cup, and a same-day heuristic was not reliable enough to ship (see that script's header and `web-source/docs/import-model.md`). The Sketchfab flute has not been downloaded and is not in this build; `web-source/docs/import-model.md` has the import checklist for when it is.
+
 ## Production-hardening changes in PR #9
 
 - Recording writes succeed only after an IndexedDB transaction commits; failed or blocked storage gives visible local feedback.
