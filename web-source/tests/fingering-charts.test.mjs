@@ -78,9 +78,9 @@ for (const [name, chart] of Object.entries(CHARTS)) {
 }
 
 test("range spans the declared bounds from each file's own header comment", () => {
-  // Flute: C4 (60) to C#6 (85).
+  // Flute: C4 (60) to C7 (96).
   assert.equal(CHARTS.flute.fingerings[0].writtenMidi, 60);
-  assert.equal(CHARTS.flute.fingerings.at(-1).writtenMidi, 85);
+  assert.equal(CHARTS.flute.fingerings.at(-1).writtenMidi, 96);
   // Clarinet: E3 (52) to C6 (84).
   assert.equal(CHARTS.clarinet.fingerings[0].writtenMidi, 52);
   assert.equal(CHARTS.clarinet.fingerings.at(-1).writtenMidi, 84);
@@ -111,8 +111,10 @@ test("the flute's universal B-flat alternate is present at both octaves and nowh
 });
 
 // Fixtures transcribed directly from the Woodwind Fingering Guide's
-// text-coded fingering tables (wfg.woodwind.org), fetched 2026-09-06:
-//   flute:    fl_bas_1.html (B3-C#2/first octave), fl_bas_2.html (second octave)
+// text-coded fingering tables (wfg.woodwind.org):
+//   flute:    fl_bas_1.html (B3-C#2/first octave), fl_bas_2.html (second
+//             octave), both fetched 2026-09-06; fl_bas_3.html (third
+//             octave, D6-C7), fetched 2026-09-18
 //   clarinet: cl_bas_1.html (chalumeau), cl_bas_2.html (clarion)
 //   oboe:     ob_bas_1.html, ob_bas_2.html, ob_bas_3.html
 //   bassoon:  basn_bas_1.html, basn_bas_2.html, basn_bas_3.html, basn_fing.html
@@ -151,6 +153,20 @@ const WFG_FIXTURES = {
     b5: ["thumb", "lh1", "eb"],
     c6: ["lh1", "eb"],
     cs6: ["eb"],
+    // Third octave (fl_bas_3.html), transcribed from its text codes AND
+    // cross-checked against flutetunes.com's diagram note by note -- see
+    // the sourcing comment in flute.ts.
+    d6: ["thumb", "lh2", "lh3", "eb"],
+    eb6: ["thumb", "lh1", "lh2", "lh3", "gsharp", "rh1", "rh2", "rh3", "eb"],
+    e6: ["thumb", "lh1", "lh2", "rh1", "rh2", "eb"],
+    f6: ["thumb", "lh1", "lh3", "rh1", "eb"],
+    fs6: ["thumb", "lh1", "lh3", "rh3", "eb"],
+    g6: ["lh1", "lh2", "lh3", "eb"],
+    gs6: ["lh2", "lh3", "gsharp", "eb"],
+    a6: ["thumb", "lh2", "rh1", "eb"],
+    bb6: ["thumb", "rh1", "trill1"],
+    b6: ["thumb", "lh1", "lh3", "trill2"],
+    c7: ["lh1", "lh2", "lh3", "gsharp", "rh1"],
   },
   clarinet: {
     e3: ["thumb", "lh1", "lh2", "lh3", "rh1", "rh2", "rh3", "rhPinkyE"],
@@ -282,6 +298,25 @@ for (const [name, fixtures] of Object.entries(WFG_FIXTURES)) {
     }
   });
 }
+
+test("the flute's third-octave trill keys are pressed only by Bb6 and B6, and the Eb key drops out from Bb6 up", () => {
+  const bb6 = CHARTS.flute.fingerings.find((f) => f.id === "bb6");
+  const b6 = CHARTS.flute.fingerings.find((f) => f.id === "b6");
+  assert.ok(bb6.keys.includes("trill1"), "Bb6 should use the D trill key");
+  assert.ok(b6.keys.includes("trill2"), "B6 should use the D# trill key");
+  for (const fingering of CHARTS.flute.fingerings) {
+    if (fingering.id === "bb6" || fingering.id === "b6") continue;
+    assert.ok(!fingering.keys.includes("trill1"), `${fingering.id} should not use the D trill key`);
+    assert.ok(!fingering.keys.includes("trill2"), `${fingering.id} should not use the D# trill key`);
+  }
+  // The Eb key drops out starting at Bb6 (confirmed against both sources --
+  // see flute.ts); A6, the note just below, still uses it like the rest of
+  // the upper range.
+  assert.ok(CHARTS.flute.fingerings.find((f) => f.id === "a6").keys.includes("eb"));
+  for (const id of ["bb6", "b6", "c7"]) {
+    assert.ok(!CHARTS.flute.fingerings.find((f) => f.id === id).keys.includes("eb"), `${id} should not use the Eb key`);
+  }
+});
 
 test("the oboe and bassoon half-hole notes use halfKeys, not keys, for the half-covered hole", () => {
   const oboeHalfHole = CHARTS.oboe.fingerings.filter((f) => (f.halfKeys ?? []).includes("lh1"));

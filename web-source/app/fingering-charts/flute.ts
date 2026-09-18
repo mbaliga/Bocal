@@ -7,32 +7,45 @@ import type { Fingering, FingeringChart } from "./types";
  *
  * Sources cross-checked against each other for every fingering below:
  *   1. The Woodwind Fingering Guide, University of Idaho / Timothy Reichard
- *      (wfg.woodwind.org/flute/fl_bas_1.html, fl_bas_2.html) -- a text-coded
- *      fingering table (thumb / LH123 / RH123 / foot keys) for the first two
- *      octaves, which is what this file is built from directly.
+ *      (wfg.woodwind.org/flute/fl_bas_1.html, fl_bas_2.html, fl_bas_3.html)
+ *      -- a text-coded fingering table (thumb / LH123 / RH123 / foot keys)
+ *      this file is built from directly, including the third octave
+ *      (fl_bas_3.html), confirmed 2026-09-18.
  *   2. Yamaha Corporation's official "Flute Fingerings" chart
  *      (data.yamaha.com/files/download/other_assets/9/320499/flutes_fingerings.pdf),
  *      spot-checked against several notes (low C4, the Bb4 "1-and-1" grip)
- *      to confirm the key layout and touch pattern.
+ *      to confirm the key layout and touch pattern; and, for D6-C7,
+ *      flutetunes.com's "Basic Flute Fingerings" chart
+ *      (flutetunes.com/fingerings/basic-fingerings.php, confirmed
+ *      2026-09-18) checked note by note (thumb on/off, each of LH1-3 and
+ *      RH1-3 open/closed, and the E♭ key) against the WFG transcription
+ *      below -- including that A♯6/B♭6 and B6 each use one of the layout's
+ *      two trill keys as their primary fingering, which flutetunes.com
+ *      marks with its own separate key-position indicator in the same spot.
  *
- * Range shipped: C4 to C#6. The brief's target was C4-C7, but the third
- * octave above C#6 is where flute fingerings genuinely diverge between
- * sources (extra vents, model-dependent choices), and the Woodwind
- * Fingering Guide's third-octave chart is icon-only with no parseable text
- * table to check a second source against. Rather than guess, this chart
- * stops at C#6 -- two full octaves plus a step, which covers the range
- * nearly all method-book repertoire actually uses.
+ * Range shipped: C4 to C7, the brief's full target. A prior version of this
+ * file stopped at C♯6, on the belief that WFG's third-octave chart was
+ * icon-only; re-checked directly against wfg.woodwind.org, fl_bas_3.html is
+ * the same text-coded table format as the first two octaves and transcribes
+ * cleanly.
  *
- * Left out: the flute's two small chromatic trill keys (drawn in the layout
- * for an honest picture of the instrument, per a real diagram, but pressed
- * by no fingering here -- they are for trills and fast chromatic runs, out
- * of scope for a standard-range chart). The low-B foot joint (brief said
- * skip it).
+ * Left out: the low-B foot joint (brief said skip it).
  *
- * The E♭ (D♯) key: WFG fl_bas_1/2 documents it held down on every note from
- * E4 through C♯6 (both octaves), and it is standard teaching -- without it
- * E4-B4 (and their octave-5 equivalents) are flat and stuffy on a
- * closed-G♯ flute. It is included on every one of those notes below.
+ * The E♭ (D♯) key: WFG fl_bas_1/2/3 documents it held down on E4 through B4
+ * and their octave-5 and octave-6 equivalents (skipping the D naturals,
+ * which never need it on a closed-G♯ flute) -- it is standard teaching,
+ * without it those notes are flat and stuffy. D6 is the one place the
+ * source breaks that pattern and does add the E♭ key (a third-octave
+ * vents-differently quirk, not a copy-paste). The key then drops out for
+ * good at A♯6/B♭6, where the source's own primary fingering stops using it
+ * (confirmed by the same drop in flutetunes.com's diagram) -- every
+ * fingering below transcribes exactly which notes have it, so this is a
+ * summary, not a rule this file derives fingerings from.
+ *
+ * The two small chromatic trill keys drawn in the layout (for an honest
+ * picture of the instrument) are pressed by only two fingerings below --
+ * A♯6/B♭6 (the "D trill" key) and B6 (the "D♯ trill" key) -- exactly as
+ * WFG's own basic chart uses them there, not as a trill-only shortcut.
  */
 
 const keys: FingeringChart["keys"] = [
@@ -95,6 +108,23 @@ const fingerings: Fingering[] = [
   { id: "b5", writtenMidi: 83, keys: ["thumb", "lh1", "eb"], hint: "The same fingering as B4, overblown." },
   { id: "c6", writtenMidi: 84, keys: ["lh1", "eb"], hint: "The same fingering as C5, overblown." },
   { id: "cs6", writtenMidi: 85, keys: ["eb"], hint: "The same fully-open fingering as C♯5, overblown." },
+  { id: "d6", writtenMidi: 86, keys: ["thumb", "lh2", "lh3", "eb"], hint: "Thumb, left middle and ring fingers (index lifted), plus the E♭ key." },
+  { id: "eb6", writtenMidi: 87, keys: ["thumb", "lh1", "lh2", "lh3", "gsharp", "rh1", "rh2", "rh3", "eb"], hint: "Thumb, all six main fingers and the G♯ key, plus the E♭ key." },
+  { id: "e6", writtenMidi: 88, keys: ["thumb", "lh1", "lh2", "rh1", "rh2", "eb"], hint: "Thumb, left index and middle, right index and middle, plus the E♭ key." },
+  { id: "f6", writtenMidi: 89, keys: ["thumb", "lh1", "lh3", "rh1", "eb"], hint: "Thumb, left index and ring (middle lifted), right index only, plus the E♭ key." },
+  { id: "fs6", writtenMidi: 90, keys: ["thumb", "lh1", "lh3", "rh3", "eb"], hint: "Thumb, left index and ring, right ring finger only, plus the E♭ key." },
+  { id: "g6", writtenMidi: 91, keys: ["lh1", "lh2", "lh3", "eb"], hint: "Left hand down, thumb off, plus the E♭ key." },
+  { id: "gs6", writtenMidi: 92, keys: ["lh2", "lh3", "gsharp", "eb"], hint: "Left middle and ring (index lifted) with the G♯ key, thumb off, plus the E♭ key." },
+  { id: "a6", writtenMidi: 93, keys: ["thumb", "lh2", "rh1", "eb"], hint: "Thumb, left middle finger only, right index only, plus the E♭ key." },
+  {
+    id: "bb6", writtenMidi: 94, keys: ["thumb", "rh1", "trill1"],
+    hint: "Thumb and the right index finger, plus the D trill key -- the E♭ key drops out here.",
+  },
+  {
+    id: "b6", writtenMidi: 95, keys: ["thumb", "lh1", "lh3", "trill2"],
+    hint: "Thumb, left index and ring (middle lifted), plus the D♯ trill key -- no E♭ key.",
+  },
+  { id: "c7", writtenMidi: 96, keys: ["lh1", "lh2", "lh3", "gsharp", "rh1"], hint: "Left hand down with the G♯ key, thumb off, right index only. No E♭ key." },
 ];
 
 export const FLUTE_CHART: FingeringChart = {
