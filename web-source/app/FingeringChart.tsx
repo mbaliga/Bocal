@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, ChevronLeft, ChevronRight, Info, Lightbulb, ShieldQuestion } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight, Info, Lightbulb, ShieldAlert, ShieldQuestion, Volume2 } from "lucide-react";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import "./styles/fingering-chart.css";
 import StaffNote from "./StaffNote";
@@ -73,6 +73,8 @@ export function FingeringChart({
   notation,
   tonic,
   chartOwnerName,
+  selectedIndex: controlledIndex,
+  onSelectIndex,
 }: {
   chart: FingeringChartData;
   instrument: InstrumentProfile;
@@ -80,14 +82,25 @@ export function FingeringChart({
   tonic: number;
   /** Set when this chart belongs to a different instrument (cor anglais borrowing the oboe's). */
   chartOwnerName?: string;
+  /**
+   * Controlled selection, for a caller (the sax lab) that keeps its own 3D
+   * key-picker and this chart in sync: picking a note in either place moves
+   * both. Omit both props for the normal uncontrolled behaviour every other
+   * chart-only lab uses.
+   */
+  selectedIndex?: number;
+  onSelectIndex?: (index: number) => void;
 }) {
   const initialIndex = Math.floor(chart.fingerings.length / 3);
-  const [selectedIndex, setSelectedIndex] = useState(initialIndex);
+  const [internalIndex, setInternalIndex] = useState(initialIndex);
+  const isControlled = controlledIndex !== undefined;
   const [choiceIndex, setChoiceIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const activeNoteRef = useRef<HTMLButtonElement | null>(null);
+  const audioRef = useRef<AudioContext | null>(null);
 
-  const activeIndex = Math.min(selectedIndex, chart.fingerings.length - 1);
+  const rawIndex = isControlled ? controlledIndex : internalIndex;
+  const activeIndex = Math.min(rawIndex, chart.fingerings.length - 1);
   const selected = chart.fingerings[activeIndex];
   const choices = useMemo(() => choicesFor(selected), [selected]);
   const choice = choices[Math.min(choiceIndex, choices.length - 1)];
@@ -96,9 +109,23 @@ export function FingeringChart({
 
   const chooseNote = useCallback((index: number) => {
     const wrapped = (index + chart.fingerings.length) % chart.fingerings.length;
-    setSelectedIndex(wrapped);
+    if (isControlled) onSelectIndex?.(wrapped); else setInternalIndex(wrapped);
     setChoiceIndex(0);
-  }, [chart.fingerings.length]);
+  }, [chart.fingerings.length, isControlled, onSelectIndex]);
+
+  useEffect(() => () => { void audioRef.current?.close(); }, []);
+
+  // A controlled selection can change from outside `chooseNote` (the sax
+  // lab's 3D key picker moving this chart's selection) -- reset back to the
+  // primary route so a stale alternate index from the previous note is
+  // never applied to the new one. Adjusted during render (not an effect)
+  // so it never cascades, the same pattern SaxophoneLab and OboeLab use to
+  // re-hydrate state when their instrument identity changes.
+  const [lastActiveIndex, setLastActiveIndex] = useState(activeIndex);
+  if (activeIndex !== lastActiveIndex) {
+    setLastActiveIndex(activeIndex);
+    setChoiceIndex(0);
+  }
 
   // Scope the chart's own arrow-key stepping to its container instead of
   // `window`: a global handler collided with the page's workspace-switching
@@ -128,6 +155,32 @@ export function FingeringChart({
   const concertLabel = fullNoteLabel(concertMidi, "western");
   const pressedDetails = chart.keys.filter((key) => activeKeys.has(key.id));
   const halfDetails = chart.keys.filter((key) => halfKeys.has(key.id));
+
+  // A short reference tone at the selected note's concert (sounding) pitch,
+  // for a player who wants to check the fingering against the pitch they
+  // should hear rather than only the written name. Self-contained: this
+  // chart is shared by five labs and none of them had a tone of their own
+  // to reuse, so it keeps to the same one-AudioContext-per-workspace rule
+  // (created on the tap that starts it, closed on unmount) rather than
+  // opening a second context alongside another workspace's.
+  const hearIt = useCallback(async () => {
+    const context = audioRef.current ?? new AudioContext();
+    audioRef.current = context;
+    if (context.state === "suspended") await context.resume();
+    const now = context.currentTime;
+    const hz = midiToHz(concertMidi);
+    const gain = context.createGain();
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.16, now + 0.04);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.9);
+    gain.connect(context.destination);
+    const oscillator = context.createOscillator();
+    oscillator.type = "sine";
+    oscillator.frequency.value = hz;
+    oscillator.connect(gain);
+    oscillator.start(now);
+    oscillator.stop(now + 0.92);
+  }, [concertMidi]);
 
   return (
     <div className="fingering-chart" ref={containerRef} tabIndex={-1}>
@@ -176,6 +229,14 @@ export function FingeringChart({
             <div><small>Concert pitch</small><strong>{concertLabel}</strong></div>
           </div>
 
+          <button className="tone-button" onClick={() => void hearIt()}><Volume2 size={17} /> Hear it</button>
+
+          {choice.badge && (
+            <div className="review-badge" title="Not checked by a teacher for Bocal -- a common published fingering.">
+              <ShieldAlert size={13} /> {choice.badge}
+            </div>
+          )}
+
           {choices.length > 1 && (
             <div className="fingering-choices" aria-label="Primary and alternate fingerings">
               <small>Fingering route</small>
@@ -209,13 +270,21 @@ export function FingeringChart({
 
 function choicesFor(fingering: Fingering) {
   return [
-    { label: "Primary", keys: fingering.keys, halfKeys: fingering.halfKeys, hint: fingering.hint, useWhen: undefined as string | undefined },
+    {
+      label: "Primary", keys: fingering.keys, halfKeys: fingering.halfKeys, hint: fingering.hint,
+      useWhen: undefined as string | undefined, badge: fingering.badge,
+    },
     ...(fingering.alternates ?? []).map((alternate) => ({
       label: alternate.label,
       keys: alternate.keys,
       halfKeys: alternate.halfKeys,
       hint: alternate.hint,
       useWhen: alternate.useWhen as string | undefined,
+      badge: alternate.badge,
     })),
   ];
+}
+
+function midiToHz(midi: number) {
+  return 440 * 2 ** ((midi - 69) / 12);
 }
