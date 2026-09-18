@@ -17,15 +17,19 @@ test("the wider instrument gallery is rich discovery, not an unsafe instrument s
 });
 
 test("appearance is persisted before paint and has semantic material tokens", async () => {
-  const [page, layout, styles] = await Promise.all([
+  // DownloadCenter (the settings/appearance panel) moved out of page.tsx
+  // into its own module -- see DownloadCenter.tsx -- so the "Appearance"
+  // panel heading is read from there now, everything else is unchanged.
+  const [page, downloadCenter, layout, styles] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/DownloadCenter.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
   ]);
 
   assert.match(page, /const THEME_STORAGE_KEY = "bocal-theme"/);
   assert.match(page, /Switch to \$\{theme === "dark" \? "light" : "dark"\} appearance/);
-  assert.match(page, /Appearance/);
+  assert.match(downloadCenter, /Appearance/);
   assert.match(layout, /themeBootstrap/);
   assert.match(layout, /document\.documentElement\.dataset\.theme = theme/);
   assert.match(styles, /html\[data-theme="light"\]/);
