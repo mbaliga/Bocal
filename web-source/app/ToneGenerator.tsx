@@ -7,6 +7,7 @@ import "./styles/tone-generator.css";
 import { recordPracticeActivity } from "./practice-data";
 import { fullNoteLabel, noteName, octaveOf, TONIC_CHOICES, type NotationSystem } from "./notation";
 import { targetHzFor, TEMPERAMENT_PROFILES, type TemperamentId } from "./tuning";
+import { drainDueTicks, startLookaheadScheduler } from "./audio-scheduler";
 import {
   chordFrequencies,
   chordMidis,
@@ -15,6 +16,7 @@ import {
   clampPartnerMidi,
   EXERCISE_PATTERNS,
   exerciseTones,
+  type ExerciseTone,
   intervalById,
   intervalPartnerMidi,
   INTERVALS,
@@ -41,13 +43,6 @@ const SHAPES: { id: PlayShape; label: string }[] = [
   { id: "chord", label: "Chord" },
 ];
 
-/** How far ahead of the audio clock exercise notes are queued. Same lookahead
- * PracticeTools.tsx uses for the metronome, for the same reason: a plain
- * timer drifts under load, and this is exactly the tool a player uses to
- * judge whether *they* are drifting. */
-const SCHEDULE_AHEAD = 0.12;
-/** How often the exercise scheduler wakes to top up the queue. */
-const SCHEDULER_TICK_MS = 25;
 /** TonalEnergy sustains up to 14 pitches anywhere on the keyboard; matched here. */
 const MAX_SUSTAIN_VOICES = 14;
 /** Level slider is logarithmic in dBFS, floor -40 dB (near-silent) to -3 dBFS
@@ -65,6 +60,32 @@ const MIN_LOGGED_SECONDS = 1;
 
 function midiFor(octave: number, noteIndex: number) {
   return (octave + 1) * 12 + noteIndex;
+}
+
+type ExerciseTick = { when: number; tick: number; tone: ExerciseTone };
+
+/**
+ * Yields one exercise note per tick, `when` computed fresh from
+ * `tempoRef.current` on every yield so a live tempo drag mid-run only
+ * changes the timing of notes not yet scheduled, never rewrites one already
+ * queued on the audio clock. Ends after `pattern.length` ticks unless
+ * `loop` is true, in which case it repeats the pattern forever -- the same
+ * shape schedulePulse (pulse-schedule.ts) yields, so both drain through the
+ * same drainDueTicks/startLookaheadScheduler pair from audio-scheduler.ts.
+ */
+function* exerciseNoteTicks(
+  pattern: ExerciseTone[],
+  startTime: number,
+  tempoRef: { current: number },
+  loop: boolean,
+): Generator<ExerciseTick, void, void> {
+  let tick = 0;
+  for (;;) {
+    if (!loop && tick >= pattern.length) return;
+    const secondsPerNote = 60 / tempoRef.current;
+    yield { when: startTime + tick * secondsPerNote, tick, tone: pattern[tick % pattern.length] };
+    tick += 1;
+  }
 }
 
 /** dBFS <-> linear gain for the logarithmic level slider. */
@@ -418,9 +439,7 @@ export function ToneGenerator({
     const startTime = context.currentTime + 0.06;
     const liveNodes = new Set<{ oscillator: OscillatorNode; gain: GainNode }>();
     const visualTimers: number[] = [];
-    let tick = 0;
     let cancelled = false;
-    const timer: { id: number | undefined } = { id: undefined };
 
     const scheduleNote = (tone: (typeof pattern)[number], when: number) => {
       const secondsPerNote = 60 / exerciseTempoRef.current;
@@ -446,41 +465,48 @@ export function ToneGenerator({
       return noteDuration;
     };
 
-    const schedule = () => {
-      const secondsPerNote = () => 60 / exerciseTempoRef.current;
-      while (startTime + tick * secondsPerNote() < context.currentTime + SCHEDULE_AHEAD) {
-        if (!exerciseLoop && tick >= pattern.length) {
-          if (timer.id !== undefined) window.clearInterval(timer.id);
-          return;
-        }
-        const tone = pattern[tick % pattern.length];
-        const when = startTime + tick * secondsPerNote();
-        const noteDuration = scheduleNote(tone, when);
-        const delayMs = Math.max(0, (when - context.currentTime) * 1000);
-        visualTimers.push(window.setTimeout(() => {
-          if (cancelled) return;
-          setExerciseCurrentMidi(tone.midi);
-          setExerciseCurrentCents(tone.cents);
-        }, delayMs));
-        if (!exerciseLoop && tick === pattern.length - 1) {
-          visualTimers.push(
-            window.setTimeout(() => {
-              if (cancelled) return;
-              setExercisePlaying(false);
-              setExerciseCurrentMidi(null);
-            }, delayMs + noteDuration * 1000 + 20),
-          );
-        }
-        tick += 1;
-      }
-    };
+    // The generator itself is the same shape schedulePulse yields (a `when`
+    // per tick), so it drains through the same drainDueTicks/
+    // startLookaheadScheduler pair PulseView's metronome uses -- see
+    // audio-scheduler.ts. tempoRef is read fresh inside the generator on
+    // every yield, not captured once, so a live tempo drag changes only the
+    // *next* not-yet-scheduled note's timing.
+    const iterator = exerciseNoteTicks(pattern, startTime, exerciseTempoRef, exerciseLoop);
+    let pending = iterator.next();
+    // startLookaheadScheduler's first wake runs synchronously, inside the
+    // call below, before it has anything to assign to a local `const` --
+    // this mutable holder is what onWake calls .stop() through once the
+    // pattern (non-looping) is exhausted.
+    let schedulerHandle: ReturnType<typeof startLookaheadScheduler> | null = null;
 
-    schedule();
-    timer.id = window.setInterval(schedule, SCHEDULER_TICK_MS);
+    schedulerHandle = startLookaheadScheduler({
+      now: () => context.currentTime,
+      onWake: (scheduleAhead) => {
+        pending = drainDueTicks(iterator, pending, context.currentTime + scheduleAhead, (item) => {
+          const noteDuration = scheduleNote(item.tone, item.when);
+          const delayMs = Math.max(0, (item.when - context.currentTime) * 1000);
+          visualTimers.push(window.setTimeout(() => {
+            if (cancelled) return;
+            setExerciseCurrentMidi(item.tone.midi);
+            setExerciseCurrentCents(item.tone.cents);
+          }, delayMs));
+          if (!exerciseLoop && item.tick === pattern.length - 1) {
+            visualTimers.push(
+              window.setTimeout(() => {
+                if (cancelled) return;
+                setExercisePlaying(false);
+                setExerciseCurrentMidi(null);
+              }, delayMs + noteDuration * 1000 + 20),
+            );
+          }
+        });
+        if (pending.done) schedulerHandle?.stop();
+      },
+    });
 
     return () => {
       cancelled = true;
-      if (timer.id !== undefined) window.clearInterval(timer.id);
+      schedulerHandle?.stop();
       visualTimers.forEach(window.clearTimeout);
       const now = context.currentTime;
       liveNodes.forEach(({ oscillator, gain }) => {

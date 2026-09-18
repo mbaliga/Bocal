@@ -25,6 +25,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useForegroundPause } from "./use-foreground-pause";
 import { noteName } from "./notation";
 import {
+  drainDueTicks,
+  SCHEDULE_AHEAD_HIDDEN_SECONDS,
+  SCHEDULE_AHEAD_SECONDS,
+  startLookaheadScheduler,
+} from "./audio-scheduler";
+import {
   cycleBeatMark,
   defaultAccentPattern,
   resizeAccentPattern,
@@ -179,12 +185,6 @@ function audioPolyClick(context: AudioContext, destination: AudioNode, when: num
   oscillator.start(when);
   oscillator.stop(when + 0.06);
 }
-
-/** How far ahead of the audio clock clicks are queued. Raised on a hidden tab so throttled timers still keep the queue full. */
-const SCHEDULE_AHEAD_VISIBLE = 0.12;
-const SCHEDULE_AHEAD_HIDDEN = 1.5;
-/** How often the scheduler wakes to top up the queue. */
-const SCHEDULER_TICK_MS = 25;
 
 export function PulseView({ tuningOptions = EQUAL_A440 }: { tuningOptions?: TuningOptions }) {
   const [bpm, setBpm] = useState(92);
@@ -349,48 +349,52 @@ export function PulseView({ tuningOptions = EQUAL_A440 }: { tuningOptions?: Tuni
     const polyIterator = polySpec && !activeSequence ? schedulePolyrhythm(beatsPerBar, polySpec, startTime, () => liveSegmentRef.current?.bpm ?? bpm) : null;
     let pendingPoly = polyIterator ? polyIterator.next() : null;
     const visualTimers: number[] = [];
-    let scheduleAhead = document.hidden ? SCHEDULE_AHEAD_HIDDEN : SCHEDULE_AHEAD_VISIBLE;
 
-    const schedule = () => {
-      while (!pending.done && pending.value.when < context.currentTime + scheduleAhead) {
-        const tick = pending.value;
-        if (!tick.silent) audioClick(context, masterGain, tick.accent, tick.subTick !== 0, tick.when, tick.voice, tick.countIn);
-        if (tick.subTick === 0) {
-          const beatTimes = scheduledBeatTimesRef.current;
-          beatTimes.push(tick.when);
-          if (beatTimes.length > 64) beatTimes.shift();
-          nextBeatEstimateRef.current = { when: tick.when + 60 / tick.bpmNow, bpmNow: tick.bpmNow };
-          visualTimers.push(
-            window.setTimeout(
-              () => {
-                setCurrentBeat(tick.beat);
-                setLiveBpm(tick.bpmNow);
-                const segment = plan.segments[tick.segmentIndex] ?? plan.segments[plan.segments.length - 1];
-                setLiveMeter({ beatsPerBar: tick.beatsPerBar, accentPattern: resizeAccentPattern(segment.accentPattern, tick.beatsPerBar) });
-                setActiveSequenceStep(tick.segmentIndex);
-                setCountInInfo(tick.countIn ? { bar: tick.barInSegment + 1, total: segment.countInBars } : null);
-                playedSecondsRef.current += 60 / tick.bpmNow;
-                if (hapticsRef.current && navigator.vibrate && !tick.silent) navigator.vibrate(tick.accent ? 28 : 14);
-              },
-              Math.max(0, (tick.when - context.currentTime) * 1000),
-            ),
-          );
+    // The look-ahead window is recomputed from document.hidden on every wake
+    // (rather than cached and updated only on a visibilitychange listener):
+    // reading it fresh is exactly as correct and one fewer thing to wire up
+    // and tear down.
+    const scheduler = startLookaheadScheduler({
+      now: () => context.currentTime,
+      initialScheduleAhead: document.hidden ? SCHEDULE_AHEAD_HIDDEN_SECONDS : SCHEDULE_AHEAD_SECONDS,
+      onWake: () => {
+        const scheduleAhead = document.hidden ? SCHEDULE_AHEAD_HIDDEN_SECONDS : SCHEDULE_AHEAD_SECONDS;
+        const horizon = context.currentTime + scheduleAhead;
+        pending = drainDueTicks(iterator, pending, horizon, (tick) => {
+          if (!tick.silent) audioClick(context, masterGain, tick.accent, tick.subTick !== 0, tick.when, tick.voice, tick.countIn);
+          if (tick.subTick === 0) {
+            const beatTimes = scheduledBeatTimesRef.current;
+            beatTimes.push(tick.when);
+            if (beatTimes.length > 64) beatTimes.shift();
+            nextBeatEstimateRef.current = { when: tick.when + 60 / tick.bpmNow, bpmNow: tick.bpmNow };
+            visualTimers.push(
+              window.setTimeout(
+                () => {
+                  setCurrentBeat(tick.beat);
+                  setLiveBpm(tick.bpmNow);
+                  const segment = plan.segments[tick.segmentIndex] ?? plan.segments[plan.segments.length - 1];
+                  setLiveMeter({ beatsPerBar: tick.beatsPerBar, accentPattern: resizeAccentPattern(segment.accentPattern, tick.beatsPerBar) });
+                  setActiveSequenceStep(tick.segmentIndex);
+                  setCountInInfo(tick.countIn ? { bar: tick.barInSegment + 1, total: segment.countInBars } : null);
+                  playedSecondsRef.current += 60 / tick.bpmNow;
+                  if (hapticsRef.current && navigator.vibrate && !tick.silent) navigator.vibrate(tick.accent ? 28 : 14);
+                },
+                Math.max(0, (tick.when - context.currentTime) * 1000),
+              ),
+            );
+          }
+        });
+        if (polyIterator && pendingPoly) {
+          pendingPoly = drainDueTicks(polyIterator, pendingPoly, horizon, (polyTick) => {
+            audioPolyClick(context, masterGain, polyTick.when, polyTick.voice);
+          });
         }
-        pending = iterator.next();
-      }
-      while (polyIterator && pendingPoly && !pendingPoly.done && pendingPoly.value.when < context.currentTime + scheduleAhead) {
-        audioPolyClick(context, masterGain, pendingPoly.value.when, pendingPoly.value.voice);
-        pendingPoly = polyIterator.next();
-      }
-    };
-    const onVisibility = () => { scheduleAhead = document.hidden ? SCHEDULE_AHEAD_HIDDEN : SCHEDULE_AHEAD_VISIBLE; };
-    document.addEventListener("visibilitychange", onVisibility);
+        return scheduleAhead;
+      },
+    });
 
-    schedule();
-    const timer = window.setInterval(schedule, SCHEDULER_TICK_MS);
     return () => {
-      document.removeEventListener("visibilitychange", onVisibility);
-      window.clearInterval(timer);
+      scheduler.stop();
       visualTimers.forEach(window.clearTimeout);
       masterGain.disconnect();
       startAudioTimeRef.current = null;
