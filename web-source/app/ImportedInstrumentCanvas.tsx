@@ -10,11 +10,15 @@ import {
   ENVIRONMENTS,
   OBOE_KEY_FINISHES,
   OBOE_WOOD_TYPES,
+  SAX_BELL_FINISH_MATCH_ID,
   SAX_BODY_FINISHES,
   SAX_KEYWORK_FINISHES,
   SAX_LIGATURE_OPTIONS,
   SAX_MOUTHPIECE_OPTIONS,
+  SAX_NECK_VARIANTS,
+  classifyOboeBodySubPart,
   classifyOboePart,
+  classifySaxBodySubPart,
   classifySaxPart,
   type ModelId,
   type ModelLook,
@@ -52,6 +56,9 @@ const VIEW_POSITIONS: Record<InstrumentViewId, [number, number, number]> = {
 };
 
 const PLAYER_POV_POSITION: [number, number, number] = [0, -1.6, 4.4];
+
+/** Target exploded-view separation, in final normalised render units (the whole model is 7.1 on its largest extent). */
+const EXPLODE_GAP = 0.35;
 
 function cleanPartName(name: string) {
   return name
@@ -129,6 +136,23 @@ function bronzeStudyMaterial(meshName: string, source: THREE.Material) {
   return material;
 }
 
+/**
+ * A small procedural cork/tenon ring drawn at each of the oboe body's two
+ * new seams (see classifyOboeBodySubPart / Oboe_Base_My_Oboe_0's wave-2
+ * split). This is new, simple runtime geometry added by the renderer, not
+ * part of the licensed GLB -- it illustrates that a joint separates there,
+ * it is not a claim about the real instrument's exact tenon dimensions
+ * (see ATTRIBUTION.md).
+ */
+function createTenonRing() {
+  const geometry = new THREE.TorusGeometry(0.05, 0.011, 10, 28);
+  const material = new THREE.MeshStandardMaterial({ color: 0x9a6a3a, roughness: 0.85, metalness: 0 });
+  const ring = new THREE.Mesh(geometry, material);
+  ring.rotation.x = Math.PI / 2;
+  ring.userData.bocalTenonRing = true;
+  return ring;
+}
+
 function saxLookMaterial(meshName: string, source: THREE.Material, look: ModelLook) {
   const role = classifySaxPart(meshName);
   const body = SAX_BODY_FINISHES.find((f) => f.id === look.bodyFinish) ?? SAX_BODY_FINISHES[0];
@@ -139,6 +163,10 @@ function saxLookMaterial(meshName: string, source: THREE.Material, look: ModelLo
   let color = body.body;
   let metalness = 0.76;
   let roughness = 0.36;
+  if (role === "body" && classifySaxBodySubPart(meshName) === "bell" && look.bellFinish !== SAX_BELL_FINISH_MATCH_ID) {
+    const bellBody = SAX_BODY_FINISHES.find((f) => f.id === look.bellFinish);
+    if (bellBody) color = bellBody.body;
+  }
   if (role === "keywork") {
     color = keywork.keywork;
     metalness = keywork.id === "black-nickel" ? 0.7 : 0.9;
@@ -298,7 +326,7 @@ export function ImportedInstrumentCanvas({
     applyLookRef.current?.();
     needsRenderRef.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally narrow: only re-applies material work when a material-affecting field changes, not on every look identity change (environment/background/cameraPreset/highlight are handled by their own effects).
-  }, [look?.bodyFinish, look?.keyworkFinish, look?.mouthpiece, look?.ligature, look?.exploded]);
+  }, [look?.bodyFinish, look?.keyworkFinish, look?.mouthpiece, look?.ligature, look?.exploded, look?.neckVariant, look?.bellFinish]);
 
   useEffect(() => {
     applyEnvironmentRef.current?.();
@@ -490,12 +518,15 @@ export function ImportedInstrumentCanvas({
         const materialPromises: Promise<void>[] = [];
         let explodeIndex = 0;
         root.traverse((object) => {
-          if (object instanceof THREE.Mesh) {
+          if (object instanceof THREE.Mesh && !object.userData.bocalTenonRing) {
             object.castShadow = false;
             object.receiveShadow = false;
             object.userData.basePosition = object.position.clone();
+            object.userData.baseRotationX = object.rotation.x;
             const ancestors = ancestorNames(object, root);
             const role = isOboe ? classifyOboePart(ancestors) : classifySaxPart(object.name);
+            const subPart = isOboe ? null : classifySaxBodySubPart(object.name);
+            const oboeSubPart = isOboe ? classifyOboeBodySubPart(object.name) : null;
             if (role === "keywork") {
               explodeIndex += 1;
               const sign = explodeIndex % 2 === 0 ? 1 : -1;
@@ -504,6 +535,41 @@ export function ImportedInstrumentCanvas({
             } else if (role === "mouthpiece" || role === "ligature") {
               object.userData.explodeOffset = new THREE.Vector3(0, 0, role === "mouthpiece" ? -0.55 : -0.3);
               explodableMeshes.push(object);
+            } else if (subPart === "neck") {
+              object.userData.explodeOffset = new THREE.Vector3(0, 0.42, 0.18);
+              explodableMeshes.push(object);
+            } else if (subPart === "bow") {
+              object.userData.explodeOffset = new THREE.Vector3(0, -0.32, 0);
+              explodableMeshes.push(object);
+            } else if (subPart === "bell") {
+              object.userData.explodeOffset = new THREE.Vector3(0, -0.5, -0.22);
+              explodableMeshes.push(object);
+            } else if (oboeSubPart === "top_joint") {
+              // explodeOffset is set in the *parent*-local frame (Oboe_Base's),
+              // which is scaled down by the same root normalisation factor
+              // (`scale`, computed above from the whole model's bbox) as
+              // everything else -- dividing a target final-rendered-space gap
+              // by it gives the right parent-local offset regardless of this
+              // node's own much larger individual scale (~33.8, vs. the sax
+              // per-part nodes' ~4.2-4.4).
+              object.userData.explodeOffset = new THREE.Vector3(0, EXPLODE_GAP / scale, 0);
+              explodableMeshes.push(object);
+            } else if (oboeSubPart === "bell") {
+              object.userData.explodeOffset = new THREE.Vector3(0, -EXPLODE_GAP / scale, 0);
+              explodableMeshes.push(object);
+            }
+            if (oboeSubPart === "top_joint") {
+              const ring = createTenonRing();
+              ring.position.set(0, 0.65, 0);
+              object.add(ring);
+            } else if (oboeSubPart === "bell") {
+              const ring = createTenonRing();
+              ring.position.set(0, -0.85, 0);
+              object.add(ring);
+            }
+            if (subPart === "neck") {
+              const variant = SAX_NECK_VARIANTS.find((v) => v.id === lookRef.current?.neckVariant) ?? SAX_NECK_VARIANTS[1];
+              object.rotation.x = (object.userData.baseRotationX as number) + THREE.MathUtils.degToRad(variant?.bendDegrees ?? 0);
             }
 
             const sourceMaterials = Array.isArray(object.material) ? object.material : [object.material];
@@ -535,7 +601,7 @@ export function ImportedInstrumentCanvas({
           const currentLook = lookRef.current;
           if (!currentLook || !importedRoot) return;
           importedRoot.traverse((object) => {
-            if (!(object instanceof THREE.Mesh)) return;
+            if (!(object instanceof THREE.Mesh) || object.userData.bocalTenonRing) return;
             if (isOboe) {
               const sourceForOboe = object.material as THREE.MeshStandardMaterial;
               void oboeLookMaterial(object.name, sourceForOboe, ancestorNames(object, importedRoot), currentLook, gltf.parser as unknown as { getDependency: (type: string, index: number) => Promise<unknown> }, goldTextureCache).then((material) => {
@@ -554,6 +620,10 @@ export function ImportedInstrumentCanvas({
             const base = object.userData.basePosition as THREE.Vector3 | undefined;
             if (offset && base) {
               object.position.copy(currentLook.exploded ? base.clone().add(offset) : base);
+            }
+            if (!isOboe && classifySaxBodySubPart(object.name) === "neck") {
+              const variant = SAX_NECK_VARIANTS.find((v) => v.id === currentLook.neckVariant) ?? SAX_NECK_VARIANTS[1];
+              object.rotation.x = (object.userData.baseRotationX as number) + THREE.MathUtils.degToRad(variant?.bendDegrees ?? 0);
             }
           });
         };

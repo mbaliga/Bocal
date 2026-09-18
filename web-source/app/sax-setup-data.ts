@@ -39,6 +39,15 @@ export type SetupVariant = {
   evidence: "Manufacturer description" | "Educational archetype";
   sourceLabel: string;
   sourceUrl: string;
+  /**
+   * A small, purely cosmetic rotation (degrees, applied to the 3D neck
+   * group in the "Look" panel) so the three neck variants are visually
+   * distinguishable in the lab. This is an illustrative reference offset,
+   * not a claim about the variant's real bore taper or bend -- the
+   * licensed model only has one neck's geometry, so no two variants
+   * actually differ in shape.
+   */
+  modelBendDegrees?: number;
 };
 
 export type SetupPartId = "finish" | "neck" | "mouthpiece" | "reed" | "ligature";
@@ -202,6 +211,7 @@ export const SAX_SETUP_PARTS: SetupPart[] = [
         evidence: "Manufacturer description",
         sourceLabel: "Yamaha C1 / E1 / V1 overview",
         sourceUrl: YAMAHA_NECK_SOURCE,
+        modelBendDegrees: -1.5,
       },
       {
         id: "neck-e1",
@@ -219,6 +229,7 @@ export const SAX_SETUP_PARTS: SetupPart[] = [
         evidence: "Manufacturer description",
         sourceLabel: "Yamaha C1 / E1 / V1 overview",
         sourceUrl: YAMAHA_NECK_SOURCE,
+        modelBendDegrees: 0,
       },
       {
         id: "neck-v1",
@@ -236,6 +247,7 @@ export const SAX_SETUP_PARTS: SetupPart[] = [
         evidence: "Manufacturer description",
         sourceLabel: "Yamaha C1 / E1 / V1 overview",
         sourceUrl: YAMAHA_NECK_SOURCE,
+        modelBendDegrees: 2.5,
       },
     ],
   },
