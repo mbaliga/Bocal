@@ -20,6 +20,43 @@ export function takeId(): string {
   return `take-${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`}`;
 }
 
+/** Longest a single tag may be, and the most tags a take keeps -- generous
+ *  for "warm-up", "audition rep", a piece title, but bounded so a stray
+ *  paste can't blow up the stored record or the filter chips it renders as. */
+export const MAX_TAG_LENGTH = 24;
+export const MAX_TAGS = 8;
+export const MAX_TAKE_NOTES_LENGTH = 500;
+
+/**
+ * Cleans a take's free-text tags for storage: trims, drops empties and
+ * duplicates (case-insensitively, keeping the first casing seen), caps
+ * length per tag and count overall. Pure so both the UI and the IndexedDB
+ * read path (a record edited by a future app version, or corrupted) can
+ * run the same rule rather than trusting whatever is already on disk.
+ */
+export function sanitizeTags(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  const tags: string[] = [];
+  for (const entry of value) {
+    if (typeof entry !== "string") continue;
+    const trimmed = entry.trim().slice(0, MAX_TAG_LENGTH);
+    if (!trimmed) continue;
+    const key = trimmed.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    tags.push(trimmed);
+    if (tags.length >= MAX_TAGS) break;
+  }
+  return tags;
+}
+
+/** Cleans a take's free-text notes field the same way: a string, trimmed,
+ *  length-capped, anything else (missing, wrong type) becomes "". */
+export function sanitizeTakeNotes(value: unknown): string {
+  return typeof value === "string" ? value.slice(0, MAX_TAKE_NOTES_LENGTH) : "";
+}
+
 /** Invalidates delayed microphone promises after stop, navigation or backgrounding. */
 export class CaptureRequestGate {
   private generation = 0;

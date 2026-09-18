@@ -14,6 +14,23 @@
   --subtle: #a3a39f;
 }
 
+/* Spectrogram mode paints on the same deliberately dark canvas backdrop as
+ * every other Analyze view (AnalysisView's draw() fills #0b0b0d regardless
+ * of theme -- see the comment above). These tokens are fixed light-on-dark
+ * on purpose, not swapped under html[data-theme="light"], for the same
+ * reason .harmonics-overlay's are: the page's normal light/dark tokens go
+ * dark-on-light in light mode and would be unreadable against this canvas.
+ * spectrogram.ts reads them via getComputedStyle rather than hardcoding hex
+ * in the .ts file, so the ramp still comes from one CSS source of truth. */
+.analysis-canvas-wrap {
+  --spectrogram-bg: #0b0b0d;
+  --spectrogram-quiet: #211d46;
+  --spectrogram-loud: #08fed5;
+  --spectrogram-ink: #f5f3eb;
+  --spectrogram-muted: #8a8a86;
+  --spectrogram-line: #3a3a40;
+}
+
 html[data-theme="light"] .harmonics-overlay .harmonic-note,
 html[data-theme="light"] .harmonics-overlay .harmonics-f0,
 html[data-theme="light"] .harmonics-overlay .harmonic-index,
@@ -82,4 +99,104 @@ html[data-theme="light"] .harmonics-overlay li.is-out-of-range .harmonic-cents {
 /* Tap-to-seek affordance on the take trace canvas. */
 .take-pitch-trace canvas {
   cursor: pointer;
+}
+
+/* A/B take overlay (TakePitchTrace's overlayTakeId prop). The swatch colour
+ * matches OVERLAY_COLOR in TakePitchTrace.tsx -- a fixed dashed-line colour,
+ * not cents-derived, the same way legend-true/near/off in globals.css are
+ * fixed regardless of theme. */
+.legend-overlay {
+  background: #8e7bff;
+  border-radius: 999px;
+}
+
+.take-pitch-compare-status {
+  margin: 0.35em 0 0;
+  font-size: 11px;
+  color: var(--subtle);
+}
+
+.take-compare-diff {
+  margin: 0.35em 0 0;
+  padding: 0.3em 0.6em;
+  border-radius: 8px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  font-size: 12px;
+  color: var(--ink);
+}
+
+/* Take library: tag chips, sort/filter controls and the compare-with picker
+ * added to the take card in AnalysisView. */
+.take-library-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5em;
+  align-items: center;
+  margin: 0.5em 0;
+  font-size: 12px;
+}
+
+.take-library-controls select {
+  background: var(--panel-2);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.3em 0.5em;
+  font-size: 12px;
+}
+
+.take-tags-input,
+.take-notes-input {
+  width: 100%;
+  background: var(--panel-2);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.4em 0.6em;
+  font-size: 12px;
+  margin-top: 0.4em;
+}
+
+.take-notes-input {
+  resize: vertical;
+  min-height: 2.4em;
+}
+
+.take-tag-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3em;
+  margin: 0.3em 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.take-tag-chips li {
+  font-size: 11px;
+  padding: 0.15em 0.55em;
+  border-radius: 999px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+
+.compare-align-toggle {
+  display: inline-flex;
+  gap: 0.3em;
+}
+
+.compare-align-toggle button {
+  font-size: 11px;
+  padding: 0.2em 0.6em;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--muted);
+}
+
+.compare-align-toggle button.is-active {
+  background: var(--violet-deep);
+  color: var(--ink);
+  border-color: var(--violet);
 }

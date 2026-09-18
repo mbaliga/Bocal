@@ -182,7 +182,10 @@ test("analysis keeps more than one take and supports local take management", asy
   assert.match(source, /Delete/);
   assert.match(source, /Loop/);
   assert.match(source, /playbackRate/);
-  assert.match(source, /takes\.map/);
+  // visibleTakes is `takes` sorted/filtered for the take-library depth work
+  // (tags, sort, filter) -- still the same locally-kept take list rendered
+  // as a list, just no longer literally spelled "takes.map".
+  assert.match(source, /(takes|visibleTakes)\.map/);
 });
 
 test("the lab tab is named for what the chosen instrument actually has, never a blanket \"3D lab\"", async () => {
