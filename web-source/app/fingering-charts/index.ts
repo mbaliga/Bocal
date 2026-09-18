@@ -3,6 +3,7 @@ import { BASSOON_CHART } from "./bassoon";
 import { CLARINET_CHART } from "./clarinet";
 import { FLUTE_CHART } from "./flute";
 import { OBOE_CHART } from "./oboe";
+import { SAXOPHONE_CHART } from "./saxophone";
 import type { FingeringChart } from "./types";
 
 export type { ChartAlternate, ChartKey, ChartKeyHand, ChartKeyShape, Fingering, FingeringChart } from "./types";
@@ -34,4 +35,12 @@ export const FINGERING_CHARTS: Partial<Record<InstrumentId, FingeringChart>> = {
   bassoon: BASSOON_CHART,
   oboe: OBOE_CHART,
   "cor-anglais": CENTER_ANGLAIS_CHART,
+  // One written-pitch chart shared by every saxophone (see the sourcing
+  // note in fingering-charts/saxophone.ts and the top-of-file comment above
+  // SAXOPHONE_FINGERINGS in sax-data.ts): a written note is the same grip on
+  // every horn, only the sounding pitch differs.
+  "soprano-sax": SAXOPHONE_CHART,
+  "alto-sax": SAXOPHONE_CHART,
+  "tenor-sax": SAXOPHONE_CHART,
+  "bari-sax": SAXOPHONE_CHART,
 };

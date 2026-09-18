@@ -13,13 +13,17 @@ const CHARTS = {
   bassoon: bassoon.BASSOON_CHART,
 };
 
-test("index.ts wires every chart-tier instrument, including the oboe chart borrowed by cor anglais", async () => {
+test("index.ts wires every chart-tier and fingering-tier instrument, including the oboe chart borrowed by cor anglais", async () => {
   const source = await readFile(new URL("../app/fingering-charts/index.ts", import.meta.url), "utf8");
   assert.match(source, /flute: FLUTE_CHART/);
   assert.match(source, /clarinet: CLARINET_CHART/);
   assert.match(source, /bassoon: BASSOON_CHART/);
   assert.match(source, /oboe: OBOE_CHART/);
   assert.match(source, /"cor-anglais": CENTER_ANGLAIS_CHART/);
+  // The saxophone chart is exercised in depth in sax-chart.test.mjs.
+  for (const id of ["soprano-sax", "alto-sax", "tenor-sax", "bari-sax"]) {
+    assert.match(source, new RegExp(`"${id}": SAXOPHONE_CHART`));
+  }
 });
 
 test("index.ts trims the borrowed oboe chart to the cor anglais's actual written range (no low Bb)", async () => {
