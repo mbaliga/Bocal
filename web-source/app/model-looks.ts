@@ -6,6 +6,8 @@
  * approximations; the geometry itself is the licensed model, unmodified.
  */
 
+import { SAX_SETUP_PARTS } from "./sax-setup-data";
+
 export type ModelId = "saxophone-alto" | "oboe";
 
 export type EnvironmentId = "studio" | "warm" | "cool";
@@ -22,6 +24,10 @@ export type ModelLook = {
   background: BackgroundId;
   cameraPreset: CameraPresetId;
   exploded: boolean;
+  /** Saxophone only: one of SAX_NECK_VARIANTS' ids. Ignored by the oboe. */
+  neckVariant: string;
+  /** Saxophone only: "match" (follow bodyFinish) or a SAX_BODY_FINISHES id. Ignored by the oboe. */
+  bellFinish: string;
 };
 
 export const DEFAULT_HIGHLIGHT = 0x08fed5;
@@ -83,6 +89,28 @@ export const SAX_LIGATURE_OPTIONS: SaxLigatureOption[] = [
 ];
 
 // ---------------------------------------------------------------------------
+// Neck variants and bell finish (wave 2: Object_2 re-segmented into
+// neck/body/bow/bell primitives -- see saxophone-alto.parts.json).
+// ---------------------------------------------------------------------------
+
+export type SaxNeckVariant = { id: string; name: string; bendDegrees: number };
+
+/**
+ * Reuses the same three neck variants the setup explorer describes
+ * (`SAX_SETUP_PARTS`'s "neck" part), so picking "C1 · focused" here and in
+ * the setup explorer means the same thing. Only `bendDegrees` (a small,
+ * cosmetic rotation of the neck group -- see `SetupVariant.modelBendDegrees`)
+ * is used by the 3D lab; the licensed model has one neck's geometry, so
+ * this does not claim to reproduce each variant's actual bore taper.
+ */
+export const SAX_NECK_VARIANTS: SaxNeckVariant[] = (
+  SAX_SETUP_PARTS.find((part) => part.id === "neck")?.variants ?? []
+).map((variant) => ({ id: variant.id, name: variant.name, bendDegrees: variant.modelBendDegrees ?? 0 }));
+
+/** "match" follows the body finish; any other id overrides the bell with a SAX_BODY_FINISHES colourway. */
+export const SAX_BELL_FINISH_MATCH_ID = "match";
+
+// ---------------------------------------------------------------------------
 // Oboe finishes
 // ---------------------------------------------------------------------------
 
@@ -141,6 +169,8 @@ export function defaultSaxLook(): ModelLook {
     background: "dark",
     cameraPreset: "front",
     exploded: false,
+    neckVariant: "neck-e1",
+    bellFinish: SAX_BELL_FINISH_MATCH_ID,
   };
 }
 
@@ -155,6 +185,10 @@ export function defaultOboeLook(): ModelLook {
     background: "dark",
     cameraPreset: "front",
     exploded: false,
+    // Ignored by the oboe lab (no neck/bell sub-parts on that model); kept
+    // so ModelLook has one shape across both instruments.
+    neckVariant: "neck-e1",
+    bellFinish: SAX_BELL_FINISH_MATCH_ID,
   };
 }
 
@@ -185,6 +219,8 @@ function sanitizeLook(raw: unknown, fallback: ModelLook): ModelLook {
         ? value.cameraPreset
         : fallback.cameraPreset,
     exploded: typeof value.exploded === "boolean" ? value.exploded : fallback.exploded,
+    neckVariant: typeof value.neckVariant === "string" ? value.neckVariant : fallback.neckVariant,
+    bellFinish: typeof value.bellFinish === "string" ? value.bellFinish : fallback.bellFinish,
   };
 }
 
@@ -216,9 +252,15 @@ export function saveModelLook(instrumentId: string, look: ModelLook) {
 
 export type SaxPartRole = "body" | "mouthpiece" | "ligature" | "keywork";
 export type OboePartRole = "body" | "keywork";
+export type SaxBodySubPart = "neck" | "body" | "bow" | "bell";
 
 const SAX_PART_TABLE: Record<string, SaxPartRole> = {
-  Object_2: "body",
+  // Object_2 was re-segmented (wave 2) into four primitives that all still
+  // take the "body" role for material purposes -- see saxophone-alto.parts.json.
+  Object_2_neck: "body",
+  Object_2_body: "body",
+  Object_2_bow: "body",
+  Object_2_bell: "body",
   Object_5: "mouthpiece",
   Object_6: "ligature",
   Object_3: "keywork",
@@ -230,6 +272,31 @@ const SAX_PART_TABLE: Record<string, SaxPartRole> = {
 
 export function classifySaxPart(meshName: string): SaxPartRole {
   return SAX_PART_TABLE[meshName] ?? "keywork";
+}
+
+const SAX_BODY_SUB_PART_TABLE: Record<string, SaxBodySubPart> = {
+  Object_2_neck: "neck",
+  Object_2_body: "body",
+  Object_2_bow: "bow",
+  Object_2_bell: "bell",
+};
+
+/** Which of the four re-segmented Object_2 parts this mesh is, or null for every other mesh. */
+export function classifySaxBodySubPart(meshName: string): SaxBodySubPart | null {
+  return SAX_BODY_SUB_PART_TABLE[meshName] ?? null;
+}
+
+export type OboeBodySubPart = "top_joint" | "lower_joint" | "bell";
+
+const OBOE_BODY_SUB_PART_TABLE: Record<string, OboeBodySubPart> = {
+  Oboe_Base_My_Oboe_0_top_joint: "top_joint",
+  Oboe_Base_My_Oboe_0_lower_joint: "lower_joint",
+  Oboe_Base_My_Oboe_0_bell: "bell",
+};
+
+/** Which of the three re-segmented Oboe_Base_My_Oboe_0 parts this mesh is, or null for every other mesh. */
+export function classifyOboeBodySubPart(meshName: string): OboeBodySubPart | null {
+  return OBOE_BODY_SUB_PART_TABLE[meshName] ?? null;
 }
 
 /** Oboe meshes are classified by walking up to the Oboe_Base/Static/Moving parent. */

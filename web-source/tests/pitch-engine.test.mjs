@@ -117,3 +117,73 @@ test("brief dropouts hold the trusted note, then clear it", () => {
   assert.equal(cleared.state, "silence");
   assert.equal(cleared.hz, null);
 });
+
+test("setTarget locks cents to the target note instead of switching notes: a 60-cent-sharp tone reads +60", () => {
+  const tracker = new pitch.StablePitchTracker({ calibrationMs: 0 });
+  tracker.setTarget(69); // A4
+  const sharpHz = 440 * 2 ** (60 / 1200);
+  let reading;
+  for (let index = 0; index < 30; index += 1) {
+    reading = tracker.process(sineFrame(sharpHz, 0.16, index * 211), sampleRate, index * 34);
+  }
+  assert.equal(reading.state, "locked");
+  assert.equal(reading.accepted, true);
+  const cents = centsBetween(reading.hz, 440);
+  assert.ok(Math.abs(cents - 60) < 1, `${cents} cents, expected ~+60`);
+});
+
+test("setTarget keeps reporting against the lock even when the tone drifts to a different note", () => {
+  const tracker = new pitch.StablePitchTracker({ calibrationMs: 0, switchFrames: 3 });
+  tracker.setTarget(69); // A4 = 440Hz
+  // Without a lock, a tone this far from the lock (466.1638Hz, A#4/Bb4,
+  // +100 cents -- a full semitone) would switch the note after
+  // `switchFrames` confirming frames (see "a new note must persist before
+  // replacing the current lock" above, which uses this exact pair). Locked
+  // to a target it never does -- it keeps reading cents from A4.
+  let reading;
+  for (let index = 0; index < 30; index += 1) {
+    reading = tracker.process(sineFrame(466.1638, 0.17, index * 163), sampleRate, index * 34);
+  }
+  assert.equal(reading.state, "locked");
+  assert.equal(tracker.getTarget(), 69);
+  const cents = centsBetween(reading.hz, 440);
+  assert.ok(Math.abs(cents - 100) < 2, `${cents} cents, expected ~+100`);
+});
+
+test("setTarget(null) releases the lock and restores normal note-switching acquisition", () => {
+  const tracker = new pitch.StablePitchTracker({ calibrationMs: 0, acquireFrames: 3 });
+  tracker.setTarget(69);
+  tracker.process(sineFrame(440, 0.16, 0), sampleRate, 0);
+  tracker.setTarget(null);
+  assert.equal(tracker.getTarget(), null);
+  let reading;
+  for (let index = 0; index < 8; index += 1) {
+    reading = tracker.process(sineFrame(466.1638, 0.17, index * 163), sampleRate, index * 34 + 100);
+  }
+  assert.equal(reading.state, "locked");
+  assert.ok(Math.abs(centsBetween(reading.hz, 466.1638)) < 2);
+});
+
+test("a locked target survives reset() -- persisted for the page session, not just one recording", () => {
+  const tracker = new pitch.StablePitchTracker({ calibrationMs: 0 });
+  tracker.setTarget(69);
+  tracker.reset();
+  assert.equal(tracker.getTarget(), 69);
+  const reading = tracker.process(sineFrame(440, 0.16, 0), sampleRate, 0);
+  assert.equal(reading.accepted, true);
+  assert.equal(reading.state, "locked");
+});
+
+test("a locked target stays pinned through silence instead of clearing after the hold window", () => {
+  const tracker = new pitch.StablePitchTracker({ calibrationMs: 0, holdMs: 100, clearMs: 100 });
+  tracker.setTarget(69);
+  tracker.process(sineFrame(440, 0.16, 0), sampleRate, 0);
+  // Well past both holdMs and clearMs -- an unlocked tracker would drop the
+  // note here (see "brief dropouts hold the trusted note, then clear it").
+  const afterClear = tracker.process(new Float32Array(4096), sampleRate, 5000);
+  assert.equal(afterClear.state, "silence");
+  assert.equal(tracker.getTarget(), 69);
+  const resumed = tracker.process(sineFrame(440, 0.16, 5000), sampleRate, 5034);
+  assert.equal(resumed.state, "locked");
+  assert.equal(resumed.accepted, true);
+});

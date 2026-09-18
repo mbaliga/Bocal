@@ -7,6 +7,8 @@
 // chosen tonic. Both are correct, and neither is a translation of the other, so
 // the naming system is modelled as data rather than baked into the tuner.
 
+import { hzToMidi, midiToHz } from "./music-math";
+
 export type NotationSystem = "western" | "solfege" | "sargam" | "staff";
 
 /**
@@ -130,10 +132,13 @@ export function fullNoteLabel(midi: number, system: NotationSystem, tonic = 0): 
 
 export const TONIC_CHOICES = WESTERN.map((name, pc) => ({ pc, name }));
 
+// Thin, name-preserving wrappers around music-math.ts's shared A440 math --
+// kept as their own exports since AnalysisView.tsx and TranscribePanel.tsx
+// (owned by other packages) already import these exact names from here.
 export function midiFromFrequency(hz: number) {
-  return 69 + 12 * Math.log2(hz / 440);
+  return hzToMidi(hz);
 }
 
 export function frequencyFromMidi(midi: number) {
-  return 440 * 2 ** ((midi - 69) / 12);
+  return midiToHz(midi);
 }

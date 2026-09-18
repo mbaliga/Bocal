@@ -3,7 +3,10 @@ import { readFile, readdir, stat } from "node:fs/promises";
 import test from "node:test";
 
 test("the public handoff and Android release gate point to repository-owned source and assets", async () => {
-  const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  // The settings/downloads overlay moved out of page.tsx into its own
+  // module -- see DownloadCenter.tsx -- so the copy this test checks now
+  // lives there.
+  const page = await readFile(new URL("../app/DownloadCenter.tsx", import.meta.url), "utf8");
   const publicDownloads = await readdir(new URL("../public/downloads/", import.meta.url));
   assert.ok(publicDownloads.includes("BOCAL_HANDOFF.md"));
   const handoff = await stat(new URL("../public/downloads/BOCAL_HANDOFF.md", import.meta.url));

@@ -3,19 +3,27 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 test("tuner starts blank and exposes its lock policy", async () => {
+  // The tuner's audio/tracker state (useTuner.ts) and its readout JSX
+  // (TunerView.tsx) moved out of page.tsx in the tuner-structure rework --
+  // see tuner.md's "page.tsx is a 1619-line god component" -- so this reads
+  // all three rather than assuming everything still lives in page.tsx.
   const source = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  const useTuner = await readFile(new URL("../app/useTuner.ts", import.meta.url), "utf8");
+  const tunerView = await readFile(new URL("../app/TunerView.tsx", import.meta.url), "utf8");
   const engine = await readFile(new URL("../app/pitch-engine.ts", import.meta.url), "utf8");
-  assert.match(source, /useState<PitchReading \| null>\(null\)/);
+  assert.match(useTuner, /useState<PitchReading \| null>\(null\)/);
   // The lock policy line used to be a fixed "3-frame lock · 550 ms dropout
   // hold". It now reflects the player's Sensitivity/Damping choice, so the
   // check is that the readout is wired to those presets (and that their
   // *default* choice -- medium/normal -- still resolves to the same numbers
   // the tuner always shipped with) rather than a literal string match.
-  assert.match(source, /Noise gate · \{SENSITIVITY_PRESETS\[sensitivity\]\.acquireFrames\}-frame lock · \{DAMPING_PRESETS\[damping\]\.holdMs\} ms dropout hold/);
+  assert.match(tunerView, /Noise gate · \{SENSITIVITY_PRESETS\[sensitivity\]\.acquireFrames\}-frame lock · \{DAMPING_PRESETS\[damping\]\.holdMs\} ms dropout hold/);
   assert.match(engine, /medium: \{ acquireFrames: 3, switchFrames: 3, minimumConfidence: 0\.88 \}/);
   assert.match(engine, /normal: \{ holdMs: 550, smoothingAlpha: 0\.22, smoothingAlphaHigh: 0\.34 \}/);
   assert.doesNotMatch(source, /You tend to arrive slightly flat/);
   assert.doesNotMatch(source, /hz: 261\.1/);
+  assert.doesNotMatch(tunerView, /You tend to arrive slightly flat/);
+  assert.doesNotMatch(tunerView, /hz: 261\.1/);
 });
 
 test("practice reporting uses recorded evidence instead of demo statistics", async () => {
@@ -39,7 +47,12 @@ test("the licensed sax model owns the fingering targets", async () => {
   const canvas = await readFile(new URL("../app/ImportedInstrumentCanvas.tsx", import.meta.url), "utf8");
   const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
   assert.match(lab, /src="\/models\/saxophone-alto\.glb"/);
-  assert.match(lab, /fingeringMarkers=\{SAX_KEYS\}/);
+  // Baritone's low A key was added to SAX_KEYS for the 2D chart (fingering
+  // charts don't need a 3D mesh position), but the alto model has no such
+  // key, so the 3D canvas gets SAX_KEYS filtered to what the model actually
+  // has -- see SAX_3D_KEYS's declaration in SaxophoneLab.tsx.
+  assert.match(lab, /const SAX_3D_KEYS = SAX_KEYS\.filter\(\(key\) => key\.id !== "lowA"\);/);
+  assert.match(lab, /fingeringMarkers=\{SAX_3D_KEYS\}/);
   assert.match(lab, /activeMarkerIds=\{activeKeys\}/);
   assert.doesNotMatch(lab, /Saxophone model mode/);
   assert.match(canvas, /fingeringMarkers/);
@@ -72,9 +85,13 @@ test("every imported learning model uses the legible bronze study finish", async
 
 test("first run uses an immersive instrument gallery and replayable onboarding", async () => {
   const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  // The settings overlay ("Replay the onboarding guide" lives on it) moved
+  // out to DownloadCenter.tsx -- see tuner.md's "page.tsx is a 1619-line god
+  // component".
+  const downloadCenter = await readFile(new URL("../app/DownloadCenter.tsx", import.meta.url), "utf8");
   const experience = await readFile(new URL("../app/InstrumentExperience.tsx", import.meta.url), "utf8");
   assert.match(page, /InstrumentPickerExperience/);
-  assert.match(page, /Replay the onboarding guide/);
+  assert.match(downloadCenter, /Replay the onboarding guide/);
   assert.match(experience, /What are you playing today\?/);
   // Every gallery entry has to say what a player actually gets. Flute and
   // bassoon have a 2D fingering chart but no licensed 3D model, and say so;
@@ -102,9 +119,14 @@ test("first run uses an immersive instrument gallery and replayable onboarding",
 
 test("landscape navigation can sit on either side and persists locally", async () => {
   const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  // The "Landscape navigation" radiogroup lives in the settings overlay,
+  // moved out to DownloadCenter.tsx; the storage key itself is declared
+  // once in storage-keys.ts and imported by page.tsx.
+  const downloadCenter = await readFile(new URL("../app/DownloadCenter.tsx", import.meta.url), "utf8");
+  const storageKeys = await readFile(new URL("../app/storage-keys.ts", import.meta.url), "utf8");
   const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
-  assert.match(page, /bocal-navigation-side/);
-  assert.match(page, /Landscape navigation side/);
+  assert.match(storageKeys, /export const NAVIGATION_SIDE_STORAGE_KEY = "bocal-navigation-side"/);
+  assert.match(downloadCenter, /Landscape navigation side/);
   assert.match(page, /nav-\$\{railSide\}/);
   assert.match(styles, /@media \(orientation: landscape\) and \(min-width: 681px\)/);
   assert.match(styles, /\.side-rail \{ display: none; \}/);
@@ -129,12 +151,14 @@ test("harmonics view no longer claims tone quality (embouchure/reed) from partia
 
 test("tuner exposes a calibrated tone generator and precision choices", async () => {
   const source = await readFile(new URL("../app/ToneGenerator.tsx", import.meta.url), "utf8");
-  const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  // The precision picker is part of the tuner readout, moved out to
+  // TunerView.tsx.
+  const tunerView = await readFile(new URL("../app/TunerView.tsx", import.meta.url), "utf8");
   assert.match(source, /targetHzFor/);
   assert.match(source, /Array\.from\(\{ length: 8/);
   assert.match(source, /Waveform|waveform/);
   assert.match(source, /Synthetic reference voice/);
-  assert.match(page, /Ultra ±2¢/);
+  assert.match(tunerView, /Ultra ±2¢/);
 });
 
 test("practice tools include measured metronome drills, goals, coach mode and song progress", async () => {
@@ -182,7 +206,10 @@ test("analysis keeps more than one take and supports local take management", asy
   assert.match(source, /Delete/);
   assert.match(source, /Loop/);
   assert.match(source, /playbackRate/);
-  assert.match(source, /takes\.map/);
+  // visibleTakes is `takes` sorted/filtered for the take-library depth work
+  // (tags, sort, filter) -- still the same locally-kept take list rendered
+  // as a list, just no longer literally spelled "takes.map".
+  assert.match(source, /(takes|visibleTakes)\.map/);
 });
 
 test("the lab tab is named for what the chosen instrument actually has, never a blanket \"3D lab\"", async () => {

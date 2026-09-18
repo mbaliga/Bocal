@@ -1,5 +1,8 @@
+import type { InstrumentId } from "./instruments";
+
 export type SaxKeyId =
   | "octave"
+  | "lowA"
   | "lh1"
   | "bis"
   | "lh2"
@@ -60,6 +63,14 @@ export type Fingering = {
    * actually alternates -- not the full fingering for either note.
    */
   trills?: TrillOption[];
+  /**
+   * Restricts this fingering to the listed saxophones. Absent means every
+   * size of saxophone shares it (true for everything in this file except
+   * baritone's low A, which only baritones have a key for). Callers that
+   * render `SAXOPHONE_FINGERINGS` for a specific instrument must filter on
+   * this field -- see `fingeringsFor` in SaxophoneLab.tsx.
+   */
+  instrument?: InstrumentId[];
 };
 
 export type FingeringOption = {
@@ -97,6 +108,14 @@ export type SaxMechanic = {
 
 export const SAX_KEYS: SaxKey[] = [
   { id: "octave", short: "Oct", name: "Octave lever", hand: "Left", finger: "Thumb", position: [-0.16, 1.82, -0.43], side: "back" },
+  /**
+   * The baritone's low A key -- a second left-thumb lever, below the thumb
+   * rest, that only baritone saxophones have (see the `bari-sax`-scoped a3
+   * fingering below). Bocal's 3D model is an alto, which has no such key, so
+   * this position is an approximate placement for the 2D chart only; the sax
+   * lab must filter it out of the 3D marker set (SaxophoneLab.tsx does).
+   */
+  { id: "lowA", short: "A", name: "Low A key (baritone only)", hand: "Left", finger: "Thumb", position: [-0.16, 1.6, -0.43], side: "back" },
   { id: "frontF", short: "F↑", name: "Front F touch", hand: "Left", finger: "Index", position: [-0.27, 2.4, 0.4], side: "left" },
   { id: "lh1", short: "1", name: "B pearl", hand: "Left", finger: "Index", position: [-0.19, 2.08, 0.45] },
   { id: "bis", short: "Bis", name: "Bis B♭ pearl", hand: "Left", finger: "Index edge", position: [0.15, 1.82, 0.46], side: "right" },
@@ -131,6 +150,11 @@ export const SAX_MECHANICS: Record<SaxKeyId, SaxMechanic> = {
       { name: "Body octave vent", motion: "opens", condition: "G♯ and below" },
     ],
     explanation: "The thumb lever drives an automatic rocker. The fingering selects which of the two octave vents opens; the player still presses one lever.",
+  },
+  lowA: {
+    cupMotion: "closes",
+    linkedPads: [{ name: "Low A bell pad", motion: "closes", condition: "baritone only" }],
+    explanation: "A second left-thumb lever below the thumb rest, found only on baritones, that closes the extra bell joint added to reach written A3.",
   },
   frontF: {
     cupMotion: "opens",
@@ -191,13 +215,38 @@ const oct = (keys: SaxKeyId[]) => ["octave", ...keys] as SaxKeyId[];
  * `instruments.ts`). So this map, despite its name's history, is not
  * alto-specific: it is keyed on written pitch and applies across the family.
  *
- * Two real gaps remain: it has no entry for baritone's low A (written A3), a
- * key many baritones have that the other three saxes lack; and while the
- * standard written range (B♭3 through F♯6) is teacher-checked, the altissimo
- * entries appended after it (G6 through C7) are not -- see the `review`
- * field and the block comment above the altissimo section below.
+ * One real gap remains: while the standard written range (B♭3 through F♯6)
+ * is teacher-checked, the altissimo entries appended after it (G6 through
+ * C7) are not -- see the `review` field and the block comment above the
+ * altissimo section below.
+ *
+ * Baritone's low A (written A3) is included as a single `instrument:
+ * ["bari-sax"]`-scoped entry below, written before B♭3 in pitch order. Only
+ * baritones have the second left-thumb key it needs; soprano, alto and
+ * tenor stop at B♭3. Confirmed against two sources (both consulted
+ * 2026-09-18):
+ *   1. The Woodwind Fingering Guide's basic saxophone chart
+ *      (https://www.wfg.woodwind.org/sax/sax_bas_1.html), which lists
+ *      written A3 as the low-C fingering ("123|123 C") plus a left-thumb
+ *      low A key, and its fingering-scheme glossary
+ *      (https://www.wfg.woodwind.org/sax/sax_fing.html), which describes
+ *      that key as "a second left thumb key to extend the range down to A"
+ *      found on baritones.
+ *   2. Yamaha's official "How to Play the Saxophone" guide
+ *      (https://www.yamaha.com/en/musical_instrument_guide/saxophone/play/play002.html):
+ *      "only the baritone saxophone has a low A. To sound a low A, use the
+ *      fingering for low C and then press the low A key situated below the
+ *      thumb of the left hand."
+ * Bocal's 3D model is an alto and has no low-A key at all, so the sax lab
+ * shows this fingering on the 2D chart only, with a one-line note -- see
+ * SaxophoneLab.tsx.
  */
 export const SAXOPHONE_FINGERINGS: Fingering[] = [
+  {
+    id: "a3", note: "A", octave: 3, midi: 57, keys: [...baseSix, "lowC", "lowA"], level: "Low",
+    instrument: ["bari-sax"],
+    hint: "Finger low C (all six main keys plus the right-pinky low C key), then press the left-thumb low A key below the thumb rest.",
+  },
   { id: "bb3", note: "B♭", octave: 3, midi: 58, keys: [...baseSix, "lowBb"], level: "Low", hint: "All six main fingers, then roll the left pinky to low B♭." },
   { id: "b3", note: "B", octave: 3, midi: 59, keys: [...baseSix, "lowB"], level: "Low", hint: "All six main fingers with the left-pinky low B key." },
   {

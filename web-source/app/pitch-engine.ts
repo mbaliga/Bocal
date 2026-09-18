@@ -1,3 +1,5 @@
+import { clamp, hzToMidi, median, midiToHz } from "./music-math";
+
 export type PitchCandidate = {
   hz: number;
   confidence: number;
@@ -35,8 +37,6 @@ export type StablePitchTrackerOptions = {
   /** Smoothing rate used once a frame's confidence reaches 0.96 or above. */
   smoothingAlphaHigh?: number;
 };
-
-const clamp = (value: number, minimum: number, maximum: number) => Math.min(maximum, Math.max(minimum, value));
 
 export function frameRms(buffer: Float32Array) {
   let total = 0;
@@ -131,21 +131,6 @@ export function detectPitchYin(
   return { hz, confidence };
 }
 
-function midiFloat(hz: number) {
-  return 69 + 12 * Math.log2(hz / 440);
-}
-
-function midiToHz(midi: number) {
-  return 440 * 2 ** ((midi - 69) / 12);
-}
-
-function median(values: number[]) {
-  if (values.length === 0) return 0;
-  const ordered = [...values].sort((left, right) => left - right);
-  const middle = Math.floor(ordered.length / 2);
-  return ordered.length % 2 === 0 ? (ordered[middle - 1] + ordered[middle]) / 2 : ordered[middle];
-}
-
 export class StablePitchTracker {
   private minHz: number;
   private maxHz: number;
@@ -161,6 +146,16 @@ export class StablePitchTracker {
   private noiseFloor = 0.0035;
   private startedAt: number | null = null;
   private lockedMidi: number | null = null;
+  /**
+   * A manually locked target note (TonalEnergy "Target", Tunable's note
+   * lock): when set, every reliable frame reports cents against this exact
+   * MIDI note instead of letting YIN's nearest-neighbour rounding pick (and
+   * switch) the note on its own. Survives `reset()` -- a target the player
+   * chose stays chosen across a Stop/Start cycle within the same page
+   * session; only `setTarget(null)` or a fresh page load clears it, per the
+   * "persisted per session only" requirement.
+   */
+  private targetMidi: number | null = null;
   private pendingMidi: number | null = null;
   private pendingFrames = 0;
   private pendingCents: number[] = [];
@@ -209,7 +204,8 @@ export class StablePitchTracker {
   reset() {
     this.noiseFloor = 0.0035;
     this.startedAt = null;
-    this.lockedMidi = null;
+    // `targetMidi` deliberately survives reset() -- see its field comment.
+    this.lockedMidi = this.targetMidi;
     this.pendingMidi = null;
     this.pendingFrames = 0;
     this.pendingCents = [];
@@ -217,6 +213,28 @@ export class StablePitchTracker {
     this.smoothedCents = 0;
     this.lastReliableAt = Number.NEGATIVE_INFINITY;
     this.lastConfidence = 0;
+  }
+
+  /**
+   * Locks (or, with `null`, releases) the target note every reliable frame
+   * is measured against, regardless of what YIN's nearest-neighbour
+   * rounding would otherwise pick -- a 60-cent-sharp tone reads +60 against
+   * the lock instead of switching notes at the halfway point. Resets the
+   * smoothing history so the displayed cents don't jump from whatever the
+   * previous note's smoothed value happened to be.
+   */
+  setTarget(midi: number | null) {
+    this.targetMidi = midi;
+    this.lockedMidi = midi;
+    this.pendingMidi = null;
+    this.pendingFrames = 0;
+    this.pendingCents = [];
+    this.centsHistory = [];
+    this.smoothedCents = 0;
+  }
+
+  getTarget(): number | null {
+    return this.targetMidi;
   }
 
   process(buffer: Float32Array, sampleRate: number, nowMs: number): PitchTrackerReading {
@@ -239,9 +257,27 @@ export class StablePitchTracker {
 
     if (!reliable || !candidate) return this.unreliableReading(nowMs, rms, gate, candidate);
 
-    const rawMidi = midiFloat(candidate.hz);
+    const rawMidi = hzToMidi(candidate.hz);
     const candidateMidi = Math.round(rawMidi);
     this.lastConfidence = candidate.confidence;
+
+    if (this.targetMidi !== null) {
+      // Locked to a manual target: report cents against it directly on
+      // every reliable frame. No acquire/switch gating -- the note is
+      // already decided, so there's nothing to confirm before locking, and
+      // nothing another note's frames should be allowed to switch away
+      // from (tuner.md/TonalEnergy "Target" parity).
+      const centsFromTarget = (rawMidi - this.targetMidi) * 100;
+      this.pendingMidi = null;
+      this.pendingFrames = 0;
+      this.pendingCents = [];
+      this.lastReliableAt = nowMs;
+      this.pushCents(centsFromTarget);
+      const target = median(this.centsHistory.slice(-5));
+      const alpha = candidate.confidence >= 0.96 ? this.smoothingAlphaHigh : this.smoothingAlpha;
+      this.smoothedCents += (target - this.smoothedCents) * alpha;
+      return this.lockedReading(candidate.hz, candidate.confidence, rms, gate, true);
+    }
 
     if (this.lockedMidi === null) {
       this.advancePending(candidateMidi, rawMidi);
@@ -333,7 +369,10 @@ export class StablePitchTracker {
     }
     // Once the visible hold expires, require a fresh multi-frame acquisition.
     // Keeping a dormant note lock would let a single returning frame reappear.
-    if (elapsed > Math.min(this.holdMs, this.clearMs)) {
+    // A manually locked target is the one exception: it stays pinned through
+    // silence (that's the point of locking it) and is only released by
+    // `setTarget(null)`.
+    if (this.targetMidi === null && elapsed > Math.min(this.holdMs, this.clearMs)) {
       this.lockedMidi = null;
       this.centsHistory = [];
       this.smoothedCents = 0;

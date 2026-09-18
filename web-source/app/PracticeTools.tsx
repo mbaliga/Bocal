@@ -11,19 +11,36 @@ import {
   Clock3,
   Gauge,
   Headphones,
+  ListChecks,
   Music2,
+  Pencil,
   Play,
   Plus,
   Save,
   Share2,
   Sparkles,
   Target,
+  Trash2,
   UserRound,
   Waves,
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from "react";
-import { addSongWish, COMPLETED_PRACTICE_STORAGE_KEY, parsePracticeActivities, parseSongWishlist, PRACTICE_ACTIVITY_STORAGE_KEY, SONG_WISHLIST_STORAGE_KEY, updateSongWish, type PracticeActivity, type PracticeActivityType, type SongWish } from "./practice-data";
+import {
+  addSongWish,
+  COMPLETED_PRACTICE_STORAGE_KEY,
+  deletePracticeActivity,
+  parsePracticeActivities,
+  parseSongWishlist,
+  PRACTICE_ACTIVITY_STORAGE_KEY,
+  SONG_WISHLIST_STORAGE_KEY,
+  updatePracticeActivity,
+  updateSongWish,
+  type PracticeActivity,
+  type PracticeActivityType,
+  type SongWish,
+} from "./practice-data";
+import { saveOrShareFile } from "./takes-store";
 import {
   calculateSkillRating,
   emptySkillEvidence,
@@ -31,6 +48,9 @@ import {
   SKILL_EVIDENCE_STORAGE_KEY,
   type SkillEvidenceBundle,
 } from "./skill-rating";
+// Imported (not redeclared) from storage-keys.ts, per the wave-2 plan's
+// "PulseView.tsx/PracticeTools.tsx (import only)" note.
+import { LESSON_NOTE_STORAGE_KEY, SESSIONS_STORAGE_KEY, WEEKLY_GOAL_STORAGE_KEY } from "./storage-keys";
 import "./styles/practice.css";
 
 // PulseView used to live in this file; it moved to its own module (see
@@ -141,12 +161,12 @@ export function PracticeView({
     // (private browsing) or one key can hold hand-edited/corrupt JSON, and
     // neither case should blank out the other five restores along with it.
     const restore = () => {
-      try { setSessions(parseSessions(localStorage.getItem("bocal-sessions"))); } catch { /* ignore */ }
+      try { setSessions(parseSessions(localStorage.getItem(SESSIONS_STORAGE_KEY))); } catch { /* ignore */ }
       try { setActivities(parsePracticeActivities(localStorage.getItem(PRACTICE_ACTIVITY_STORAGE_KEY))); } catch { /* ignore */ }
       try { setSongWishes(parseSongWishlist(localStorage.getItem(SONG_WISHLIST_STORAGE_KEY))); } catch { /* ignore */ }
       try { setCompleted(parseCompleted(localStorage.getItem(COMPLETED_PRACTICE_STORAGE_KEY))); } catch { /* ignore */ }
-      try { setWeeklyGoal(Number(localStorage.getItem("bocal-weekly-goal-minutes") ?? 60)); } catch { /* ignore */ }
-      try { setSavedNote(localStorage.getItem("bocal-lesson-note") ?? ""); } catch { /* ignore */ }
+      try { setWeeklyGoal(Number(localStorage.getItem(WEEKLY_GOAL_STORAGE_KEY) ?? 60)); } catch { /* ignore */ }
+      try { setSavedNote(localStorage.getItem(LESSON_NOTE_STORAGE_KEY) ?? ""); } catch { /* ignore */ }
       try { setSkillEvidence(parseSkillEvidence(localStorage.getItem(SKILL_EVIDENCE_STORAGE_KEY))); } catch { /* ignore */ }
     };
     const restoreTimer = window.setTimeout(restore, 0);
@@ -213,7 +233,7 @@ export function PracticeView({
     if (!clean) return;
     setSavedNote(clean);
     setNote("");
-    try { localStorage.setItem("bocal-lesson-note", clean); } catch { /* Non-critical local enhancement. */ }
+    try { localStorage.setItem(LESSON_NOTE_STORAGE_KEY, clean); } catch { /* Non-critical local enhancement. */ }
   };
   const exportData = () => {
     const payload = { schemaVersion: 2, exportedAt: new Date().toISOString(), sessions, activities, songWishes, lessonNote: savedNote, completed, skillEvidence, skillRating };
@@ -227,33 +247,35 @@ export function PracticeView({
       `${daysPlayed === 1 ? "day" : "days"} in the last week · ` +
       `${skillRating.evidence.acceptedPitchFrames} accepted pitch frames.`;
 
-    const download = () => {
-      const url = URL.createObjectURL(file);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = file.name;
-      link.click();
-      URL.revokeObjectURL(url);
-      setShareMessage("Saved to your downloads.");
-    };
+    // Android has its own system Save As picker with bounded transfer and
+    // cancellation/failure feedback (see takes-store.ts's saveOrShareFile,
+    // the same save path takes/analysis exports already use); the plain
+    // blob-anchor download below is a silent no-op there, so route through
+    // it whenever the native bridge is present rather than falling through
+    // to that download.
+    if (typeof window !== "undefined" && window.bocalHost) {
+      void saveOrShareFile(file).then(() => setShareMessage("Saved."));
+      return;
+    }
 
-    // Prefer the OS sharesheet. On a phone "export" nearly always means "send
-    // this to someone", and a download drops the file into a folder the player
-    // then has to go and find. canShare is synchronous, so the click gesture
-    // that permits share() is still live when we call it.
+    // In the browser, prefer the OS sharesheet. On a phone "export" nearly
+    // always means "send this to someone", and a download drops the file
+    // into a folder the player then has to go and find. canShare is
+    // synchronous, so the click gesture that permits share() is still live
+    // when we call it.
     if (typeof navigator !== "undefined" && navigator.canShare?.({ files: [file] })) {
       navigator
         .share({ files: [file], title: "Bocal practice data", text: summary })
         .then(() => setShareMessage("Shared."))
         .catch((error: unknown) => {
           // Dismissing the sheet is a decision, not a failure. Anything else
-          // falls back to a download so the data is never trapped in the app.
+          // falls back to the same save path so the data is never trapped in the app.
           if (error instanceof DOMException && error.name === "AbortError") return;
-          download();
+          void saveOrShareFile(file).then(() => setShareMessage("Saved to your downloads."));
         });
       return;
     }
-    download();
+    void saveOrShareFile(file).then(() => setShareMessage("Saved to your downloads."));
   };
   const addWish = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -269,7 +291,7 @@ export function PracticeView({
   });
   const changeWeeklyGoal = (next: number) => {
     setWeeklyGoal(next);
-    try { localStorage.setItem("bocal-weekly-goal-minutes", String(next)); } catch { /* Optional local goal persistence. */ }
+    try { localStorage.setItem(WEEKLY_GOAL_STORAGE_KEY, String(next)); } catch { /* Optional local goal persistence. */ }
   };
 
   return (
@@ -322,6 +344,8 @@ export function PracticeView({
           <article className="gentle-win-card"><Sparkles size={17} /><span>Small win</span><strong>{activeDays ? "You made room for music this week." : "Your next two minutes count."}</strong><p>{activeDays ? "Keep the next session tiny and specific. Consistency is more useful than a streak counter." : "Start a tuner, pulse or chord flow. Bocal will remember the work, not guilt you into it."}</p></article>
         </div>
       </section>
+
+      <PracticeLog activities={activities} />
 
       <CoachBoard />
 
@@ -425,6 +449,108 @@ function EquipmentLog() {
         <input value={label} onChange={(event) => setLabel(event.target.value)} placeholder="e.g. Vandoren Traditional 3" aria-label="Equipment name" maxLength={60} />
         <button type="submit" disabled={!label.trim()}><Plus size={14} /> Log it</button>
       </form>
+    </section>
+  );
+}
+
+const PRACTICE_LOG_PAGE_SIZE = 15;
+
+/** "3:45 PM" style time for one logged entry, plus the day for anything
+ * older than today -- a full ISO timestamp is precise but unreadable at a
+ * glance, and a bare relative "2h ago" goes stale the moment the page sits
+ * open. */
+function activityTimeLabel(capturedAt: string) {
+  const date = new Date(capturedAt);
+  if (!Number.isFinite(date.getTime())) return "Unknown time";
+  const now = new Date();
+  const sameDay = dayKey(date) === dayKey(now);
+  const time = date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  return sameDay ? time : `${date.toLocaleDateString(undefined, { month: "short", day: "numeric" })}, ${time}`;
+}
+
+/**
+ * A per-session list of every logged practice activity (tuner, metronome,
+ * tone generator, analysis, chords, repertoire), newest first, with a rename
+ * and a delete per row -- the practice map above shows the shape of the
+ * work; this is the actual record behind it. Shows the most recent
+ * PRACTICE_LOG_PAGE_SIZE entries with a "show more" step rather than every
+ * stored entry at once, since a long-running device can hold up to 360.
+ */
+function PracticeLog({ activities }: { activities: PracticeActivity[] }) {
+  const [visibleCount, setVisibleCount] = useState(PRACTICE_LOG_PAGE_SIZE);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingLabel, setEditingLabel] = useState("");
+
+  const startEdit = (activity: PracticeActivity) => {
+    setEditingId(activity.id);
+    setEditingLabel(activity.label ?? "");
+  };
+  const commitEdit = () => {
+    if (editingId) updatePracticeActivity(editingId, { label: editingLabel });
+    setEditingId(null);
+    setEditingLabel("");
+  };
+  const cancelEdit = () => { setEditingId(null); setEditingLabel(""); };
+  const removeActivity = (id: string) => {
+    if (typeof window !== "undefined" && !window.confirm("Delete this logged activity? This only removes it from your local practice log.")) return;
+    if (editingId === id) cancelEdit();
+    deletePracticeActivity(id);
+  };
+
+  const visible = activities.slice(0, visibleCount);
+
+  return (
+    <section className="practice-log-card" aria-labelledby="practice-log-title">
+      <header className="list-card-head">
+        <div><span className="card-kicker"><ListChecks size={14} /> Practice log</span><h2 id="practice-log-title">Every session, on this device.</h2></div>
+        <span className="local-chip"><Archive size={12} /> Local</span>
+      </header>
+      {activities.length === 0 ? (
+        <EmptyInsight text="Finish a tuner, metronome, tone generator or analysis session to start this log." />
+      ) : (
+        <>
+          <ul className="practice-log-list">
+            {visible.map((activity) => (
+              <li key={activity.id} className="practice-log-row">
+                <span className="practice-log-dot" style={{ "--dot-color": ACTIVITY_COLORS[activity.type] } as CSSProperties} aria-hidden="true" />
+                <div className="practice-log-detail">
+                  {editingId === activity.id ? (
+                    <input
+                      className="practice-log-edit-input"
+                      value={editingLabel}
+                      onChange={(event) => setEditingLabel(event.target.value)}
+                      onKeyDown={(event) => { if (event.key === "Enter") commitEdit(); if (event.key === "Escape") cancelEdit(); }}
+                      placeholder="Label this session"
+                      maxLength={80}
+                      aria-label={`Rename ${ACTIVITY_LABELS[activity.type]} session`}
+                      autoFocus
+                    />
+                  ) : (
+                    <strong>{activity.label || ACTIVITY_LABELS[activity.type]}</strong>
+                  )}
+                  <span>{ACTIVITY_LABELS[activity.type]} · {minuteLabel(activity.seconds)} · {activityTimeLabel(activity.capturedAt)}{activity.notes?.length ? ` · ${activity.notes.slice(0, 4).join(", ")}` : ""}</span>
+                </div>
+                {editingId === activity.id ? (
+                  <span className="practice-log-actions">
+                    <button type="button" onClick={commitEdit} aria-label="Save name"><Check size={13} /></button>
+                    <button type="button" onClick={cancelEdit} aria-label="Cancel edit"><X size={13} /></button>
+                  </span>
+                ) : (
+                  <span className="practice-log-actions">
+                    <button type="button" onClick={() => startEdit(activity)} aria-label={`Rename this ${ACTIVITY_LABELS[activity.type]} session`}><Pencil size={13} /></button>
+                    <button type="button" onClick={() => removeActivity(activity.id)} aria-label={`Delete this ${ACTIVITY_LABELS[activity.type]} session`}><Trash2 size={13} /></button>
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+          {activities.length > visible.length && (
+            <button type="button" className="practice-log-more" onClick={() => setVisibleCount((count) => count + PRACTICE_LOG_PAGE_SIZE)}>
+              Show {Math.min(PRACTICE_LOG_PAGE_SIZE, activities.length - visible.length)} more
+            </button>
+          )}
+        </>
+      )}
     </section>
   );
 }

@@ -5,10 +5,11 @@ import { INSTRUMENTS } from "../app/instruments.ts";
 
 test("modern alto exposes every distinct player touch-piece", () => {
   const ids = data.SAX_KEYS.map((key) => key.id);
-  assert.equal(ids.length, 23);
-  assert.equal(new Set(ids).size, 23);
+  assert.equal(ids.length, 24);
+  assert.equal(new Set(ids).size, 24);
   assert.ok(ids.includes("altFsharp"));
   assert.ok(ids.includes("highFsharp"));
+  assert.ok(ids.includes("lowA"));
   assert.notEqual(ids.indexOf("altFsharp"), ids.indexOf("highFsharp"));
   assert.deepEqual(Object.keys(data.SAX_MECHANICS).sort(), [...ids].sort());
 });
@@ -33,17 +34,32 @@ test("every mechanism declares real pad motion and known coupled cups", () => {
   assert.deepEqual(data.SAX_MECHANICS.lowBb.coupledCupIds, ["lowC", "lowB"]);
 });
 
-test("the keyed range is chromatic from written B-flat 3 through altissimo C7", () => {
-  assert.equal(data.ALTO_FINGERINGS.length, 39);
-  assert.deepEqual(data.ALTO_FINGERINGS.map((note) => note.midi), Array.from({ length: 39 }, (_, index) => 58 + index));
-  assert.equal(data.ALTO_FINGERINGS[0].id, "bb3");
-  assert.equal(data.ALTO_FINGERINGS.at(-1).id, "c7");
+test("the keyed range is chromatic from written B-flat 3 through altissimo C7, on every non-scoped saxophone", () => {
+  // Baritone's low A3 is scoped (instrument: ["bari-sax"]) and sits before
+  // B♭3 in the array without being part of the shared, unscoped range every
+  // saxophone plays -- filter it out before checking chromatic continuity.
+  const shared = data.ALTO_FINGERINGS.filter((note) => !note.instrument);
+  assert.equal(shared.length, 39);
+  assert.deepEqual(shared.map((note) => note.midi), Array.from({ length: 39 }, (_, index) => 58 + index));
+  assert.equal(shared[0].id, "bb3");
+  assert.equal(shared.at(-1).id, "c7");
   // The written range now reaches at least midi 96 (C7), the top of the
   // altissimo block added alongside the standard B♭3-F♯6 range.
-  assert.ok(data.ALTO_FINGERINGS.at(-1).midi >= 96);
+  assert.ok(shared.at(-1).midi >= 96);
   // writtenToConcert no longer assumes alto: the caller must pass the
   // instrument's writtenOffset (see the dedicated per-horn test below).
-  for (const note of data.ALTO_FINGERINGS) assert.equal(data.writtenToConcert(note.midi, 9), note.midi - 9);
+  for (const note of shared) assert.equal(data.writtenToConcert(note.midi, 9), note.midi - 9);
+});
+
+test("baritone's low A3 is a single instrument-scoped entry immediately before B♭3", () => {
+  assert.equal(data.ALTO_FINGERINGS[0].id, "a3");
+  assert.equal(data.ALTO_FINGERINGS[1].id, "bb3");
+  const a3 = data.ALTO_FINGERINGS[0];
+  assert.equal(a3.midi, 57);
+  assert.deepEqual(a3.instrument, ["bari-sax"]);
+  assert.deepEqual([...a3.keys].sort(), ["lh1", "lh2", "lh3", "lowA", "lowC", "rh1", "rh2", "rh3"].sort());
+  // Every other fingering in the file is unscoped (shared by every horn).
+  for (const note of data.ALTO_FINGERINGS.slice(1)) assert.equal(note.instrument, undefined);
 });
 
 test("primary-list midi values are strictly increasing and unique", () => {

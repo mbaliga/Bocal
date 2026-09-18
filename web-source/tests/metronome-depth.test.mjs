@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { schedulePulse, schedulePolyrhythm, defaultAccentPattern, resizeAccentPattern, cycleBeatMark } from "../app/pulse-schedule.ts";
+import { schedulePulse, schedulePolyrhythm, defaultAccentPattern, resizeAccentPattern, cycleBeatMark, seededUnit } from "../app/pulse-schedule.ts";
 
 function take(iterator, count) {
   const ticks = [];
@@ -203,6 +203,123 @@ test("silent-bar drill mutes whole bars after count-in, independent of the accen
   assert.ok(byBar(4).every((t) => t.mutedBar && t.silent));
   assert.ok(byBar(1).every((t) => !t.mutedBar));
   assert.ok(byBar(3).every((t) => !t.mutedBar));
+});
+
+// ---------------------------------------------------------------------------
+// Gap trainer (N bars on, M bars off) and random beat drops -- W2-C
+// ---------------------------------------------------------------------------
+
+test("gap trainer rests gapRestBars after every gapPlayBars, independent of the accent pattern, and the beat dot keeps advancing", () => {
+  const segment = plainSegment({ beatsPerBar: 2, gapPlayBars: 2, gapRestBars: 1 });
+  const plan = { segments: [segment], loop: false };
+  const ticks = take(schedulePulse(plan, 0), 2 * 6); // 6 bars: on on off on on off
+
+  const byBar = (bar) => ticks.filter((t) => t.bar === bar);
+  [0, 1, 3, 4].forEach((bar) => assert.ok(byBar(bar).every((t) => !t.gapResting && !t.silent), `bar ${bar} should be playing`));
+  [2, 5].forEach((bar) => assert.ok(byBar(bar).every((t) => t.gapResting && t.silent), `bar ${bar} should be resting`));
+  // The beat index still advances through a rest bar -- it isn't a gap in the count.
+  assert.deepEqual(byBar(2).map((t) => t.beat), [0, 1]);
+});
+
+test("gap trainer never rests during count-in, and starts its cycle right after it", () => {
+  const segment = plainSegment({ beatsPerBar: 1, countInBars: 1, gapPlayBars: 1, gapRestBars: 1 });
+  const plan = { segments: [segment], loop: false };
+  const ticks = take(schedulePulse(plan, 0), 1 * 5); // count-in, then on off on off
+
+  const byBar = (bar) => ticks.filter((t) => t.bar === bar);
+  assert.ok(byBar(0).every((t) => t.countIn && !t.gapResting), "count-in bar must never rest");
+  assert.ok(byBar(1).every((t) => !t.gapResting), "first bar after count-in plays");
+  assert.ok(byBar(2).every((t) => t.gapResting), "second bar after count-in rests");
+  assert.ok(byBar(3).every((t) => !t.gapResting), "cycle repeats: third bar plays");
+});
+
+test("gapPlayBars/gapRestBars require both to be positive; either 0/undefined disables the drill", () => {
+  const onlyPlay = plainSegment({ beatsPerBar: 1, gapPlayBars: 2 });
+  const onlyRest = plainSegment({ beatsPerBar: 1, gapRestBars: 2 });
+  for (const segment of [onlyPlay, onlyRest]) {
+    const ticks = take(schedulePulse({ segments: [segment], loop: false }, 0), 8);
+    assert.ok(ticks.every((t) => !t.gapResting), "an incomplete gap configuration must never rest a bar");
+  }
+});
+
+test("seededUnit is deterministic and produces roughly uniform draws across a large sample", () => {
+  assert.equal(seededUnit(42, 7), seededUnit(42, 7), "same seed+index must always draw the same value");
+  assert.notEqual(seededUnit(42, 7), seededUnit(42, 8), "different indices should (almost always) differ");
+  assert.notEqual(seededUnit(42, 7), seededUnit(43, 7), "different seeds should (almost always) differ");
+  const draws = Array.from({ length: 5000 }, (_, i) => seededUnit(1, i));
+  draws.forEach((value) => assert.ok(value >= 0 && value < 1, `draw out of [0,1): ${value}`));
+  const mean = draws.reduce((sum, value) => sum + value, 0) / draws.length;
+  assert.ok(Math.abs(mean - 0.5) < 0.03, `expected a roughly uniform mean near 0.5, got ${mean}`);
+});
+
+test("random beat drops are seeded and repeatable: the same preset drops the exact same beats every time", () => {
+  const segment = plainSegment({ beatsPerBar: 4, dropProbability: 0.4, dropSeed: 1234 });
+  const plan = { segments: [segment], loop: false };
+  const runA = take(schedulePulse(plan, 0), 4 * 10).map((t) => t.dropped);
+  const runB = take(schedulePulse({ segments: [{ ...segment }], loop: false }, 100 /* different startTime */), 4 * 10).map((t) => t.dropped);
+  assert.deepEqual(runA, runB, "the same seed must drop the exact same beats regardless of startTime");
+  assert.ok(runA.some(Boolean), "expected at least one dropped beat across 40 beats at p=0.4");
+  assert.ok(runA.some((v) => !v), "expected at least one non-dropped beat across 40 beats at p=0.4");
+});
+
+test("a different seed drops a different pattern of beats at the same probability", () => {
+  const base = plainSegment({ beatsPerBar: 4, dropProbability: 0.4 });
+  const seedA = take(schedulePulse({ segments: [{ ...base, dropSeed: 1 }], loop: false }, 0), 4 * 20).map((t) => t.dropped);
+  const seedB = take(schedulePulse({ segments: [{ ...base, dropSeed: 2 }], loop: false }, 0), 4 * 20).map((t) => t.dropped);
+  assert.notDeepEqual(seedA, seedB, "different seeds should produce a different drop pattern");
+});
+
+test("dropped beats never fire during count-in and a dropped beat silences every subdivision tick within it", () => {
+  const segment = plainSegment({ beatsPerBar: 2, subdivision: 2, countInBars: 2, dropProbability: 1 /* always drop once not counting in */, dropSeed: 5 });
+  const plan = { segments: [segment], loop: false };
+  const ticks = take(schedulePulse(plan, 0), 2 * 2 * 4); // 2 count-in bars + 2 played bars, subdivision 2
+  const countInTicks = ticks.filter((t) => t.countIn);
+  const playedTicks = ticks.filter((t) => !t.countIn);
+  assert.ok(countInTicks.every((t) => !t.dropped && !t.silent), "count-in ticks must never be dropped");
+  assert.ok(playedTicks.every((t) => t.dropped && t.silent), "p=1 drops every played beat, both subdivision ticks");
+});
+
+test("gap trainer and random drops compose with a tempo ramp: timing stays drift-free and dropped/resting states apply on top of the ramp's own bpm", () => {
+  const segment = plainSegment({
+    beatsPerBar: 2,
+    bpm: 60,
+    rampToBpm: 120,
+    bars: 6,
+    gapPlayBars: 2,
+    gapRestBars: 1,
+    dropProbability: 0.3,
+    dropSeed: 9,
+  });
+  const plan = { segments: [segment], loop: false };
+  const ticks = take(schedulePulse(plan, 10), 2 * 6);
+  // No drift: exact per-tick spacing still derives purely from bpmNow at each tick.
+  for (let i = 1; i < ticks.length; i += 1) {
+    const expectedGap = 60 / ticks[i - 1].bpmNow;
+    assert.ok(Math.abs(ticks[i].when - ticks[i - 1].when - expectedGap) < 1e-9, `tick ${i} drifted under a ramp with gap/drops active`);
+  }
+  // The ramp itself still runs (bpm increases bar to bar).
+  assert.ok(ticks[ticks.length - 1].bpmNow > ticks[0].bpmNow, "ramp should still progress with gap/drops layered on top");
+  // The gap trainer's rest bar (bar index 2, the third bar) is still silent regardless of the ramp's bpm at that point.
+  const restBarTicks = ticks.filter((t) => t.bar === 2);
+  assert.ok(restBarTicks.every((t) => t.gapResting && t.silent));
+});
+
+test("gap trainer and random drops compose with a preset sequence: each step's gap/drop settings apply independently and the bar count keeps advancing across the handoff", () => {
+  const stepA = plainSegment({ beatsPerBar: 2, bars: 3, gapPlayBars: 1, gapRestBars: 1, label: "A" });
+  const stepB = plainSegment({ beatsPerBar: 2, bars: 2, dropProbability: 1, dropSeed: 3, label: "B" });
+  const plan = { segments: [stepA, stepB], loop: false };
+  const ticks = take(schedulePulse(plan, 0), 2 * 3 + 2 * 2);
+
+  const stepATicks = ticks.filter((t) => t.segmentIndex === 0);
+  const stepBTicks = ticks.filter((t) => t.segmentIndex === 1);
+  // Step A: bars 0,1,2 relative to the step -> play, rest, play.
+  assert.ok(stepATicks.filter((t) => t.barInSegment === 1).every((t) => t.gapResting));
+  assert.ok(stepATicks.filter((t) => t.barInSegment !== 1).every((t) => !t.gapResting));
+  assert.ok(stepATicks.every((t) => !t.dropped), "step A has no drop probability configured");
+  // Step B: every beat drops (p=1), and step B never rests via the gap trainer (not configured there).
+  assert.ok(stepBTicks.every((t) => t.dropped && !t.gapResting));
+  // The run-wide bar counter keeps advancing across the step boundary rather than resetting.
+  assert.equal(stepBTicks[0].bar, 3);
 });
 
 test("PracticeTools no longer ships a fixed brand equipment record as if it were the player's own data", async () => {

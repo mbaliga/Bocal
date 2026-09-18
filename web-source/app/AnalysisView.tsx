@@ -1,26 +1,31 @@
 "use client";
 
-import { Activity, AudioLines, BarChart3, Download, FileAudio, LockKeyhole, Mic, Pause, Play, Radio, Square, Trash2, Upload, Waves } from "lucide-react";
+import { Activity, AudioLines, BarChart3, Download, FileAudio, Layers, LockKeyhole, Mic, Pause, Play, Radio, Square, Trash2, Upload, Waves } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
 import type { InstrumentProfile } from "./instruments";
 import { fullNoteLabel, frequencyFromMidi, type NotationSystem } from "./notation";
 import { advanceHarmonicSmoothing, decimateLinear, findHarmonicPeaks, isModulating, type HarmonicSmoothEntry } from "./harmonics";
+import { columnIntervalMs, readSpectrogramTheme, SpectrogramPainter } from "./spectrogram";
 import { detectPitchYin } from "./pitch-engine";
 import { TranscribePanel } from "./TranscribePanel";
-import { TakePitchTrace, forgetTakeAnalysis } from "./TakePitchTrace";
+import { TakePitchTrace, forgetTakeAnalysis, type TakeOverlayAlign } from "./TakePitchTrace";
 import { recordPracticeActivity } from "./practice-data";
-import { deleteStoredTake, extensionForMime, listStoredTakes, MAX_TAKES, putStoredTake, renameStoredTake, saveOrShareFile, type StoredTake } from "./takes-store";
-import { audioImportError, canCreateTake, CaptureRequestGate, KeyedTaskQueue, MAX_RECORDING_SECONDS, RECORDING_STOP_BYTES, takeId } from "./take-policy";
+import { deleteStoredTake, extensionForMime, listStoredTakes, MAX_TAKES, putStoredTake, renameStoredTake, saveOrShareFile, setStoredTakeDetails, type StoredTake } from "./takes-store";
+import { audioImportError, canCreateTake, CaptureRequestGate, KeyedTaskQueue, MAX_RECORDING_SECONDS, RECORDING_STOP_BYTES, sanitizeTags, sanitizeTakeNotes, takeId } from "./take-policy";
 import { readingFor, REFERENCE_HZ_DEFAULT, REFERENCE_HZ_MAX, REFERENCE_HZ_MIN, TEMPERAMENT_PROFILES, type TemperamentId, type TuningOptions } from "./tuning";
+// Read-only: this view mirrors the live tuner's calibration to score a take
+// against the same reference pitch and temperament, but never writes these
+// keys. storage-keys.ts (owned by the tuner package) is their single source
+// of truth now instead of a private copy of the same three literals.
+import { TUNING_KEYS } from "./storage-keys";
 import "./styles/analysis.css";
 
-type AnalysisMode = "waveform" | "spectrum" | "harmonics";
+type AnalysisMode = "waveform" | "spectrum" | "harmonics" | "spectrogram";
 type RecordingTake = StoredTake & { url: string };
 function formatTime(seconds: number) {
   const rounded = Math.max(0, Math.floor(seconds));
   return `${Math.floor(rounded / 60).toString().padStart(2, "0")}:${(rounded % 60).toString().padStart(2, "0")}`;
 }
-const TUNING_KEYS = { referenceHz: "bocal-reference-hz", temperament: "bocal-temperament", keyPc: "bocal-temperament-key" } as const;
 function readTuningOptions(): TuningOptions {
   const fallback: TuningOptions = { referenceHz: REFERENCE_HZ_DEFAULT, temperament: "equal", keyPc: 0 };
   if (typeof window === "undefined") return fallback;
@@ -84,6 +89,10 @@ export function AnalysisView({ instrument, notation, saTonic }: { instrument: In
   const [metrics, setMetrics] = useState({ level: 0, peakHz: 0 });
   const [harmonics, setHarmonics] = useState<HarmonicsState>({ f0: null, partials: [], modulating: false });
   const [takesMessage, setTakesMessage] = useState("");
+  const [compareTakeId, setCompareTakeId] = useState<string | null>(null);
+  const [overlayAlign, setOverlayAlign] = useState<TakeOverlayAlign>("start");
+  const [takeSort, setTakeSort] = useState<"newest" | "oldest" | "longest" | "shortest" | "name">("newest");
+  const [tagFilter, setTagFilter] = useState("");
   const instrumentRef = useRef(instrument);
   const notationRef = useRef(notation);
   const saTonicRef = useRef(saTonic);
@@ -104,6 +113,9 @@ export function AnalysisView({ instrument, notation, saTonic }: { instrument: In
   const freqDataRef = useRef<Float32Array<ArrayBuffer> | null>(null);
   const timeDataRef = useRef<Float32Array<ArrayBuffer> | null>(null);
   const spectrumDataRef = useRef<Uint8Array<ArrayBuffer> | null>(null);
+  const spectrogramPainterRef = useRef<SpectrogramPainter | null>(null);
+  const spectrogramResetRef = useRef(true);
+  const reducedMotionRef = useRef(false);
 
   const draw = useCallback(function renderAnalysisFrame() {
     const canvas = canvasRef.current;
@@ -113,22 +125,46 @@ export function AnalysisView({ instrument, notation, saTonic }: { instrument: In
     const ratio = Math.min(window.devicePixelRatio, 2);
     const width = Math.max(canvas.clientWidth, 1);
     const height = Math.max(canvas.clientHeight, 1);
+    let resized = false;
     if (canvas.width !== Math.floor(width * ratio) || canvas.height !== Math.floor(height * ratio)) {
       canvas.width = Math.floor(width * ratio); canvas.height = Math.floor(height * ratio);
+      resized = true;
     }
     const context = canvas.getContext("2d");
     if (!context) return;
     context.setTransform(ratio, 0, 0, ratio, 0, 0);
-    context.clearRect(0, 0, width, height);
-    context.fillStyle = "#0b0b0d"; context.fillRect(0, 0, width, height);
-    context.strokeStyle = "#24242a"; context.lineWidth = 1;
-    for (let line = 1; line < 5; line += 1) {
-      const y = height / 5 * line;
-      context.beginPath(); context.moveTo(0, y); context.lineTo(width, y); context.stroke();
+    if (modeRef.current !== "spectrogram") {
+      context.clearRect(0, 0, width, height);
+      context.fillStyle = "#0b0b0d"; context.fillRect(0, 0, width, height);
+      context.strokeStyle = "#24242a"; context.lineWidth = 1;
+      for (let line = 1; line < 5; line += 1) {
+        const y = height / 5 * line;
+        context.beginPath(); context.moveTo(0, y); context.lineTo(width, y); context.stroke();
+      }
     }
     let level = 0;
     let peakHz = 0;
-    if (modeRef.current === "waveform") {
+    if (modeRef.current === "spectrogram") {
+      if (!freqDataRef.current || freqDataRef.current.length !== analyser.frequencyBinCount) freqDataRef.current = new Float32Array(analyser.frequencyBinCount);
+      const freqData = freqDataRef.current;
+      analyser.getFloatFrequencyData(freqData);
+      const binHz = audioContext.sampleRate / analyser.fftSize;
+      if (!spectrogramPainterRef.current) spectrogramPainterRef.current = new SpectrogramPainter(readSpectrogramTheme(canvas));
+      const painter = spectrogramPainterRef.current;
+      if (resized || spectrogramResetRef.current) {
+        painter.setTheme(readSpectrogramTheme(canvas));
+        painter.reset(context, width, height);
+        spectrogramResetRef.current = false;
+      }
+      const nowMs = performance.now();
+      painter.maybeDrawColumn(context, width, height, freqData, binHz, nowMs, columnIntervalMs(reducedMotionRef.current));
+      let peak = -Infinity;
+      let peakIndex = 0;
+      const startBin = Math.max(1, Math.ceil(40 / binHz));
+      for (let index = startBin; index < freqData.length; index += 1) if (freqData[index] > peak) { peak = freqData[index]; peakIndex = index; }
+      level = Math.min(100, Math.max(0, Math.round(((peak + 100) / 75) * 100)));
+      peakHz = peak > -100 ? Math.round(peakIndex * binHz) : 0;
+    } else if (modeRef.current === "waveform") {
       if (!timeDataRef.current || timeDataRef.current.length !== analyser.fftSize) timeDataRef.current = new Float32Array(analyser.fftSize);
       const data = timeDataRef.current;
       analyser.getFloatTimeDomainData(data);
@@ -329,6 +365,8 @@ export function AnalysisView({ instrument, notation, saTonic }: { instrument: In
       streamRef.current = stream; audioContextRef.current = audioContext; analyserRef.current = analyser;
       stream.getAudioTracks().forEach((track) => track.addEventListener("ended", () => { if (captureGateRef.current.accepts(ticket)) { stopCapture(); if (mountedRef.current) setMessage("Microphone disconnected. Start analysis again when it is available."); } }, { once: true }));
       tuningOptionsRef.current = readTuningOptions();
+      reducedMotionRef.current = typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      spectrogramResetRef.current = true;
       setActive(true); draw();
     } catch (error) {
       stream?.getTracks().forEach((track) => track.stop());
@@ -408,7 +446,7 @@ export function AnalysisView({ instrument, notation, saTonic }: { instrument: In
     if (removed) {
       persistedIdsRef.current.delete(id); URL.revokeObjectURL(take.url); takeUrlsRef.current.delete(take.url); forgetTakeAnalysis(id);
       const next = takesRef.current.filter((item) => item.id !== id); takesRef.current = next;
-      if (mountedRef.current) { setTakes(next); setSelectedTakeId((current) => current === id ? null : current); setTakesMessage("Recording deleted from Bocal."); }
+      if (mountedRef.current) { setTakes(next); setSelectedTakeId((current) => current === id ? null : current); setCompareTakeId((current) => current === id ? null : current); setTakesMessage("Recording deleted from Bocal."); }
     }
     deletingRef.current.delete(id);
     if (mountedRef.current) setDeletingIds([...deletingRef.current]);
@@ -420,6 +458,27 @@ export function AnalysisView({ instrument, notation, saTonic }: { instrument: In
     void writesRef.current.run(id, async () => { if (persistedIdsRef.current.has(id)) await renameStoredTake(id, trimmed); });
   };
   const downloadTake = (take: RecordingTake) => { void saveOrShareFile(new File([take.blob], `${take.name || "bocal-take"}.${extensionForMime(take.mime)}`, { type: take.mime })); };
+  const updateTakeDetails = (id: string, details: { tags?: string[]; notes?: string }) => {
+    if (deletingRef.current.has(id)) return;
+    const next = takesRef.current.map((take) => {
+      if (take.id !== id) return take;
+      return { ...take, ...(details.tags !== undefined ? { tags: sanitizeTags(details.tags) } : {}), ...(details.notes !== undefined ? { notes: sanitizeTakeNotes(details.notes) } : {}) };
+    });
+    takesRef.current = next; setTakes(next);
+    void writesRef.current.run(id, async () => { if (persistedIdsRef.current.has(id)) await setStoredTakeDetails(id, details); });
+  };
+
+  const allTakeTags = Array.from(new Set(takes.flatMap((take) => take.tags ?? []))).sort((a, b) => a.localeCompare(b));
+  const visibleTakes = (tagFilter ? takes.filter((take) => (take.tags ?? []).includes(tagFilter)) : takes)
+    .slice()
+    .sort((a, b) => {
+      if (takeSort === "oldest") return Date.parse(a.createdAt) - Date.parse(b.createdAt);
+      if (takeSort === "longest") return b.seconds - a.seconds;
+      if (takeSort === "shortest") return a.seconds - b.seconds;
+      if (takeSort === "name") return a.name.localeCompare(b.name);
+      return Date.parse(b.createdAt) - Date.parse(a.createdAt);
+    });
+  const compareTake = compareTakeId ? takes.find((take) => take.id === compareTakeId) ?? null : null;
 
   return (
     <div className="content-wrap analysis-layout">
@@ -434,13 +493,14 @@ export function AnalysisView({ instrument, notation, saTonic }: { instrument: In
               <button className={mode === "waveform" ? "is-active" : ""} onClick={() => setMode("waveform")}><Waves size={15} /> Waveform</button>
               <button className={mode === "spectrum" ? "is-active" : ""} onClick={() => setMode("spectrum")}><Activity size={15} /> Spectrum</button>
               <button className={mode === "harmonics" ? "is-active" : ""} onClick={() => setMode("harmonics")}><BarChart3 size={15} /> Harmonics</button>
+              <button className={mode === "spectrogram" ? "is-active" : ""} onClick={() => { spectrogramResetRef.current = true; setMode("spectrogram"); }}><Layers size={15} /> Spectrogram</button>
             </div>
             <span><Radio size={14} /> {active ? `${metrics.level}% input` : "No input"}</span>
           </header>
           <div className="analysis-canvas-wrap">
-            <canvas ref={canvasRef} aria-label={mode === "waveform" ? "Live audio waveform" : mode === "spectrum" ? "Live frequency spectrum" : "Harmonics backdrop"} />
+            <canvas ref={canvasRef} aria-label={mode === "waveform" ? "Live audio waveform" : mode === "spectrum" ? "Live frequency spectrum" : mode === "spectrogram" ? "Live frequency spectrogram, scrolling over the last 20 seconds" : "Harmonics backdrop"} />
             {!active && <div className="analysis-empty"><AudioLines size={28} /><strong>Start listening.</strong><span>The graph will move when the mic picks up your playing.</span></div>}
-            {mode === "spectrum" && active && <span className="peak-readout">Strongest bin · {metrics.peakHz || "—"} Hz</span>}
+            {(mode === "spectrum" || mode === "spectrogram") && active && <span className="peak-readout">Strongest bin · {metrics.peakHz || "—"} Hz</span>}
             {mode === "harmonics" && active && (
               harmonics.f0 === null ? <div className="analysis-empty harmonics-empty"><BarChart3 size={26} /><strong>Play a steady note.</strong><span>Hold one pitch and Bocal will map its first eight partials.</span></div> : (
                 <div className="harmonics-overlay" aria-live="polite">
@@ -472,12 +532,12 @@ export function AnalysisView({ instrument, notation, saTonic }: { instrument: In
         <aside className="analysis-side">
           <article>
             <span className="card-kicker"><Activity size={15} /> How to read it</span>
-            <h2>{mode === "waveform" ? "Sound over time." : mode === "spectrum" ? "Energy by frequency." : "Where your overtones land."}</h2>
-            <p>{mode === "waveform" ? "Look at the start and end of each note, changes in volume, and how steady the line stays. This view doesn’t grade your tone." : mode === "spectrum" ? "The tallest bar shows where the most energy is right now. It is a quick visual cue, not a full analysis of pitch or tone quality." : "Each bar is one of the first eight partials above your fundamental, numbered in order. The bar's length is that partial's level compared with the strongest one -- that's what this view actually shows: the relative balance of your overtones, not a tuning grade. The number on the right compares partials 2 and up against the fundamental you're holding; when the pitch itself is moving (vibrato, a slide) that number reads \"vibrato\" instead of a cents figure, because it would otherwise just be measuring the wobble rather than anything about the partials."}</p>
+            <h2>{mode === "waveform" ? "Sound over time." : mode === "spectrum" ? "Energy by frequency." : mode === "spectrogram" ? "Energy over time and frequency." : "Where your overtones land."}</h2>
+            <p>{mode === "waveform" ? "Look at the start and end of each note, changes in volume, and how steady the line stays. This view doesn’t grade your tone." : mode === "spectrum" ? "The tallest bar shows where the most energy is right now. It is a quick visual cue, not a full analysis of pitch or tone quality." : mode === "spectrogram" ? "Brighter colour means more energy at that pitch at that moment. Time scrolls right to left over the last 20 seconds, and the note-name ticks on the left show pitch height on a log scale, the same spacing an octave gets everywhere on the axis." : "Each bar is one of the first eight partials above your fundamental, numbered in order. The bar's length is that partial's level compared with the strongest one -- that's what this view actually shows: the relative balance of your overtones, not a tuning grade. The number on the right compares partials 2 and up against the fundamental you're holding; when the pitch itself is moving (vibrato, a slide) that number reads \"vibrato\" instead of a cents figure, because it would otherwise just be measuring the wobble rather than anything about the partials."}</p>
             {mode === "harmonics" && <p className="harmonics-why">A quiet or missing bar just means little energy showed up at that partial -- it isn&rsquo;t a fault by itself. This view can&rsquo;t tell you whether your tone is good; it can only show you where the energy in it currently sits.</p>}
             <div className="analysis-metrics">
               <span><small>Input level</small><strong>{active ? `${metrics.level}%` : "—"}</strong></span>
-              <span><small>{mode === "harmonics" ? "Fundamental" : "Peak bin"}</small><strong>{mode === "harmonics" ? active && harmonics.f0 !== null ? `${Math.round(harmonics.f0)} Hz` : "—" : active && mode === "spectrum" ? `${metrics.peakHz} Hz` : "—"}</strong></span>
+              <span><small>{mode === "harmonics" ? "Fundamental" : "Peak bin"}</small><strong>{mode === "harmonics" ? active && harmonics.f0 !== null ? `${Math.round(harmonics.f0)} Hz` : "—" : active && (mode === "spectrum" || mode === "spectrogram") ? `${metrics.peakHz} Hz` : "—"}</strong></span>
             </div>
           </article>
           <article className="take-card">
@@ -486,11 +546,73 @@ export function AnalysisView({ instrument, notation, saTonic }: { instrument: In
             {!libraryReady && <p role="status">Restoring saved recordings...</p>}
             {selectedTake ? <>
               <input className="take-name-input" value={selectedTake.name} disabled={deletingIds.includes(selectedTake.id)} onChange={(event) => renameTake(selectedTake.id, event.target.value)} aria-label="Take name" />
-              <TakePitchTrace key={selectedTake.id} takeId={selectedTake.id} audioUrl={selectedTake.url} instrument={instrument} notation={notation} saTonic={saTonic} audioRef={takeAudioRef} tuningOptions={tuningOptionsRef.current ?? undefined} />
+              <TakePitchTrace
+                key={selectedTake.id}
+                takeId={selectedTake.id}
+                audioUrl={selectedTake.url}
+                instrument={instrument}
+                notation={notation}
+                saTonic={saTonic}
+                audioRef={takeAudioRef}
+                tuningOptions={tuningOptionsRef.current ?? undefined}
+                overlayTakeId={compareTake?.id}
+                overlayAudioUrl={compareTake?.url}
+                overlayLabel={compareTake?.name}
+                overlayAlign={overlayAlign}
+              />
               <audio ref={takeAudioRef} controls loop={loopTake} src={selectedTake.url} onLoadedMetadata={(event) => { event.currentTarget.playbackRate = playbackRate; }} onPlay={(event) => { event.currentTarget.playbackRate = playbackRate; }} />
               <div className="take-tools"><label><span>Tempo</span><input type="range" min="0.75" max="1.25" step="0.05" value={playbackRate} onChange={(event) => setPlaybackRate(Number(event.target.value))} /></label><label className="take-loop"><input type="checkbox" checked={loopTake} onChange={(event) => setLoopTake(event.target.checked)} /> Loop</label></div>
               <div className="take-actions"><button onClick={() => downloadTake(selectedTake)}><Download size={15} /> Download</button><button disabled={!canAdd} onClick={() => importInputRef.current?.click()}><Upload size={15} /> Import</button><button disabled={deletingIds.includes(selectedTake.id)} onClick={() => void removeTake(selectedTake.id)}><Trash2 size={15} /> {deletingIds.includes(selectedTake.id) ? "Deleting..." : "Delete"}</button></div>
-              <div className="take-list">{takes.map((take) => <button key={take.id} className={take.id === selectedTake.id ? "is-active" : ""} onClick={() => setSelectedTakeId(take.id)}><FileAudio size={13} /><span>{take.name}</span><small>{take.seconds ? formatTime(take.seconds) : "Imported"}</small></button>)}</div>
+              <input
+                className="take-tags-input"
+                aria-label="Tags for this take, comma separated"
+                placeholder="Tags, comma separated (warm-up, lesson, audition piece...)"
+                defaultValue={(selectedTake.tags ?? []).join(", ")}
+                key={`tags-${selectedTake.id}`}
+                onBlur={(event) => updateTakeDetails(selectedTake.id, { tags: event.target.value.split(",") })}
+              />
+              <textarea
+                className="take-notes-input"
+                aria-label="Notes for this take"
+                placeholder="Notes on this take..."
+                defaultValue={selectedTake.notes ?? ""}
+                key={`notes-${selectedTake.id}`}
+                onBlur={(event) => updateTakeDetails(selectedTake.id, { notes: event.target.value })}
+              />
+              {(selectedTake.tags ?? []).length > 0 && (
+                <ul className="take-tag-chips" aria-label="This take's tags">
+                  {(selectedTake.tags ?? []).map((tag) => <li key={tag}>{tag}</li>)}
+                </ul>
+              )}
+              <div className="take-library-controls">
+                <label>Sort <select value={takeSort} onChange={(event) => setTakeSort(event.target.value as typeof takeSort)}>
+                  <option value="newest">Newest first</option>
+                  <option value="oldest">Oldest first</option>
+                  <option value="longest">Longest first</option>
+                  <option value="shortest">Shortest first</option>
+                  <option value="name">Name</option>
+                </select></label>
+                {allTakeTags.length > 0 && (
+                  <label>Tag <select value={tagFilter} onChange={(event) => setTagFilter(event.target.value)}>
+                    <option value="">All takes</option>
+                    {allTakeTags.map((tag) => <option key={tag} value={tag}>{tag}</option>)}
+                  </select></label>
+                )}
+                {takes.length > 1 && (
+                  <label>Compare with <select value={compareTakeId ?? ""} onChange={(event) => setCompareTakeId(event.target.value || null)}>
+                    <option value="">None</option>
+                    {takes.filter((take) => take.id !== selectedTake.id).map((take) => <option key={take.id} value={take.id}>{take.name}</option>)}
+                  </select></label>
+                )}
+                {compareTake && (
+                  <span className="compare-align-toggle" role="group" aria-label="Align the compared take by">
+                    <button type="button" className={overlayAlign === "start" ? "is-active" : ""} onClick={() => setOverlayAlign("start")}>By start</button>
+                    <button type="button" className={overlayAlign === "first-voiced" ? "is-active" : ""} onClick={() => setOverlayAlign("first-voiced")}>By first note</button>
+                  </span>
+                )}
+              </div>
+              <div className="take-list">{visibleTakes.map((take) => <button key={take.id} className={take.id === selectedTake.id ? "is-active" : ""} onClick={() => setSelectedTakeId(take.id)}><FileAudio size={13} /><span>{take.name}</span><small>{take.seconds ? formatTime(take.seconds) : "Imported"}</small></button>)}</div>
+              {tagFilter && visibleTakes.length === 0 && <p className="take-cap-note">No takes tagged &ldquo;{tagFilter}&rdquo;.</p>}
               {takes.length >= MAX_TAKES && <p className="take-cap-note">Your library is full. Download and delete a take to make room; nothing is removed automatically.</p>}
             </> : <div className="no-take"><Play size={21} /><p>Your latest recording will appear here. Import a take or record one above.</p><button disabled={!canAdd} onClick={() => importInputRef.current?.click()}><Upload size={14} /> Import audio</button></div>}
             {takesMessage && <p className="take-cap-note" role="status">{takesMessage}</p>}

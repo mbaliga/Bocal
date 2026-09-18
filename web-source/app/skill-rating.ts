@@ -1,3 +1,5 @@
+import { clamp as clampRange, median } from "./music-math";
+
 export const SKILL_EVIDENCE_STORAGE_KEY = "bocal-skill-evidence-v1";
 export const SKILL_FORMULA_VERSION = "BCR-1.0";
 
@@ -61,14 +63,12 @@ export type SkillRating = {
   };
 };
 
-const clamp = (value: number, minimum = 0, maximum = 100) => Math.min(maximum, Math.max(minimum, value));
-
-function median(values: number[]) {
-  if (values.length === 0) return 0;
-  const ordered = [...values].sort((left, right) => left - right);
-  const middle = Math.floor(ordered.length / 2);
-  return ordered.length % 2 === 0 ? (ordered[middle - 1] + ordered[middle]) / 2 : ordered[middle];
-}
+// A thin defaulting wrapper, not a second implementation -- this file's own
+// callers rely on the (0, 100) defaults (`clamp(x)` with no bounds given),
+// which music-math.ts's shared clamp deliberately doesn't have since its
+// other callers (pitch-engine.ts, pitch-history-canvas.ts) always pass
+// explicit, differently-ranged bounds.
+const clamp = (value: number, minimum = 0, maximum = 100) => clampRange(value, minimum, maximum);
 
 function weightedMean(values: Array<{ value: number; weight: number }>) {
   const weight = values.reduce((sum, item) => sum + item.weight, 0);

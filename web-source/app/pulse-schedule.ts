@@ -37,6 +37,26 @@ export type PulseSegment = {
   /** When set with a finite `bars`, bpm steps linearly from `bpm` to this value, one new tempo per bar. */
   rampToBpm?: number;
   /**
+   * TonalEnergy's "gap" drill: after any count-in, play for `gapPlayBars`
+   * bars, then rest silently for `gapRestBars` bars, repeating for as long as
+   * the segment runs. The beat dot keeps moving through a rest bar -- only
+   * the click itself is silenced, same as a `silent` accent mark or the
+   * older `muteEveryBars` drill. Both fields must be positive to take
+   * effect; either 0/undefined disables it.
+   */
+  gapPlayBars?: number;
+  gapRestBars?: number;
+  /**
+   * Per-beat random silence: after any count-in, each beat independently has
+   * this probability (0-1) of being dropped -- the click cuts out on a beat
+   * the player has to keep without it, then resumes on the next one that
+   * isn't dropped. Deterministically seeded by `dropSeed` (any integer) so
+   * the same preset drops the same beats every time it's played, rather than
+   * being different, and therefore unrehearsable, on every run.
+   */
+  dropProbability?: number;
+  dropSeed?: number;
+  /**
    * Fraction of the beat the first eighth note takes when subdivision is 2
    * (0.5 = straight, up to ~0.75 = a hard triplet swing). Ignored otherwise.
    */
@@ -68,6 +88,10 @@ export type ScheduledTick = {
   silent: boolean;
   countIn: boolean;
   mutedBar: boolean;
+  /** True on every tick of a bar the gap trainer is resting (see PulseSegment.gapPlayBars/gapRestBars). The beat still advances; only the click is silenced. */
+  gapResting: boolean;
+  /** True when this specific beat was randomly dropped by PulseSegment.dropProbability. Subdivision ticks within a dropped beat are silenced along with it. */
+  dropped: boolean;
   /** The bpm this tick's bar is actually playing at -- moves bar to bar during a ramp. */
   bpmNow: number;
   beatsPerBar: number;
@@ -92,6 +116,23 @@ export function resizeAccentPattern(pattern: BeatMark[], beatsPerBar: number): B
 /** Tapping a beat square: normal -> accent -> silent -> normal. */
 export function cycleBeatMark(mark: BeatMark): BeatMark {
   return mark === "normal" ? "accent" : mark === "accent" ? "silent" : "normal";
+}
+
+/**
+ * A deterministic 0..1 pseudo-random draw from a (seed, index) pair: the
+ * same seed and index always produce the same value, which is what makes a
+ * saved preset's random beat drops repeatable from one play to the next
+ * (and from one test run to the next) instead of different -- and therefore
+ * unrehearsable -- every time. Not cryptographic, just a fast integer hash
+ * (a Murmur3-style finalizer) with good-enough distribution for a practice
+ * drill's coin flips.
+ */
+export function seededUnit(seed: number, index: number): number {
+  let h = (Math.imul(seed | 0, 0x27d4eb2d) ^ Math.imul(index | 0, 0x85ebca6b)) >>> 0;
+  h = (h ^ (h >>> 15)) >>> 0; h = Math.imul(h, 0x2c1b3c6d) >>> 0;
+  h = (h ^ (h >>> 12)) >>> 0; h = Math.imul(h, 0x297a2d39) >>> 0;
+  h = (h ^ (h >>> 15)) >>> 0;
+  return h / 4294967296;
 }
 
 /**
@@ -147,6 +188,12 @@ export function* schedulePulse(plan: PulsePlan, startTime: number): Generator<Sc
   let when = startTime;
   let index = 0;
   let bar = 0;
+  // Counts every played (non-count-in) beat across the whole run -- bars and
+  // segments included -- so a preset's random beat drops (seededUnit below)
+  // are keyed to a single, ever-advancing index rather than restarting per
+  // bar or per segment, which would make the same beat position drop (or
+  // not) the same way on every bar and defeat the point of "random".
+  let playedBeatIndex = 0;
   for (const { segment, segmentIndex } of segmentTimeline(plan)) {
     // A saved preset with a corrupted or hand-edited beatsPerBar/subdivision
     // (0, negative, NaN) must never reach the inner loops below: at 0 beats
@@ -164,8 +211,22 @@ export function* schedulePulse(plan: PulsePlan, startTime: number): Generator<Sc
       const secondsPerTick = beatSeconds / segment.subdivision;
       const countIn = barInSegment < segment.countInBars;
       const mutedBar = segment.muteEveryBars > 0 && !countIn && (barInSegment - segment.countInBars + 1) % segment.muteEveryBars === 0;
+      // TonalEnergy-style gap drill: cycle [gapPlayBars bars on][gapRestBars
+      // bars off] starting right after any count-in. Both must be positive
+      // or the drill is off entirely.
+      const gapPlayBars = segment.gapPlayBars ?? 0;
+      const gapRestBars = segment.gapRestBars ?? 0;
+      const gapCycleLength = gapPlayBars > 0 && gapRestBars > 0 ? gapPlayBars + gapRestBars : 0;
+      const gapResting = gapCycleLength > 0 && !countIn && (barInSegment - segment.countInBars) % gapCycleLength >= gapPlayBars;
+      const dropProbability = segment.dropProbability ?? 0;
       for (let beat = 0; beat < segment.beatsPerBar; beat += 1) {
         const mark = pattern[beat % pattern.length];
+        // One seeded draw per beat (not per subdivision tick), so a dropped
+        // beat's subdivision ticks all drop together instead of flickering
+        // independently, and so raising the subdivision doesn't change which
+        // beats a given seed drops.
+        const dropped = !countIn && dropProbability > 0 && seededUnit(segment.dropSeed ?? 0, playedBeatIndex) < dropProbability;
+        if (!countIn) playedBeatIndex += 1;
         for (let subTick = 0; subTick < segment.subdivision; subTick += 1) {
           yield {
             index,
@@ -176,9 +237,11 @@ export function* schedulePulse(plan: PulsePlan, startTime: number): Generator<Sc
             beat,
             subTick,
             accent: subTick === 0 && mark === "accent",
-            silent: mark === "silent" || mutedBar,
+            silent: mark === "silent" || mutedBar || gapResting || dropped,
             countIn,
             mutedBar,
+            gapResting,
+            dropped,
             bpmNow,
             beatsPerBar: segment.beatsPerBar,
             subdivision: segment.subdivision,

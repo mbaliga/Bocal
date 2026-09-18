@@ -4,12 +4,16 @@ import { RuntimeSafety } from "./RuntimeSafety";
 import "./globals.css";
 import "./styles/contrast.css";
 import "./styles/compact-layout.css";
+import { THEME_STORAGE_KEY } from "./storage-keys";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
+// Inlined as a <script> string, not executed as a module import, so the
+// constant is interpolated in rather than referenced -- storage-keys.ts
+// still stays this key's single source of truth.
 const themeBootstrap = `(() => {
   try {
-    const saved = window.localStorage.getItem("bocal-theme");
+    const saved = window.localStorage.getItem("${THEME_STORAGE_KEY}");
     const theme = saved === "light" || saved === "dark"
       ? saved
       : (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");

@@ -10,6 +10,7 @@
 // from its own timer.
 
 import { octaveOf, spellingFor } from "./notation";
+import { clamp } from "./music-math";
 import { detectStableSegments, type PitchHistoryBuffer } from "./pitch-history";
 import {
   BASS_CLEF,
@@ -56,10 +57,6 @@ export function readPitchHistoryTheme(root: HTMLElement = document.documentEleme
     sharp: isLight ? "#c14a3a" : "#ff6e6e",
     flat: isLight ? "#a8790f" : "#f2b84b",
   };
-}
-
-function clamp(value: number, minimum: number, maximum: number) {
-  return Math.min(maximum, Math.max(minimum, value));
 }
 
 function withAlpha(color: string, alpha: number): string {

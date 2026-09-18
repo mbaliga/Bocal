@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { runStoreTransaction } from "../app/idb-transaction.ts";
-import { isStoredTake, extensionForMime, putStoredTake, saveOrShareFile } from "../app/takes-store.ts";
+import { isStoredTake, extensionForMime, putStoredTake, saveOrShareFile, setStoredTakeDetails } from "../app/takes-store.ts";
 import { getRuntimeStatus, clearRuntimeStatus } from "../app/runtime-status.ts";
 
 function fixture() {
@@ -57,6 +57,19 @@ for (const [label, value] of Object.entries({ missing: null, badDate: { ...take,
   test(`invalid stored metadata is rejected: ${label}`, () => assert.equal(isStoredTake(value), false));
 }
 test("valid saved take is accepted", () => assert.equal(isStoredTake(take), true));
+test("tags and notes are optional on a stored take", () => {
+  assert.equal(isStoredTake({ ...take, tags: ["lesson", "warm-up"], notes: "felt good" }), true);
+  assert.equal(isStoredTake({ ...take, tags: undefined, notes: undefined }), true);
+});
+test("setStoredTakeDetails reports failure when storage is unavailable", async () => {
+  const original = globalThis.indexedDB;
+  try {
+    delete globalThis.indexedDB;
+    clearRuntimeStatus();
+    assert.equal(await setStoredTakeDetails("one", { tags: ["lesson"] }), false);
+    assert.match(getRuntimeStatus().message, /Tags and notes/);
+  } finally { if (original !== undefined) globalThis.indexedDB = original; }
+});
 test("storage unavailable returns false and a visible failure message", async () => {
   const original = globalThis.indexedDB;
   try {

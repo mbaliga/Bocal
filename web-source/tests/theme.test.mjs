@@ -83,6 +83,11 @@ async function walkStates(page,theme,instrument,results){
     await page.waitForTimeout(200);
   };
   await select(1);await record('tune');
+  const targetPicker=page.locator('.target-lock-picker select');
+  if(await targetPicker.isVisible()){
+    const options=await targetPicker.locator('option').all();
+    if(options.length>1){await targetPicker.selectOption({index:1});await record('tune/target-locked');await targetPicker.selectOption('');}
+  }
   const calibration=page.locator('.calibration-toggle');
   if(await calibration.isVisible()){await calibration.click();await record('tune/calibration-open','.calibration-picker');await calibration.click();}
   await page.getByRole('button',{name:'Choose instrument',exact:true}).click();
@@ -93,11 +98,38 @@ async function walkStates(page,theme,instrument,results){
   await page.locator('.download-dialog > header > button').click();
   await select(4);await page.locator('.analysis-tabs').waitFor();await record('analyze');
   await page.locator('.analysis-tabs button').filter({hasText:'Harmonics'}).click();await record('analyze/harmonics-idle','.analysis-card');
+  await page.locator('.analysis-tabs button').filter({hasText:'Spectrogram'}).click();await record('analyze/spectrogram-idle','.analysis-card');
+  // A/B take overlay: import two tiny fixtures (no microphone needed) and
+  // pick the second as the compare target, exercising the take library's
+  // tag/sort/filter controls and TakePitchTrace's overlay legend/diff text.
+  const takeFileInput=page.locator('.take-card input[type="file"]');
+  await takeFileInput.setInputFiles({name:'theme-audit-a.wav',mimeType:'audio/wav',buffer:wavFixture()});
+  await page.locator('.take-list button').first().waitFor();
+  await takeFileInput.setInputFiles({name:'theme-audit-b.wav',mimeType:'audio/wav',buffer:wavFixture()});
+  await page.waitForFunction(()=>document.querySelectorAll('.take-list button').length>=2);
+  await page.waitForFunction(()=>!document.querySelector('.take-pitch-progress'));
+  await page.getByLabel('Compare with').selectOption({index:1});
+  await page.waitForFunction(()=>document.querySelector('.take-compare-diff')||document.querySelector('.take-pitch-compare-status'));
+  await record('analyze/compare','.take-card');
   await select(3);await record('pulse');
   await select(2);await page.waitForTimeout(500);await record('lab/learn');
   const challenge=page.locator('.lab-mode-switch button').filter({hasText:'Challenge'});
   if(await challenge.isVisible()){await challenge.click();await record('lab/challenge','.fingering-panel');}
   await select(5);await record('practice');
+}
+
+// Tiny synthetic WAV so the A/B compare state below has two real takes to
+// pick from, the same fixture shape tests/production-smoke.mjs already uses
+// to exercise the take library without a real microphone.
+function wavFixture(){
+  const sampleRate=16000,samples=3200;
+  const bytes=Buffer.alloc(44+samples*2);
+  bytes.write('RIFF',0);bytes.writeUInt32LE(bytes.length-8,4);bytes.write('WAVEfmt ',8);
+  bytes.writeUInt32LE(16,16);bytes.writeUInt16LE(1,20);bytes.writeUInt16LE(1,22);
+  bytes.writeUInt32LE(sampleRate,24);bytes.writeUInt32LE(sampleRate*2,28);
+  bytes.writeUInt16LE(2,32);bytes.writeUInt16LE(16,34);bytes.write('data',36);bytes.writeUInt32LE(samples*2,40);
+  for(let i=0;i<samples;i++)bytes.writeInt16LE(Math.round(3000*Math.sin(2*Math.PI*440*i/sampleRate)),44+i*2);
+  return bytes;
 }
 
 const preview=await servePreview(DIST);
