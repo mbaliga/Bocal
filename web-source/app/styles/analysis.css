@@ -200,3 +200,12 @@ html[data-theme="light"] .harmonics-overlay li.is-out-of-range .harmonic-cents {
   color: var(--ink);
   border-color: var(--violet);
 }
+
+/* Score export (score-export.ts) honesty note under TranscribePanel's
+ * export buttons -- same "musical data that is not measured stays badged"
+ * rule the rest of the app follows. */
+.transcribe-export-note {
+  margin: 0.5em 0 0;
+  font-size: 11px;
+  color: var(--subtle);
+}

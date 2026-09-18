@@ -1,13 +1,19 @@
 "use client";
 
-import { AlertTriangle, FileAudio, LockKeyhole, Play, Share2, Square } from "lucide-react";
+import { AlertTriangle, Download, FileAudio, LockKeyhole, Play, Share2, Square } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { InstrumentProfile } from "./instruments";
 import { frequencyFromMidi, fullNoteLabel, type NotationSystem } from "./notation";
 import StaffNote from "./StaffNote";
+import { toMidiFile, toMusicXml } from "./score-export";
 import { DEFAULT_TUNING_OPTIONS, MAX_INPUT_SECONDS, transcribeFile, type TranscriptionResult } from "./transcribe";
 import type { TuningOptions } from "./tuning";
 import { saveOrShareFile } from "./takes-store";
+
+/** transcribeFile's tempo is not estimated -- there is no beat tracker in
+ *  this pipeline -- so exports quantise at a fixed, honest default rather
+ *  than implying a detected tempo the app never measured. */
+const EXPORT_TEMPO_BPM = 100;
 
 function formatSeconds(value: number) {
   const minutes = Math.floor(value / 60);
@@ -128,6 +134,23 @@ export function TranscribePanel({
     void saveOrShareFile(file);
   };
 
+  const exportMidi = () => {
+    if (!result || result.notes.length === 0) return;
+    const bytes = toMidiFile(result.notes.map((note) => ({ concertMidi: note.concertMidi, startSec: note.startSec, durationSec: note.durationSec })), EXPORT_TEMPO_BPM);
+    const name = (fileName || "bocal-transcription").replace(/\.[^.]+$/, "");
+    void saveOrShareFile(new File([bytes], `${name}.mid`, { type: "audio/midi" }));
+  };
+
+  const exportMusicXml = () => {
+    if (!result || result.notes.length === 0) return;
+    const xml = toMusicXml(
+      result.notes.map((note) => ({ concertMidi: note.concertMidi, startSec: note.startSec, durationSec: note.durationSec })),
+      { clef: instrument.clef, instrument: instrument.name, writtenOffset: instrument.writtenOffset, tempo: EXPORT_TEMPO_BPM },
+    );
+    const name = (fileName || "bocal-transcription").replace(/\.[^.]+$/, "");
+    void saveOrShareFile(new File([xml], `${name}.musicxml`, { type: "application/vnd.recordare.musicxml+xml" }));
+  };
+
   return (
     <section className="transcribe-panel">
       <div className="list-card-head">
@@ -200,7 +223,17 @@ export function TranscribePanel({
                 <button className="button secondary" onClick={shareNotes}>
                   <Share2 size={15} /> Share the notes
                 </button>
+                <button className="button secondary" onClick={exportMidi}>
+                  <Download size={15} /> Export MIDI
+                </button>
+                <button className="button secondary" onClick={exportMusicXml}>
+                  <Download size={15} /> Export MusicXML
+                </button>
               </div>
+              <p className="transcribe-export-note">
+                Exports are quantised to the nearest sixteenth note at a fixed {EXPORT_TEMPO_BPM} BPM grid -- Bocal does not detect tempo, so this is a
+                readable default, not a measurement of how the take was actually played.
+              </p>
 
               <ol className="transcribe-notes">
                 {result.notes.map((note, index) => {
