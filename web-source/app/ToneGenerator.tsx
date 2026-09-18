@@ -1,7 +1,7 @@
 "use client";
 
-import { Hand, ListMusic, Music2, Pause, Play, Repeat, Volume2 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Download, Hand, ListMusic, Music2, Pause, Pencil, Play, Plus, Repeat, Save, Trash2, Upload, Volume2, X } from "lucide-react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useForegroundPause } from "./use-foreground-pause";
 import "./styles/tone-generator.css";
 import { recordPracticeActivity } from "./practice-data";
@@ -9,6 +9,7 @@ import { fullNoteLabel, noteName, octaveOf, TONIC_CHOICES, type NotationSystem }
 import { targetHzFor, TEMPERAMENT_PROFILES, type TemperamentId } from "./tuning";
 import { drainDueTicks, startLookaheadScheduler } from "./audio-scheduler";
 import {
+  ARPEGGIO_DEGREES,
   chordFrequencies,
   chordMidis,
   chordQualityById,
@@ -20,12 +21,25 @@ import {
   intervalById,
   intervalPartnerMidi,
   INTERVALS,
+  SCALE_DEGREES,
   type ChordQualityId,
   type ChordVoicing,
   type ExercisePatternId,
   type IntervalDirection,
   type IntervalId,
 } from "./tone-math";
+import {
+  allExercises,
+  deleteExercise,
+  exportExerciseLibrary,
+  importExerciseLibraryJson,
+  loadUserExercises,
+  newExerciseDraft,
+  resolveExerciseTones,
+  saveUserExercises,
+  upsertExercise,
+  type SavedExercise,
+} from "./exercise-library";
 
 type Waveform = "sine" | "triangle" | "sawtooth" | "square";
 type PlayShape = "note" | "interval" | "chord";
@@ -65,25 +79,32 @@ function midiFor(octave: number, noteIndex: number) {
 type ExerciseTick = { when: number; tick: number; tone: ExerciseTone };
 
 /**
- * Yields one exercise note per tick, `when` computed fresh from
- * `tempoRef.current` on every yield so a live tempo drag mid-run only
- * changes the timing of notes not yet scheduled, never rewrites one already
- * queued on the audio clock. Ends after `pattern.length` ticks unless
- * `loop` is true, in which case it repeats the pattern forever -- the same
- * shape schedulePulse (pulse-schedule.ts) yields, so both drain through the
- * same drainDueTicks/startLookaheadScheduler pair from audio-scheduler.ts.
+ * Yields one exercise note per tick. `when` carries forward tick by tick --
+ * each note's time is the previous note's time plus that note's own
+ * seconds-per-note (read fresh from `tempoRef.current`) plus any
+ * articulation gap (`gapSecondsRef.current`, an exercise-library field; 0
+ * for the plain quick-play controls) -- the same running-clock rule
+ * schedulePulse (pulse-schedule.ts) follows, so a live tempo drag only
+ * changes the spacing of notes not yet scheduled, never rewrites one already
+ * queued on the audio clock. Ends after `pattern.length` ticks unless `loop`
+ * is true, in which case it repeats the pattern forever. Both this and
+ * schedulePulse's ticks share the same `{ when }` shape, so both drain
+ * through the same drainDueTicks/startLookaheadScheduler pair from
+ * audio-scheduler.ts.
  */
 function* exerciseNoteTicks(
   pattern: ExerciseTone[],
   startTime: number,
   tempoRef: { current: number },
   loop: boolean,
+  gapSecondsRef: { current: number },
 ): Generator<ExerciseTick, void, void> {
   let tick = 0;
+  let when = startTime;
   for (;;) {
     if (!loop && tick >= pattern.length) return;
-    const secondsPerNote = 60 / tempoRef.current;
-    yield { when: startTime + tick * secondsPerNote, tick, tone: pattern[tick % pattern.length] };
+    yield { when, tick, tone: pattern[tick % pattern.length] };
+    when += 60 / tempoRef.current + Math.max(0, gapSecondsRef.current);
     tick += 1;
   }
 }
@@ -156,6 +177,22 @@ export function ToneGenerator({
   const [exercisePlaying, setExercisePlaying] = useState(false);
   const [exerciseCurrentMidi, setExerciseCurrentMidi] = useState<number | null>(null);
   const [exerciseCurrentCents, setExerciseCurrentCents] = useState(0);
+
+  // ---------------------------------------------------------------------
+  // Exercise library: saved patterns (six bundled + the player's own),
+  // loaded/edited/played through the same exercise player above. See
+  // exercise-library.ts for the storage/sanitizing/range-expansion logic.
+  // ---------------------------------------------------------------------
+  const [userExercises, setUserExercises] = useState<SavedExercise[]>(() => (typeof window === "undefined" ? [] : loadUserExercises()));
+  const [activeExerciseId, setActiveExerciseId] = useState<string | null>(null);
+  const [editorDraft, setEditorDraft] = useState<SavedExercise | null>(null);
+  const [libraryMessage, setLibraryMessage] = useState("");
+  const importInputRef = useRef<HTMLInputElement>(null);
+  const library = allExercises(userExercises);
+  const activeExercise = activeExerciseId ? library.find((item) => item.id === activeExerciseId) ?? null : null;
+  /** 0 for the plain quick-play controls; an exercise's own articulationGapMs once one is loaded. Read by exerciseNoteTicks on every tick, like tempo/noteLength. */
+  const exerciseGapSecondsRef = useRef(0);
+  useEffect(() => { exerciseGapSecondsRef.current = (activeExercise?.articulationGapMs ?? 0) / 1000; }, [activeExercise]);
 
   const contextRef = useRef<AudioContext | null>(null);
   const audioEpochRef = useRef(0);
@@ -432,10 +469,17 @@ export function ToneGenerator({
     if (context.state === "suspended") void context.resume();
 
     const rootMidi = midiFor(exerciseOctave, exerciseRootPc);
-    const pattern = exerciseTones(rootMidi, exercisePattern, tuningOptions, {
-      intervalSemitones: intervalById(exerciseLeapIntervalId).semitones,
-      skipFundamental: exerciseSkipFundamental,
-    });
+    // A loaded library exercise's own pattern/root/range/writtenOffset take
+    // over pattern generation entirely (resolveExerciseTones folds in its
+    // saved range expansion and written-to-concert transposition); touching
+    // any of the quick controls below clears activeExerciseId and falls back
+    // to the ad-hoc root/pattern/leap/skip-fundamental combination.
+    const pattern = activeExercise
+      ? resolveExerciseTones(activeExercise, tuningOptions)
+      : exerciseTones(rootMidi, exercisePattern, tuningOptions, {
+        intervalSemitones: intervalById(exerciseLeapIntervalId).semitones,
+        skipFundamental: exerciseSkipFundamental,
+      });
     const startTime = context.currentTime + 0.06;
     const liveNodes = new Set<{ oscillator: OscillatorNode; gain: GainNode }>();
     const visualTimers: number[] = [];
@@ -471,7 +515,7 @@ export function ToneGenerator({
     // audio-scheduler.ts. tempoRef is read fresh inside the generator on
     // every yield, not captured once, so a live tempo drag changes only the
     // *next* not-yet-scheduled note's timing.
-    const iterator = exerciseNoteTicks(pattern, startTime, exerciseTempoRef, exerciseLoop);
+    const iterator = exerciseNoteTicks(pattern, startTime, exerciseTempoRef, exerciseLoop, exerciseGapSecondsRef);
     let pending = iterator.next();
     // startLookaheadScheduler's first wake runs synchronously, inside the
     // call below, before it has anything to assign to a local `const` --
@@ -518,8 +562,85 @@ export function ToneGenerator({
       });
       setExerciseCurrentMidi(null);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [exercisePlaying, exercisePattern, exerciseRootPc, exerciseOctave, exerciseLeapIntervalId, exerciseSkipFundamental, exerciseLoop, referenceHz, temperament, temperamentKeyPc, customCents]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- activeExercise itself (an object) isn't a dependency; activeExerciseId plus its updatedAt cover every field that can actually change its resolved tones.
+  }, [exercisePlaying, exercisePattern, exerciseRootPc, exerciseOctave, exerciseLeapIntervalId, exerciseSkipFundamental, exerciseLoop, activeExerciseId, activeExercise?.updatedAt, referenceHz, temperament, temperamentKeyPc, customCents]);
+
+  // ---------------------------------------------------------------------
+  // Exercise library handlers: loading a saved exercise into the player
+  // above, the small create/edit form, delete, and export/import through
+  // the same save-file path takes/analysis exports use.
+  // ---------------------------------------------------------------------
+  const detachFromLibrary = () => setActiveExerciseId(null);
+
+  const loadExercise = (exercise: SavedExercise) => {
+    setExercisePattern(exercise.pattern);
+    setExerciseRootPc(((exercise.rootMidi % 12) + 12) % 12);
+    setExerciseOctave(octaveOf(exercise.rootMidi));
+    if (exercise.leapIntervalSemitones !== undefined) {
+      setExerciseLeapIntervalId(INTERVALS.find((interval) => interval.semitones === exercise.leapIntervalSemitones)?.id ?? "P5");
+    }
+    setExerciseSkipFundamental(exercise.skipFundamental === true);
+    setExerciseTempo(exercise.tempo);
+    setExerciseNoteLength(exercise.noteLength);
+    setExerciseLoop(exercise.loop);
+    setActiveExerciseId(exercise.id);
+    setEditorDraft(null);
+    setLibraryMessage("");
+  };
+
+  const openNewExercise = () => setEditorDraft(newExerciseDraft());
+  const openEditExercise = (exercise: SavedExercise) => setEditorDraft(
+    exercise.builtIn
+      ? { ...exercise, id: `exercise-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, name: `${exercise.name} (copy)`, builtIn: false }
+      : { ...exercise },
+  );
+  const closeEditor = () => setEditorDraft(null);
+  const updateDraft = (patch: Partial<SavedExercise>) => setEditorDraft((current) => (current ? { ...current, ...patch } : current));
+
+  const saveEditorDraft = () => {
+    if (!editorDraft) return;
+    const name = editorDraft.name.trim();
+    if (!name) return;
+    const saved = { ...editorDraft, name: name.slice(0, 60) };
+    const next = upsertExercise(userExercises, saved);
+    setUserExercises(next);
+    saveUserExercises(next);
+    const stored = next.find((item) => item.id === saved.id) ?? saved;
+    loadExercise(stored);
+  };
+
+  const removeExercise = (id: string) => {
+    const next = deleteExercise(userExercises, id);
+    setUserExercises(next);
+    saveUserExercises(next);
+    if (activeExerciseId === id) setActiveExerciseId(null);
+    if (editorDraft?.id === id) setEditorDraft(null);
+  };
+
+  const handleExport = () => {
+    void exportExerciseLibrary(userExercises).then(() =>
+      setLibraryMessage(userExercises.length ? "Exported your saved exercises." : "Nothing of your own saved yet -- the six built-ins don't need exporting."),
+    );
+  };
+
+  const handleImportFile = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    void file.text()
+      .then((raw) => {
+        const { imported, rejectedCount } = importExerciseLibraryJson(raw);
+        if (imported.length === 0) {
+          setLibraryMessage(rejectedCount > 0 ? "That file didn't contain any exercises Bocal could read." : "That file didn't contain any exercises.");
+          return;
+        }
+        const next = imported.reduce((list, exercise) => upsertExercise(list, exercise), userExercises);
+        setUserExercises(next);
+        saveUserExercises(next);
+        setLibraryMessage(`Imported ${imported.length} exercise${imported.length === 1 ? "" : "s"}${rejectedCount ? `, skipped ${rejectedCount} that didn't parse` : ""}.`);
+      })
+      .catch(() => setLibraryMessage("Could not read that file."));
+  };
 
   const exerciseRoot = midiFor(exerciseOctave, exerciseRootPc);
   const displayOctave = exercisePlaying && exerciseCurrentMidi !== null ? octaveOf(exerciseCurrentMidi) : octave;
@@ -641,32 +762,38 @@ export function ToneGenerator({
           <p>{EXERCISE_PATTERNS.find((pattern) => pattern.id === exercisePattern)?.description}</p>
         </header>
 
+        {activeExercise && (
+          <p className="tone-exercise-library-active" role="status">
+            <ListMusic size={13} /> Playing &ldquo;{activeExercise.name}&rdquo; from your library.
+            <button type="button" onClick={detachFromLibrary}><X size={12} /> Use quick controls instead</button>
+          </p>
+        )}
         <div className="tone-exercise-controls">
           <label><span>Pattern</span>
-            <select value={exercisePattern} onChange={(event) => setExercisePattern(event.target.value as ExercisePatternId)}>
+            <select value={exercisePattern} onChange={(event) => { detachFromLibrary(); setExercisePattern(event.target.value as ExercisePatternId); }}>
               {EXERCISE_PATTERNS.map((pattern) => <option key={pattern.id} value={pattern.id}>{pattern.label}</option>)}
             </select>
           </label>
           <label><span>Root</span>
-            <select value={exerciseRootPc} onChange={(event) => setExerciseRootPc(Number(event.target.value))}>
+            <select value={exerciseRootPc} onChange={(event) => { detachFromLibrary(); setExerciseRootPc(Number(event.target.value)); }}>
               {TONIC_CHOICES.map((choice) => <option key={choice.pc} value={choice.pc}>{choice.name}</option>)}
             </select>
           </label>
           <label><span>Octave</span>
-            <select value={exerciseOctave} onChange={(event) => setExerciseOctave(Number(event.target.value))}>
+            <select value={exerciseOctave} onChange={(event) => { detachFromLibrary(); setExerciseOctave(Number(event.target.value)); }}>
               {Array.from({ length: 8 }, (_, index) => index + 1).map((value) => <option key={value} value={value}>{value}</option>)}
             </select>
           </label>
           {exercisePattern === "interval-leaps" && (
             <label><span>Leap</span>
-              <select value={exerciseLeapIntervalId} onChange={(event) => setExerciseLeapIntervalId(event.target.value as IntervalId)}>
+              <select value={exerciseLeapIntervalId} onChange={(event) => { detachFromLibrary(); setExerciseLeapIntervalId(event.target.value as IntervalId); }}>
                 {INTERVALS.map((interval) => <option key={interval.id} value={interval.id}>{interval.label}</option>)}
               </select>
             </label>
           )}
           {exercisePattern === "harmonic-series" && (
             <label className="tone-skip-fundamental">
-              <input type="checkbox" checked={exerciseSkipFundamental} onChange={(event) => setExerciseSkipFundamental(event.target.checked)} />
+              <input type="checkbox" checked={exerciseSkipFundamental} onChange={(event) => { detachFromLibrary(); setExerciseSkipFundamental(event.target.checked); }} />
               Skip fundamental
             </label>
           )}
@@ -693,7 +820,219 @@ export function ToneGenerator({
               : `Starts on ${fullNoteLabel(exerciseRoot, notation, saTonic)}`}
           </span>
         </div>
+
+        <div className="tone-exercise-library">
+          <header className="tone-exercise-library-head">
+            <span className="card-kicker"><ListMusic size={13} /> Exercise library</span>
+            <p>Six exercises Bocal put together to start from, plus anything you save. Pick one to load it above, or build your own.</p>
+          </header>
+
+          <div className="tone-exercise-library-chips">
+            {library.map((exercise) => (
+              <span key={exercise.id} className="exercise-chip-wrap">
+                <button
+                  type="button"
+                  className={`exercise-chip${activeExerciseId === exercise.id ? " is-active" : ""}`}
+                  onClick={() => loadExercise(exercise)}
+                >
+                  <strong>{exercise.name}</strong>
+                  <small>{exercise.tempo} bpm{exercise.loop ? " · loops" : ""}{exercise.builtIn ? "" : " · yours"}</small>
+                </button>
+                <button type="button" className="chip-edit" aria-label={`Edit ${exercise.name}`} onClick={() => openEditExercise(exercise)}><Pencil size={12} /></button>
+                {!exercise.builtIn && (
+                  <button type="button" className="chip-delete" aria-label={`Delete ${exercise.name}`} onClick={() => removeExercise(exercise.id)}><Trash2 size={12} /></button>
+                )}
+              </span>
+            ))}
+          </div>
+
+          <div className="tone-exercise-library-actions">
+            <button type="button" onClick={openNewExercise}><Plus size={14} /> New exercise</button>
+            <button type="button" onClick={handleExport}><Download size={14} /> Export mine</button>
+            <button type="button" onClick={() => importInputRef.current?.click()}><Upload size={14} /> Import</button>
+            <input ref={importInputRef} className="visually-hidden" type="file" accept="application/json,.json" onChange={handleImportFile} />
+          </div>
+          {libraryMessage && <p className="tone-exercise-library-message" role="status">{libraryMessage}</p>}
+
+          {editorDraft && (
+            <ExerciseEditor
+              draft={editorDraft}
+              notation={notation}
+              saTonic={saTonic}
+              onChange={updateDraft}
+              onSave={saveEditorDraft}
+              onCancel={closeEditor}
+              onDelete={!editorDraft.builtIn && userExercises.some((item) => item.id === editorDraft.id) ? () => removeExercise(editorDraft.id) : undefined}
+            />
+          )}
+        </div>
       </div>
     </section>
+  );
+}
+
+/**
+ * A small create/edit form for one saved exercise -- kept as its own
+ * component (rather than inlined into ToneGenerator's already-long render)
+ * so its many pattern-conditional fields don't crowd the exercise player
+ * above it. Every field writes straight back to the draft object through
+ * onChange; ToneGenerator holds the actual draft state and only commits it
+ * to storage (via exercise-library.ts's upsertExercise) when Save is
+ * pressed, so Cancel simply discards the edit-in-progress.
+ */
+function ExerciseEditor({
+  draft,
+  notation,
+  saTonic,
+  onChange,
+  onSave,
+  onCancel,
+  onDelete,
+}: {
+  draft: SavedExercise;
+  notation: NotationSystem;
+  saTonic: number;
+  onChange: (patch: Partial<SavedExercise>) => void;
+  onSave: () => void;
+  onCancel: () => void;
+  onDelete?: () => void;
+}) {
+  const rootOctave = octaveOf(draft.rootMidi);
+  const rootPc = ((draft.rootMidi % 12) + 12) % 12;
+  const setRoot = (pc: number, octave: number) => onChange({ rootMidi: midiFor(octave, pc) });
+  // Matches exercise-library.ts's own rangeExpands: only these pattern kinds
+  // actually repeat across the saved range when played, so the range editor
+  // (and the "repeats every" step picker) only appear where the range would
+  // do something -- harmonic-series, interval-leaps and custom already carry
+  // their own length via partials/repeats/the note list itself.
+  const rangeMatters = draft.pattern === "chromatic" || draft.pattern === "major-scale" || draft.pattern in SCALE_DEGREES || draft.pattern in ARPEGGIO_DEGREES;
+  const rangeLowOctave = octaveOf(draft.rangeLowMidi);
+  const rangeLowPc = ((draft.rangeLowMidi % 12) + 12) % 12;
+  const rangeHighOctave = octaveOf(draft.rangeHighMidi);
+  const rangeHighPc = ((draft.rangeHighMidi % 12) + 12) % 12;
+
+  return (
+    <div className="exercise-editor" role="group" aria-label={draft.name ? `Editing ${draft.name}` : "New exercise"}>
+      <div className="exercise-editor-row">
+        <label className="exercise-editor-name"><span>Name</span><input value={draft.name} onChange={(event) => onChange({ name: event.target.value.slice(0, 60) })} placeholder="Name this exercise" maxLength={60} aria-label="Exercise name" /></label>
+        <label><span>Pattern</span>
+          <select value={draft.pattern} onChange={(event) => onChange({ pattern: event.target.value as ExercisePatternId })}>
+            {EXERCISE_PATTERNS.map((pattern) => <option key={pattern.id} value={pattern.id}>{pattern.label}</option>)}
+          </select>
+        </label>
+      </div>
+
+      <div className="exercise-editor-row">
+        <label><span>Root (written)</span>
+          <span className="exercise-editor-note-pair">
+            <select value={rootPc} onChange={(event) => setRoot(Number(event.target.value), rootOctave)} aria-label="Root note">
+              {TONIC_CHOICES.map((choice) => <option key={choice.pc} value={choice.pc}>{choice.name}</option>)}
+            </select>
+            <select value={rootOctave} onChange={(event) => setRoot(rootPc, Number(event.target.value))} aria-label="Root octave">
+              {Array.from({ length: 8 }, (_, index) => index + 1).map((value) => <option key={value} value={value}>{value}</option>)}
+            </select>
+          </span>
+        </label>
+        <label><span>Transposition</span>
+          <input type="number" inputMode="numeric" min={-24} max={24} value={draft.writtenOffset} onChange={(event) => { const next = Number(event.target.value); if (Number.isFinite(next)) onChange({ writtenOffset: Math.min(24, Math.max(-24, Math.round(next))) }); }} aria-label="Semitones from written to concert pitch" />
+          <small>{draft.writtenOffset === 0 ? "Concert pitch" : `${draft.writtenOffset > 0 ? "+" : ""}${draft.writtenOffset} semitones written → concert`}</small>
+        </label>
+      </div>
+
+      {rangeMatters && (
+        <div className="exercise-editor-row">
+          <label><span>Range low (written)</span>
+            <span className="exercise-editor-note-pair">
+              <select value={rangeLowPc} onChange={(event) => onChange({ rangeLowMidi: midiFor(rangeLowOctave, Number(event.target.value)) })} aria-label="Range low note">
+                {TONIC_CHOICES.map((choice) => <option key={choice.pc} value={choice.pc}>{choice.name}</option>)}
+              </select>
+              <select value={rangeLowOctave} onChange={(event) => onChange({ rangeLowMidi: midiFor(Number(event.target.value), rangeLowPc) })} aria-label="Range low octave">
+                {Array.from({ length: 8 }, (_, index) => index + 1).map((value) => <option key={value} value={value}>{value}</option>)}
+              </select>
+            </span>
+          </label>
+          <label><span>Range high (written)</span>
+            <span className="exercise-editor-note-pair">
+              <select value={rangeHighPc} onChange={(event) => onChange({ rangeHighMidi: midiFor(rangeHighOctave, Number(event.target.value)) })} aria-label="Range high note">
+                {TONIC_CHOICES.map((choice) => <option key={choice.pc} value={choice.pc}>{choice.name}</option>)}
+              </select>
+              <select value={rangeHighOctave} onChange={(event) => onChange({ rangeHighMidi: midiFor(Number(event.target.value), rangeHighPc) })} aria-label="Range high octave">
+                {Array.from({ length: 8 }, (_, index) => index + 1).map((value) => <option key={value} value={value}>{value}</option>)}
+              </select>
+            </span>
+          </label>
+        </div>
+      )}
+
+      {rangeMatters && (
+        <label className="exercise-editor-repeat-step"><span>Repeats every</span>
+          <select value={draft.repeatStepSemitones} onChange={(event) => onChange({ repeatStepSemitones: Number(event.target.value) })}>
+            <option value={12}>Octave (12 semitones)</option>
+            <option value={7}>Fifth (7 semitones)</option>
+            <option value={5}>Fourth (5 semitones)</option>
+            <option value={4}>Major 3rd (4 semitones)</option>
+          </select>
+        </label>
+      )}
+
+      {draft.pattern === "interval-leaps" && (
+        <div className="exercise-editor-row">
+          <label><span>Leap</span>
+            <select value={INTERVALS.find((interval) => interval.semitones === draft.leapIntervalSemitones)?.id ?? "P5"} onChange={(event) => onChange({ leapIntervalSemitones: intervalById(event.target.value as IntervalId).semitones })}>
+              {INTERVALS.map((interval) => <option key={interval.id} value={interval.id}>{interval.label}</option>)}
+            </select>
+          </label>
+          <label><span>Repeats</span>
+            <input type="number" inputMode="numeric" min={1} max={16} value={draft.leapRepeats ?? 4} onChange={(event) => { const next = Math.round(Number(event.target.value)); if (Number.isFinite(next)) onChange({ leapRepeats: Math.min(16, Math.max(1, next)) }); }} aria-label="Leap repeats" />
+          </label>
+        </div>
+      )}
+
+      {draft.pattern === "harmonic-series" && (
+        <label className="tone-skip-fundamental">
+          <input type="checkbox" checked={draft.skipFundamental === true} onChange={(event) => onChange({ skipFundamental: event.target.checked })} />
+          Skip fundamental
+        </label>
+      )}
+
+      {draft.pattern === "custom" && (
+        <label className="exercise-editor-custom-notes"><span>Note list (in order)</span>
+          <textarea
+            value={(draft.customNotes ?? []).join(" ")}
+            onChange={(event) => onChange({ customNotes: event.target.value.split(/[\s,]+/).map((token) => token.trim()).filter(Boolean).slice(0, 64) })}
+            placeholder="C4 E4 G4 C5"
+            aria-label="Custom note list"
+          />
+          <small>Note names like C4, F#5, Bb3 -- separated by spaces or commas. Unrecognised entries are dropped when you save.</small>
+        </label>
+      )}
+
+      <div className="exercise-editor-row">
+        <label><span>Tempo</span>
+          <input type="range" min="30" max="208" step="1" value={draft.tempo} onChange={(event) => onChange({ tempo: Number(event.target.value) })} aria-label="Exercise tempo" />
+          <small>{draft.tempo} bpm</small>
+        </label>
+        <label><span>Note length</span>
+          <input type="range" min="0.2" max="1" step="0.05" value={draft.noteLength} onChange={(event) => onChange({ noteLength: Number(event.target.value) })} aria-label="Note length" />
+          <small>{draft.noteLength >= 0.9 ? "Legato" : draft.noteLength <= 0.45 ? "Staccato" : "Medium"}</small>
+        </label>
+      </div>
+
+      <div className="exercise-editor-row">
+        <label><span>Articulation gap</span>
+          <input type="range" min="0" max="800" step="20" value={draft.articulationGapMs} onChange={(event) => onChange({ articulationGapMs: Number(event.target.value) })} aria-label="Articulation gap in milliseconds" />
+          <small>{draft.articulationGapMs} ms silence between notes</small>
+        </label>
+        <label className="exercise-editor-loop"><input type="checkbox" checked={draft.loop} onChange={(event) => onChange({ loop: event.target.checked })} /> Loop</label>
+      </div>
+
+      <p className="exercise-editor-preview">Starts on {fullNoteLabel(draft.rootMidi + draft.writtenOffset, notation, saTonic)}{draft.writtenOffset !== 0 ? ` (written ${fullNoteLabel(draft.rootMidi, notation, saTonic)})` : ""}.</p>
+
+      <div className="exercise-editor-actions">
+        <button type="button" className="tone-exercise-play" onClick={onSave} disabled={!draft.name.trim()}><Save size={14} /> Save</button>
+        <button type="button" onClick={onCancel}><X size={14} /> Cancel</button>
+        {onDelete && <button type="button" className="chip-delete-wide" onClick={onDelete}><Trash2 size={14} /> Delete</button>}
+      </div>
+    </div>
   );
 }
