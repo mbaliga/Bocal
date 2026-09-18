@@ -3,7 +3,18 @@
    written/concert readout toggle and the dBFS level meter. Everything here
    uses the shared theme tokens from globals.css (WP6 owns that file, so new
    rules live here instead of being added to it) and is re-checked in both
-   themes by tests/theme.test.mjs. */
+   themes by tests/theme.test.mjs.
+
+   --tuner-clip is this file's own token (globals.css has no "danger/clip"
+   slot to reuse), picked by contrast the same way pitch-history-canvas.ts's
+   JS-computed sharp/flat colours are -- a warmer, more saturated red reads
+   against the dark studio panel, a darker one against the light paper. */
+:root {
+  --tuner-clip: #ff6e6e;
+}
+html[data-theme="light"] {
+  --tuner-clip: #c14a3a;
+}
 
 /* The note name/staff is now a <button> (tap to lock/release the manual
    target) instead of a plain div -- reset it back to looking like inert
@@ -90,10 +101,7 @@
    only what the fill width is driven by changed, from a gate-relative
    percent to dBFS), and adds the clip colour and the peak-hold tick mark. */
 .tracker-diagnostics > div:first-child > i b.is-clipping {
-  background: #ff6e6e;
-}
-html[data-theme="light"] .tracker-diagnostics > div:first-child > i b.is-clipping {
-  background: #c14a3a;
+  background: var(--tuner-clip);
 }
 .level-peak-mark {
   position: absolute;
