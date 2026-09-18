@@ -1,8 +1,14 @@
 {
   "model": "saxophone-alto",
   "classificationMethod": "explicit mesh name table (no material/luminance heuristic)",
+  "modifications": [
+    "Wave 2 (W2-E): Object_2 (body + bow + bell + neck tube, originally fused in one primitive) was re-segmented into four primitives -- Object_2_neck, Object_2_body, Object_2_bow, Object_2_bell -- sharing the original POSITION/NORMAL accessors and material. No vertex, UV or normal data was added, removed or moved; only which triangles belong to which node changed. See scripts/segment-model.mjs (classifyTubeVertices + its header comment) for the geometric method and ATTRIBUTION.md for the CC BY modification note."
+  ],
   "parts": {
-    "Object_2": { "role": "body", "note": "body + bow + bell + neck tube fused in one mesh" },
+    "Object_2_neck": { "role": "body", "subPart": "neck", "note": "neck tube + mouthpiece receiver socket, split from Object_2 at local Z > 0.14 (the density gap between the thin crook and the thicker body)" },
+    "Object_2_body": { "role": "body", "subPart": "body", "note": "main straight tube from the tenon to the start of the bow, split from Object_2's trunk by geodesic distance from the tenon (< 30% of the tube's surface path)" },
+    "Object_2_bow": { "role": "body", "subPart": "bow", "note": "the U-turn at the bottom of the horn, split from Object_2's trunk by geodesic distance (30%-65% of the tube's surface path)" },
+    "Object_2_bell": { "role": "body", "subPart": "bell", "note": "the flare and rim, split from Object_2's trunk by geodesic distance (> 65% of the tube's surface path, the farthest region from the tenon)" },
     "Object_3": { "role": "keywork", "note": "main keywork stack: touches, rods, cups, pads" },
     "Object_4": { "role": "keywork", "note": "small fitting on the bell (brace/ring region)" },
     "Object_5": { "role": "mouthpiece", "note": "mouthpiece, at the neck tip" },
