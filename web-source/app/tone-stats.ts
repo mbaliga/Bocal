@@ -148,3 +148,30 @@ export function computeToneStats(frames: PitchTrackFrame[]): ToneSegmentStats[] 
     .map(toneStatsForSegment)
     .filter((stat): stat is ToneSegmentStats => stat !== null);
 }
+
+export type ToneSummary = {
+  /** Mean cents-from-target across every voiced frame in the take, not just
+   *  frames inside a qualifying segment -- a single "how centred overall"
+   *  number for the A/B compare row, where per-segment detail would be too
+   *  much to read at a glance. */
+  meanCents: number;
+  stdDevCents: number;
+  /** Share of frames that were voiced at all, 0 to 1 -- lets a comparison
+   *  note when one take is simply quieter or more hesitant than the other,
+   *  not just differently in tune. */
+  voicedFraction: number;
+};
+
+/** A whole-take summary for the A/B overlay's difference row. Null when the
+ *  take has no frames at all (nothing to summarise). */
+export function overallToneSummary(frames: PitchTrackFrame[]): ToneSummary | null {
+  if (frames.length === 0) return null;
+  const voiced = frames.filter((frame) => frame.midi !== null);
+  const cents = voiced.map((frame) => frame.cents);
+  const meanCents = mean(cents);
+  return {
+    meanCents: Math.round(meanCents * 10) / 10,
+    stdDevCents: Math.round(stdDev(cents, meanCents) * 10) / 10,
+    voicedFraction: Math.round((voiced.length / frames.length) * 100) / 100,
+  };
+}

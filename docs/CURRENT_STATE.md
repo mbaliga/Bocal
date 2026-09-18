@@ -51,6 +51,14 @@ The V1 candidate removes the unused Drizzle/D1 template layer that was the only 
 
 React/RSC, Vite, Vinext and Cloudflare tooling remain on the registry-confirmed versions introduced by the hardening pass.
 
+## Wave 2: Analyze depth (W2-B, in progress)
+
+- The Analyze view has a fourth live mode, Spectrogram: a log-frequency waterfall (note-name ticks, 20-second scrolling window) drawn from the same analyser the other three modes already use, with no second AnalyserNode. It follows `prefers-reduced-motion` by scrolling more slowly rather than not updating, and pauses/resumes with the rest of live capture.
+- A saved take can be compared against a second saved take: an A/B overlay draws the compared take's pitch trace dashed in a second colour on top of the primary one, aligned either by each recording's own start or by its first sounding note, with a one-line difference summary (mean cents, spread) between the two. The compared take's analysis is cached the same way the primary take's is.
+- Takes can carry free-text tags and notes, sanitised and stored in the same IndexedDB record as the recording; the take library can be sorted (newest/oldest/longest/shortest/name) and filtered by tag. None of this changes the no-eviction, commit-aware storage semantics already in place.
+- A transcription can be exported as a Standard MIDI File or MusicXML (`app/score-export.ts`, buttons in the Transcribe panel, saved through the same native-aware save path takes use). Both are quantised to a fixed, honestly-labelled tempo grid -- Bocal has no beat detector, so this is not a measured tempo.
+- The theme text-contrast audit (`tests/theme.test.mjs`) now populates the take library with two imported fixtures and walks the spectrogram tab and the A/B compare view, not just the previously-empty take card. That coverage surfaced a pre-existing light-theme contrast gap in the take list and tempo/loop controls (never exercised before because the audit never had a saved take to show); it is fixed in `app/styles/analysis.css` with the same fixed-dark-backdrop technique already used for the harmonics overlay, without editing `globals.css`.
+
 ## Still not proven
 
 Real-device audio/latency/thermal and accessibility acceptance; specialist review of fingerings and 3D touch targets; production signing identity and distribution; comprehensive TonalEnergy parity/superiority; dedicated 3D parity across the other instrument families.

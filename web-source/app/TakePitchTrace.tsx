@@ -21,7 +21,24 @@ import type { InstrumentProfile } from "./instruments";
 import { fullNoteLabel, type NotationSystem } from "./notation";
 import { DEFAULT_TUNING_OPTIONS, decodeToAnalysisBuffer, pitchTrackFrames, type PitchTrackFrame } from "./transcribe";
 import type { TuningOptions } from "./tuning";
-import { computeToneStats, type ToneSegmentStats } from "./tone-stats";
+import { computeToneStats, overallToneSummary, type ToneSegmentStats } from "./tone-stats";
+
+/** A/B alignment: "start" lines up both takes' own t=0; "first-voiced" shifts
+ *  the compared take so its first sounding frame lands under the primary
+ *  take's first sounding frame, which is more useful when one recording has
+ *  a longer silent lead-in than the other. */
+export type TakeOverlayAlign = "start" | "first-voiced";
+
+/** Colour for the compared take's dashed trace. Fixed rather than theme- or
+ *  cents-derived, like colorForCents below -- it exists to read as visually
+ *  distinct from the primary trace's in-tune/close/off colouring, not to
+ *  carry its own tuning information. */
+const OVERLAY_COLOR = "#8e7bff";
+
+function firstVoicedTime(frames: PitchTrackFrame[]): number | null {
+  const frame = frames.find((entry) => entry.midi !== null);
+  return frame ? frame.timeSec : null;
+}
 
 type CachedTakeAnalysis = { frames: PitchTrackFrame[]; durationSec: number; stats: ToneSegmentStats[] };
 
@@ -66,6 +83,10 @@ export function TakePitchTrace({
   saTonic,
   audioRef,
   tuningOptions = DEFAULT_TUNING_OPTIONS,
+  overlayTakeId,
+  overlayAudioUrl,
+  overlayLabel,
+  overlayAlign = "start",
 }: {
   takeId: string;
   audioUrl: string;
@@ -74,6 +95,12 @@ export function TakePitchTrace({
   saTonic: number;
   audioRef: RefObject<HTMLAudioElement | null>;
   tuningOptions?: TuningOptions;
+  /** A second take's id/url to overlay on the same trace, for A/B compare.
+   *  Omit (or leave overlayAudioUrl unset) for the ordinary single-take view. */
+  overlayTakeId?: string;
+  overlayAudioUrl?: string;
+  overlayLabel?: string;
+  overlayAlign?: TakeOverlayAlign;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const staticCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -85,6 +112,21 @@ export function TakePitchTrace({
   const [progress, setProgress] = useState(() => (analysisCache.has(takeId) ? 1 : 0));
   const [busy, setBusy] = useState(() => !analysisCache.has(takeId));
   const [error, setError] = useState("");
+
+  const hasOverlay = Boolean(overlayTakeId && overlayAudioUrl);
+  // Only the FETCH's outcome lives in state -- a cache hit is read straight
+  // from analysisCache during render below, so switching overlayTakeId to
+  // an already-analysed take needs no state update (and no setState call
+  // inside the effect's synchronous body) at all.
+  const [overlayFetchState, setOverlayFetchState] = useState<{ id: string; analysis: CachedTakeAnalysis | null; failed: boolean }>(
+    { id: "", analysis: null, failed: false },
+  );
+  const cachedOverlayAnalysis = overlayTakeId ? analysisCache.get(overlayTakeId) ?? null : null;
+  const overlayAnalysis = hasOverlay
+    ? cachedOverlayAnalysis ?? (overlayFetchState.id === overlayTakeId ? overlayFetchState.analysis : null)
+    : null;
+  const overlayFailed = hasOverlay && !overlayAnalysis && overlayFetchState.id === overlayTakeId && overlayFetchState.failed;
+  const overlayBusy = hasOverlay && !overlayAnalysis && !overlayFailed;
 
   // Shared between the "redraw the static layer" effect and the "redraw the
   // playhead" effect so a resize/instrument/notation change repaints the
@@ -132,6 +174,33 @@ export function TakePitchTrace({
     // against the previous calibration until the next take switch.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [takeId, audioUrl]);
+
+  // Same fetch-analyse-cache pipeline as the primary take, for whichever
+  // take is picked as the A/B compare target. Keyed into the same
+  // analysisCache, so switching which take is "primary" vs "compared" never
+  // re-runs YIN over audio Bocal has already analysed once.
+  useEffect(() => {
+    if (!hasOverlay || !overlayTakeId || !overlayAudioUrl || analysisCache.has(overlayTakeId)) return;
+    let cancelled = false;
+    const controller = new AbortController();
+    (async () => {
+      try {
+        const response = await fetch(overlayAudioUrl);
+        const buffer = await response.arrayBuffer();
+        const samples = await decodeToAnalysisBuffer(buffer);
+        const frames = await pitchTrackFrames(samples, undefined, tuningOptions, controller.signal);
+        const result: CachedTakeAnalysis = { frames, durationSec: samples.length / ANALYSIS_RATE, stats: computeToneStats(frames) };
+        analysisCache.set(overlayTakeId, result);
+        if (!cancelled) setOverlayFetchState({ id: overlayTakeId, analysis: result, failed: false });
+      } catch {
+        // A failed compare-take analysis just means no overlay is drawn;
+        // the primary trace (and playback) still work either way.
+        if (!cancelled) setOverlayFetchState({ id: overlayTakeId, analysis: null, failed: true });
+      }
+    })();
+    return () => { cancelled = true; controller.abort(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasOverlay, overlayTakeId, overlayAudioUrl]);
 
   const paint = (canvas: HTMLCanvasElement, currentTime: number) => {
     const ratio = Math.min(window.devicePixelRatio, 2);
@@ -200,9 +269,23 @@ export function TakePitchTrace({
       const frames = analysis.frames;
       const durationSec = Math.max(analysis.durationSec, 0.001);
 
+      // The compare take's offset onto the primary's timeline: 0 when
+      // aligning by start (both takes' own t=0 line up), or the gap between
+      // each take's first sounding frame when aligning by first voiced
+      // frame -- so two takes with different silent lead-ins still line up
+      // where the playing actually starts, not where recording did.
+      const overlayOffsetSec = overlayAnalysis && overlayAlign === "first-voiced"
+        ? (firstVoicedTime(frames) ?? 0) - (firstVoicedTime(overlayAnalysis.frames) ?? 0)
+        : 0;
+
       const writtenMidis = frames
         .filter((frame) => frame.midi !== null)
-        .map((frame) => (frame.midi as number) + instrument.writtenOffset);
+        .map((frame) => (frame.midi as number) + instrument.writtenOffset)
+        .concat(
+          overlayAnalysis
+            ? overlayAnalysis.frames.filter((frame) => frame.midi !== null).map((frame) => (frame.midi as number) + instrument.writtenOffset)
+            : [],
+        );
       const minMidi = writtenMidis.length ? Math.min(...writtenMidis) - 2 : 60;
       const maxMidi = writtenMidis.length ? Math.max(...writtenMidis) + 2 : 84;
       const midiSpan = Math.max(maxMidi - minMidi, 1);
@@ -247,6 +330,33 @@ export function TakePitchTrace({
         previousY = y;
         drawing = true;
       }
+
+      if (overlayAnalysis) {
+        ctx.setLineDash([5, 4]);
+        ctx.strokeStyle = OVERLAY_COLOR;
+        ctx.lineWidth = 2;
+        let overlayDrawing = false;
+        let overlayPreviousX = 0;
+        let overlayPreviousY = 0;
+        for (const frame of overlayAnalysis.frames) {
+          const x = ((frame.timeSec + overlayOffsetSec) / durationSec) * width;
+          if (frame.midi === null || x < 0 || x > width) {
+            overlayDrawing = false;
+            continue;
+          }
+          const y = yForMidi(frame.midi + instrument.writtenOffset);
+          if (overlayDrawing) {
+            ctx.beginPath();
+            ctx.moveTo(overlayPreviousX, overlayPreviousY);
+            ctx.lineTo(x, y);
+            ctx.stroke();
+          }
+          overlayPreviousX = x;
+          overlayPreviousY = y;
+          overlayDrawing = true;
+        }
+        ctx.setLineDash([]);
+      }
     };
 
     const repaintAll = () => {
@@ -258,7 +368,7 @@ export function TakePitchTrace({
     const observer = new ResizeObserver(repaintAll);
     observer.observe(canvas);
     return () => observer.disconnect();
-  }, [analysis, instrument, notation, saTonic, audioRef]);
+  }, [analysis, overlayAnalysis, overlayAlign, instrument, notation, saTonic, audioRef]);
 
   // Playhead, driven by the audio element's own play/pause state rather than
   // a timer -- an animation frame only runs while something is actually
@@ -334,8 +444,28 @@ export function TakePitchTrace({
             <span className="legend-swatch legend-true" /> in tune
             <span className="legend-swatch legend-near" /> close
             <span className="legend-swatch legend-off" /> off
+            {hasOverlay && <span className="legend-swatch legend-overlay" />}
+            {hasOverlay && (overlayLabel || "compared take")}
             <span className="legend-gap">gaps are unvoiced or too weak to read</span>
           </p>
+          {hasOverlay && overlayBusy && (
+            <p className="take-pitch-compare-status" role="status">Reading {overlayLabel || "the compared take"}&rsquo;s pitch…</p>
+          )}
+          {hasOverlay && overlayFailed && (
+            <p className="take-pitch-compare-status">Couldn&rsquo;t read {overlayLabel || "the compared take"}&rsquo;s pitch. Its trace is not shown.</p>
+          )}
+          {hasOverlay && overlayAnalysis && (() => {
+            const primarySummary = overallToneSummary(analysis.frames);
+            const overlaySummary = overallToneSummary(overlayAnalysis.frames);
+            if (!primarySummary || !overlaySummary) return null;
+            const deltaMean = Math.round((primarySummary.meanCents - overlaySummary.meanCents) * 10) / 10;
+            const deltaSpread = Math.round((primarySummary.stdDevCents - overlaySummary.stdDevCents) * 10) / 10;
+            return (
+              <p className="take-compare-diff" aria-label="Difference from the compared take">
+                This take vs {overlayLabel || "compared take"}: mean {formatCentsSigned(deltaMean)}¢, spread {deltaSpread > 0 ? "+" : ""}{deltaSpread}¢ sd
+              </p>
+            );
+          })()}
           {analysis.stats.length > 0 && (
             <ol className="take-tone-stats" aria-label="Sustained-tone statistics per held note">
               {analysis.stats.map((stat, index) => (

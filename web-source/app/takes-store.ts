@@ -1,13 +1,28 @@
 import "./native-bridge";
 import { runStoreTransaction } from "./idb-transaction";
 import { reportRuntimeStatus } from "./runtime-status";
+import { sanitizeTags, sanitizeTakeNotes } from "./take-policy";
 
 const DB_NAME = "bocal-analysis-takes";
 const DB_VERSION = 1;
 const STORE = "takes";
 export const MAX_TAKES = 12;
 export const MAX_NATIVE_EXPORT_BYTES = 32 * 1024 * 1024;
-export type StoredTake = { id: string; name: string; createdAt: string; seconds: number; mime: string; blob: Blob };
+export type StoredTake = {
+  id: string;
+  name: string;
+  createdAt: string;
+  seconds: number;
+  mime: string;
+  blob: Blob;
+  /** Free-text labels the player attaches for their own sorting/filtering,
+   *  e.g. "warm-up", "lesson", a piece title. Sanitised on write and on
+   *  every read (see isStoredTake), so an older record without them, or one
+   *  a future version wrote differently, still comes back valid. */
+  tags?: string[];
+  /** A short free-text note about the take. Same sanitise-on-read rule. */
+  notes?: string;
+};
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -47,12 +62,19 @@ export function isStoredTake(value: unknown): value is StoredTake {
     typeof take.createdAt === "string" && Number.isFinite(Date.parse(take.createdAt)) &&
     typeof take.seconds === "number" && Number.isFinite(take.seconds) && take.seconds >= 0 && take.blob instanceof Blob;
 }
+/** Sanitises a validated record's free-text fields on the way out of storage,
+ *  so a record from an older Bocal version (no tags/notes at all) or one
+ *  edited outside the app still comes back within the same bounds the write
+ *  path enforces, rather than trusting the disk copy as-is. */
+function normalizeStoredTake(take: StoredTake): StoredTake {
+  return { ...take, tags: sanitizeTags(take.tags), notes: sanitizeTakeNotes(take.notes) };
+}
 export async function listStoredTakes(): Promise<StoredTake[]> {
   try {
     const all = await withStore<unknown[]>("readonly", (store, result) => {
       const request = store.getAll(); request.onsuccess = () => result(request.result);
     });
-    const valid = all.filter(isStoredTake);
+    const valid = all.filter(isStoredTake).map(normalizeStoredTake);
     if (valid.length !== all.length) reportRuntimeStatus("Some saved recordings could not be read. They have not been deleted.");
     return valid.sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt) || a.id.localeCompare(b.id));
   } catch {
@@ -63,7 +85,7 @@ export async function listStoredTakes(): Promise<StoredTake[]> {
 export async function putStoredTake(take: StoredTake): Promise<boolean> {
   try {
     if (!isStoredTake(take)) throw new Error("Invalid recording metadata.");
-    await withStore<void>("readwrite", (store) => { store.put(take); });
+    await withStore<void>("readwrite", (store) => { store.put(normalizeStoredTake(take)); });
     return true;
   } catch {
     reportRuntimeStatus("This recording was not saved to device storage. Export it before closing Bocal, then check free space.");
@@ -86,6 +108,27 @@ export async function renameStoredTake(id: string, name: string): Promise<boolea
     if (!found) reportRuntimeStatus("This recording is no longer in storage. Export the session copy before closing Bocal.");
     return found;
   } catch { reportRuntimeStatus("The new recording name could not be saved. Please retry before closing Bocal."); return false; }
+}
+/** Updates a take's tags and/or notes in place, same in-storage-record
+ *  pattern as renameStoredTake. Either field may be omitted to leave it
+ *  unchanged; both are sanitised before being written. */
+export async function setStoredTakeDetails(id: string, details: { tags?: string[]; notes?: string }): Promise<boolean> {
+  try {
+    const found = await withStore<boolean>("readwrite", (store, result) => {
+      const request = store.get(id);
+      request.onsuccess = () => {
+        const existing = request.result as StoredTake | undefined;
+        result(Boolean(existing));
+        if (!existing) return;
+        const next: StoredTake = { ...existing };
+        if (details.tags !== undefined) next.tags = sanitizeTags(details.tags);
+        if (details.notes !== undefined) next.notes = sanitizeTakeNotes(details.notes);
+        store.put(next);
+      };
+    });
+    if (!found) reportRuntimeStatus("This recording is no longer in storage. Export the session copy before closing Bocal.");
+    return found;
+  } catch { reportRuntimeStatus("Tags and notes could not be saved. Please retry before closing Bocal."); return false; }
 }
 function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {

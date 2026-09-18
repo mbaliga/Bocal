@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { audioImportError, canCreateTake, CaptureRequestGate, KeyedTaskQueue, MAX_IMPORT_BYTES, takeId } from "../app/take-policy.ts";
+import { audioImportError, canCreateTake, CaptureRequestGate, KeyedTaskQueue, MAX_IMPORT_BYTES, MAX_TAGS, MAX_TAG_LENGTH, MAX_TAKE_NOTES_LENGTH, sanitizeTags, sanitizeTakeNotes, takeId } from "../app/take-policy.ts";
 
 test("a full take library refuses new capture without evicting anything", () => {
   assert.equal(canCreateTake(11, true, 12), true);
@@ -73,4 +73,30 @@ test("unrelated recordings do not wait for each other's writes", async () => {
 });
 test("rapid recording creation does not reuse IDs", () => {
   assert.equal(new Set(Array.from({ length: 1000 }, takeId)).size, 1000);
+});
+test("sanitizeTags trims, drops empties and caps tag length", () => {
+  assert.deepEqual(sanitizeTags(["  warm-up  ", "", "   ", "lesson"]), ["warm-up", "lesson"]);
+  const long = "x".repeat(MAX_TAG_LENGTH + 20);
+  assert.equal(sanitizeTags([long])[0].length, MAX_TAG_LENGTH);
+});
+test("sanitizeTags de-duplicates case-insensitively, keeping the first casing", () => {
+  assert.deepEqual(sanitizeTags(["Warm-up", "warm-up", "WARM-UP", "lesson"]), ["Warm-up", "lesson"]);
+});
+test("sanitizeTags caps the number of tags kept", () => {
+  const many = Array.from({ length: MAX_TAGS + 10 }, (_, index) => `tag-${index}`);
+  assert.equal(sanitizeTags(many).length, MAX_TAGS);
+  assert.deepEqual(sanitizeTags(many), many.slice(0, MAX_TAGS));
+});
+test("sanitizeTags fails closed on non-array or non-string input", () => {
+  assert.deepEqual(sanitizeTags(undefined), []);
+  assert.deepEqual(sanitizeTags(null), []);
+  assert.deepEqual(sanitizeTags("warm-up"), []);
+  assert.deepEqual(sanitizeTags([1, null, {}, "ok"]), ["ok"]);
+});
+test("sanitizeTakeNotes trims to a string and caps length", () => {
+  assert.equal(sanitizeTakeNotes(undefined), "");
+  assert.equal(sanitizeTakeNotes(null), "");
+  assert.equal(sanitizeTakeNotes(42), "");
+  assert.equal(sanitizeTakeNotes("a good take"), "a good take");
+  assert.equal(sanitizeTakeNotes("x".repeat(MAX_TAKE_NOTES_LENGTH + 50)).length, MAX_TAKE_NOTES_LENGTH);
 });
