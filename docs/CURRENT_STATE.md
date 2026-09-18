@@ -17,11 +17,11 @@ Bocal is a hardened **v1.0.0-rc.1 release candidate**, not yet an accepted/publi
 
 | Instrument | Current learning experience | Boundary |
 |---|---|---|
-| Alto saxophone | Detailed licensed 3D model, touch targets, primary/alternate fingering tools | Specialist anatomical/fingering sign-off still required |
-| Tenor / soprano / baritone saxophone | Transposition-aware practice and fingering trainer using the alto model | Not instrument-specific 3D anatomy; baritone low A unavailable |
+| Alto saxophone | Detailed licensed 3D model, touch targets, primary/alternate fingering tools, plus a generated 2D chart under the 3D stage | Specialist anatomical/fingering sign-off still required |
+| Tenor / soprano / baritone saxophone | Transposition-aware practice and fingering trainer using the alto model; baritone's low A3 (a written note the other three saxes don't have) is on the 2D chart, sourced against the Woodwind Fingering Guide and Yamaha's official guide, with a plain note that the alto model has no such key | Not instrument-specific 3D anatomy |
 | Oboe | Licensed Howarth S20C 3D anatomy preview and separate 2D chart | Not a fully mapped interactive 3D fingering trainer |
-| Cor anglais | F-transposed tools, oboe-based model/chart | Proxy anatomy, not a dedicated cor anglais model |
-| Flute / clarinet / bassoon | 2D fingering charts and shared audio/practice tools | No production 3D model; clarinet sourcing has licensing restrictions |
+| Cor anglais | F-transposed tools, oboe-based model/chart, oboe's own written range (no low B♭) | Proxy anatomy, not a dedicated cor anglais model; a handful of English-horn-specific alternate fingerings exist on the Woodwind Fingering Guide but could not be confirmed against a second source, so they are not shown |
+| Flute / clarinet / bassoon | 2D fingering charts and shared audio/practice tools; the flute chart now reaches C7 (two-source confirmed against the Woodwind Fingering Guide and flutetunes.com) | No production 3D model; clarinet sourcing has licensing restrictions; bassoon's chart still stops at G♯4 -- the notes above lean on a flick-key convention that could not be pinned down with a second source |
 | Guitar | String tuner, chord diagrams and follow player | No 3D instrument lab |
 
 Ten selectable instrument profiles do not mean ten production 3D models. Two licensed GLBs ship. Reference/fixture checks are not teacher review.
