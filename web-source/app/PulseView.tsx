@@ -6,6 +6,7 @@ import {
   ArrowRight,
   BellRing,
   Clock3,
+  Dice5,
   Headphones,
   ListMusic,
   Minus,
@@ -17,6 +18,7 @@ import {
   Save,
   TrendingUp,
   Volume2,
+  VolumeX,
   Waves,
   X,
   Zap,
@@ -24,6 +26,12 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useForegroundPause } from "./use-foreground-pause";
 import { noteName } from "./notation";
+import {
+  drainDueTicks,
+  SCHEDULE_AHEAD_HIDDEN_SECONDS,
+  SCHEDULE_AHEAD_SECONDS,
+  startLookaheadScheduler,
+} from "./audio-scheduler";
 import {
   cycleBeatMark,
   defaultAccentPattern,
@@ -64,6 +72,12 @@ type MetronomePreset = {
   /** A preset may carry its own ramp, so a sequence step built from it can accelerate too. */
   rampToBpm?: number;
   rampBars?: number;
+  /** TonalEnergy-style "gap" drill: N bars on, M bars off. Both must be set (and positive) to take effect. */
+  gapPlayBars?: number;
+  gapRestBars?: number;
+  /** Per-beat random silence, seeded so the same preset drops the same beats every time. */
+  dropProbability?: number;
+  dropSeed?: number;
 };
 const METRONOME_PRESETS_KEY = "bocal-metronome-presets-v1";
 const DEFAULT_METRONOME_PRESETS: MetronomePreset[] = [
@@ -71,7 +85,17 @@ const DEFAULT_METRONOME_PRESETS: MetronomePreset[] = [
   { id: "slow-landing", name: "Slow landing", bpm: 56, beatsPerBar: 4, subdivision: 2, voice: "wood", countInBars: 2, muteEveryBars: 0, accentPattern: defaultAccentPattern(4) },
   { id: "silent-bar", name: "Silent bar", bpm: 80, beatsPerBar: 4, subdivision: 1, voice: "clave", countInBars: 1, muteEveryBars: 4, accentPattern: defaultAccentPattern(4) },
   { id: "gentle-ramp", name: "Gentle ramp", bpm: 70, beatsPerBar: 4, subdivision: 1, voice: "pure", countInBars: 1, muteEveryBars: 0, accentPattern: defaultAccentPattern(4), rampToBpm: 100, rampBars: 8 },
+  { id: "gap-2-2", name: "Gap · 2 on, 2 off", bpm: 84, beatsPerBar: 4, subdivision: 1, voice: "wood", countInBars: 1, muteEveryBars: 0, accentPattern: defaultAccentPattern(4), gapPlayBars: 2, gapRestBars: 2 },
+  { id: "random-drops", name: "Random drops", bpm: 92, beatsPerBar: 4, subdivision: 1, voice: "pure", countInBars: 1, muteEveryBars: 0, accentPattern: defaultAccentPattern(4), dropProbability: 0.15, dropSeed: 1 },
 ];
+/** Presets shown at once, defaults included. Saved (custom) presets are
+ * capped at this minus the default count, at both save time and load time,
+ * so a preset a player saved can never be silently hidden after a reload --
+ * the two caps disagreeing (as they did before the gap/drop presets grew
+ * DEFAULT_METRONOME_PRESETS from four entries to six) is what let a 9th
+ * saved custom preset persist to storage yet never redisplay. */
+const MAX_METRONOME_PRESETS_SHOWN = 12;
+const MAX_CUSTOM_METRONOME_PRESETS = MAX_METRONOME_PRESETS_SHOWN - DEFAULT_METRONOME_PRESETS.length;
 
 const METER_CHOICES = [2, 3, 4, 5, 6, 7, 9, 12];
 const COMPOUND_METERS = new Set([6, 9, 12]);
@@ -104,6 +128,10 @@ function sanitizePreset(preset: unknown): MetronomePreset | null {
     : defaultAccentPattern(beatsPerBar);
   const rampToBpm = isFiniteNumber(candidate.rampToBpm) ? Math.min(260, Math.max(35, candidate.rampToBpm)) : undefined;
   const rampBars = isFiniteNumber(candidate.rampBars) && candidate.rampBars >= 2 ? Math.round(candidate.rampBars) : undefined;
+  const gapPlayBars = isFiniteNumber(candidate.gapPlayBars) && candidate.gapPlayBars >= 1 ? Math.round(candidate.gapPlayBars) : undefined;
+  const gapRestBars = isFiniteNumber(candidate.gapRestBars) && candidate.gapRestBars >= 1 ? Math.round(candidate.gapRestBars) : undefined;
+  const dropProbability = isFiniteNumber(candidate.dropProbability) ? Math.min(0.9, Math.max(0, candidate.dropProbability)) : undefined;
+  const dropSeed = isFiniteNumber(candidate.dropSeed) ? Math.round(candidate.dropSeed) : 1;
   return {
     id: candidate.id,
     name: candidate.name.slice(0, 36),
@@ -115,6 +143,8 @@ function sanitizePreset(preset: unknown): MetronomePreset | null {
     muteEveryBars,
     accentPattern: resizeAccentPattern(pattern, beatsPerBar),
     ...(rampToBpm !== undefined && rampBars !== undefined ? { rampToBpm, rampBars } : {}),
+    ...(gapPlayBars !== undefined && gapRestBars !== undefined ? { gapPlayBars, gapRestBars } : {}),
+    ...(dropProbability !== undefined && dropProbability > 0 ? { dropProbability, dropSeed } : {}),
   };
 }
 
@@ -180,12 +210,6 @@ function audioPolyClick(context: AudioContext, destination: AudioNode, when: num
   oscillator.stop(when + 0.06);
 }
 
-/** How far ahead of the audio clock clicks are queued. Raised on a hidden tab so throttled timers still keep the queue full. */
-const SCHEDULE_AHEAD_VISIBLE = 0.12;
-const SCHEDULE_AHEAD_HIDDEN = 1.5;
-/** How often the scheduler wakes to top up the queue. */
-const SCHEDULER_TICK_MS = 25;
-
 export function PulseView({ tuningOptions = EQUAL_A440 }: { tuningOptions?: TuningOptions }) {
   const [bpm, setBpm] = useState(92);
   const [playing, setPlaying] = useState(false);
@@ -200,13 +224,19 @@ export function PulseView({ tuningOptions = EQUAL_A440 }: { tuningOptions?: Tuni
   const [rampEnabled, setRampEnabled] = useState(false);
   const [rampToBpm, setRampToBpm] = useState(132);
   const [rampBars, setRampBars] = useState(4);
+  const [gapEnabled, setGapEnabled] = useState(false);
+  const [gapPlayBars, setGapPlayBars] = useState(2);
+  const [gapRestBars, setGapRestBars] = useState(2);
+  const [dropEnabled, setDropEnabled] = useState(false);
+  const [dropProbability, setDropProbability] = useState(0.15);
+  const [dropSeed, setDropSeed] = useState(1);
   const [polyrhythm, setPolyrhythm] = useState<"off" | "3:2" | "4:3">("off");
   const [presets, setPresets] = useState<MetronomePreset[]>(() => {
     if (typeof window === "undefined") return DEFAULT_METRONOME_PRESETS;
     try {
       const saved = JSON.parse(localStorage.getItem(METRONOME_PRESETS_KEY) ?? "null");
-      const custom = Array.isArray(saved) ? saved.map((item) => sanitizePreset(item)).filter((item): item is MetronomePreset => item !== null) : [];
-      return [...DEFAULT_METRONOME_PRESETS, ...custom].slice(0, 12);
+      const custom = Array.isArray(saved) ? saved.map((item) => sanitizePreset(item)).filter((item): item is MetronomePreset => item !== null).slice(-MAX_CUSTOM_METRONOME_PRESETS) : [];
+      return [...DEFAULT_METRONOME_PRESETS, ...custom];
     } catch { return DEFAULT_METRONOME_PRESETS; }
   });
   const [presetName, setPresetName] = useState("");
@@ -297,6 +327,10 @@ export function PulseView({ tuningOptions = EQUAL_A440 }: { tuningOptions?: Tuni
             accentPattern: preset.accentPattern,
             bars: activeSequence.steps[index].bars,
             rampToBpm: preset.rampToBpm,
+            gapPlayBars: preset.gapPlayBars,
+            gapRestBars: preset.gapRestBars,
+            dropProbability: preset.dropProbability,
+            dropSeed: preset.dropSeed,
             label: preset.name,
           })),
       };
@@ -312,6 +346,10 @@ export function PulseView({ tuningOptions = EQUAL_A440 }: { tuningOptions?: Tuni
         swingRatio,
         bars: rampEnabled ? rampBars : undefined,
         rampToBpm: rampEnabled ? rampToBpm : undefined,
+        gapPlayBars: gapEnabled ? gapPlayBars : undefined,
+        gapRestBars: gapEnabled ? gapRestBars : undefined,
+        dropProbability: dropEnabled ? dropProbability : undefined,
+        dropSeed: dropEnabled ? dropSeed : undefined,
       };
       liveSegmentRef.current = segment;
       plan = { loop: false, segments: [segment] };
@@ -349,48 +387,52 @@ export function PulseView({ tuningOptions = EQUAL_A440 }: { tuningOptions?: Tuni
     const polyIterator = polySpec && !activeSequence ? schedulePolyrhythm(beatsPerBar, polySpec, startTime, () => liveSegmentRef.current?.bpm ?? bpm) : null;
     let pendingPoly = polyIterator ? polyIterator.next() : null;
     const visualTimers: number[] = [];
-    let scheduleAhead = document.hidden ? SCHEDULE_AHEAD_HIDDEN : SCHEDULE_AHEAD_VISIBLE;
 
-    const schedule = () => {
-      while (!pending.done && pending.value.when < context.currentTime + scheduleAhead) {
-        const tick = pending.value;
-        if (!tick.silent) audioClick(context, masterGain, tick.accent, tick.subTick !== 0, tick.when, tick.voice, tick.countIn);
-        if (tick.subTick === 0) {
-          const beatTimes = scheduledBeatTimesRef.current;
-          beatTimes.push(tick.when);
-          if (beatTimes.length > 64) beatTimes.shift();
-          nextBeatEstimateRef.current = { when: tick.when + 60 / tick.bpmNow, bpmNow: tick.bpmNow };
-          visualTimers.push(
-            window.setTimeout(
-              () => {
-                setCurrentBeat(tick.beat);
-                setLiveBpm(tick.bpmNow);
-                const segment = plan.segments[tick.segmentIndex] ?? plan.segments[plan.segments.length - 1];
-                setLiveMeter({ beatsPerBar: tick.beatsPerBar, accentPattern: resizeAccentPattern(segment.accentPattern, tick.beatsPerBar) });
-                setActiveSequenceStep(tick.segmentIndex);
-                setCountInInfo(tick.countIn ? { bar: tick.barInSegment + 1, total: segment.countInBars } : null);
-                playedSecondsRef.current += 60 / tick.bpmNow;
-                if (hapticsRef.current && navigator.vibrate && !tick.silent) navigator.vibrate(tick.accent ? 28 : 14);
-              },
-              Math.max(0, (tick.when - context.currentTime) * 1000),
-            ),
-          );
+    // The look-ahead window is recomputed from document.hidden on every wake
+    // (rather than cached and updated only on a visibilitychange listener):
+    // reading it fresh is exactly as correct and one fewer thing to wire up
+    // and tear down.
+    const scheduler = startLookaheadScheduler({
+      now: () => context.currentTime,
+      initialScheduleAhead: document.hidden ? SCHEDULE_AHEAD_HIDDEN_SECONDS : SCHEDULE_AHEAD_SECONDS,
+      onWake: () => {
+        const scheduleAhead = document.hidden ? SCHEDULE_AHEAD_HIDDEN_SECONDS : SCHEDULE_AHEAD_SECONDS;
+        const horizon = context.currentTime + scheduleAhead;
+        pending = drainDueTicks(iterator, pending, horizon, (tick) => {
+          if (!tick.silent) audioClick(context, masterGain, tick.accent, tick.subTick !== 0, tick.when, tick.voice, tick.countIn);
+          if (tick.subTick === 0) {
+            const beatTimes = scheduledBeatTimesRef.current;
+            beatTimes.push(tick.when);
+            if (beatTimes.length > 64) beatTimes.shift();
+            nextBeatEstimateRef.current = { when: tick.when + 60 / tick.bpmNow, bpmNow: tick.bpmNow };
+            visualTimers.push(
+              window.setTimeout(
+                () => {
+                  setCurrentBeat(tick.beat);
+                  setLiveBpm(tick.bpmNow);
+                  const segment = plan.segments[tick.segmentIndex] ?? plan.segments[plan.segments.length - 1];
+                  setLiveMeter({ beatsPerBar: tick.beatsPerBar, accentPattern: resizeAccentPattern(segment.accentPattern, tick.beatsPerBar) });
+                  setActiveSequenceStep(tick.segmentIndex);
+                  setCountInInfo(tick.countIn ? { bar: tick.barInSegment + 1, total: segment.countInBars } : null);
+                  playedSecondsRef.current += 60 / tick.bpmNow;
+                  if (hapticsRef.current && navigator.vibrate && !tick.silent) navigator.vibrate(tick.accent ? 28 : 14);
+                },
+                Math.max(0, (tick.when - context.currentTime) * 1000),
+              ),
+            );
+          }
+        });
+        if (polyIterator && pendingPoly) {
+          pendingPoly = drainDueTicks(polyIterator, pendingPoly, horizon, (polyTick) => {
+            audioPolyClick(context, masterGain, polyTick.when, polyTick.voice);
+          });
         }
-        pending = iterator.next();
-      }
-      while (polyIterator && pendingPoly && !pendingPoly.done && pendingPoly.value.when < context.currentTime + scheduleAhead) {
-        audioPolyClick(context, masterGain, pendingPoly.value.when, pendingPoly.value.voice);
-        pendingPoly = polyIterator.next();
-      }
-    };
-    const onVisibility = () => { scheduleAhead = document.hidden ? SCHEDULE_AHEAD_HIDDEN : SCHEDULE_AHEAD_VISIBLE; };
-    document.addEventListener("visibilitychange", onVisibility);
+        return scheduleAhead;
+      },
+    });
 
-    schedule();
-    const timer = window.setInterval(schedule, SCHEDULER_TICK_MS);
     return () => {
-      document.removeEventListener("visibilitychange", onVisibility);
-      window.clearInterval(timer);
+      scheduler.stop();
       visualTimers.forEach(window.clearTimeout);
       masterGain.disconnect();
       startAudioTimeRef.current = null;
@@ -403,7 +445,7 @@ export function PulseView({ tuningOptions = EQUAL_A440 }: { tuningOptions?: Tuni
       playedSecondsRef.current = 0;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- accentSignature/sequenceSignature stand in for accentPattern/activeSequence, and bpm is deliberately excluded: a running bpm change goes through liveSegmentRef instead of restarting.
-  }, [beatsPerBar, clickVoice, countInBars, muteEveryBars, playing, subdivision, swingRatio, accentSignature, rampEnabled, rampToBpm, rampBars, sequenceSignature, polyrhythm]);
+  }, [beatsPerBar, clickVoice, countInBars, muteEveryBars, playing, subdivision, swingRatio, accentSignature, rampEnabled, rampToBpm, rampBars, gapEnabled, gapPlayBars, gapRestBars, dropEnabled, dropProbability, dropSeed, sequenceSignature, polyrhythm]);
 
   // The context idles (no click, no drone) between runs rather than staying
   // "running" and holding the audio thread hot the whole time the workspace
@@ -568,6 +610,7 @@ export function PulseView({ tuningOptions = EQUAL_A440 }: { tuningOptions?: Tuni
   const resetMetronome = () => {
     setBpm(92); setSubdivision(1); setBeatsPerBar(4); setMeterDenominator(4); setSwingRatio(0.5); setClickVoice("pure"); setCountInBars(1); setMuteEveryBars(0);
     setAccentPattern(defaultAccentPattern(4)); setRampEnabled(false); setRampToBpm(132); setRampBars(4); setPolyrhythm("off");
+    setGapEnabled(false); setGapPlayBars(2); setGapRestBars(2); setDropEnabled(false); setDropProbability(0.15); setDropSeed(1);
     setActiveSequence(null);
   };
   const changeBeatsPerBar = (count: number) => {
@@ -591,6 +634,12 @@ export function PulseView({ tuningOptions = EQUAL_A440 }: { tuningOptions?: Tuni
     setRampEnabled(preset.rampToBpm !== undefined && preset.rampBars !== undefined);
     if (preset.rampToBpm !== undefined) setRampToBpm(preset.rampToBpm);
     if (preset.rampBars !== undefined) setRampBars(preset.rampBars);
+    setGapEnabled(preset.gapPlayBars !== undefined && preset.gapRestBars !== undefined);
+    if (preset.gapPlayBars !== undefined) setGapPlayBars(preset.gapPlayBars);
+    if (preset.gapRestBars !== undefined) setGapRestBars(preset.gapRestBars);
+    setDropEnabled(preset.dropProbability !== undefined && preset.dropProbability > 0);
+    if (preset.dropProbability !== undefined) setDropProbability(preset.dropProbability);
+    if (preset.dropSeed !== undefined) setDropSeed(preset.dropSeed);
     setPolyrhythm("off");
     setActiveSequence(null);
   };
@@ -600,8 +649,10 @@ export function PulseView({ tuningOptions = EQUAL_A440 }: { tuningOptions?: Tuni
     const preset: MetronomePreset = {
       id: `preset-${Date.now()}`, name, bpm, beatsPerBar, subdivision, voice: clickVoice, countInBars, muteEveryBars, accentPattern,
       ...(rampEnabled ? { rampToBpm, rampBars } : {}),
+      ...(gapEnabled ? { gapPlayBars, gapRestBars } : {}),
+      ...(dropEnabled ? { dropProbability, dropSeed } : {}),
     };
-    const custom = [...presets.filter((item) => !DEFAULT_METRONOME_PRESETS.some((defaultPreset) => defaultPreset.id === item.id)), preset].slice(-9);
+    const custom = [...presets.filter((item) => !DEFAULT_METRONOME_PRESETS.some((defaultPreset) => defaultPreset.id === item.id)), preset].slice(-MAX_CUSTOM_METRONOME_PRESETS);
     setPresets([...DEFAULT_METRONOME_PRESETS, ...custom]);
     setPresetName("");
     try { localStorage.setItem(METRONOME_PRESETS_KEY, JSON.stringify(custom)); } catch { /* Optional local preset storage. */ }
@@ -733,6 +784,39 @@ export function PulseView({ tuningOptions = EQUAL_A440 }: { tuningOptions?: Tuni
               <p className="control-hint">Off. Turn on to work an accelerando or ritardando into the click, one tempo step per bar.</p>
             )}
           </article>
+          <article className={`control-card gap-control ${activeSequence ? "is-locked" : ""}`}>
+            <div className="control-head"><span><VolumeX size={15} /> Gap trainer</span><button type="button" role="switch" aria-checked={gapEnabled} className={`toggle ${gapEnabled ? "is-on" : ""}`} onClick={() => setGapEnabled((value) => !value)} aria-label="Gap trainer" disabled={!!activeSequence}><i /></button></div>
+            {gapEnabled ? (
+              <>
+                <div className="ramp-fields">
+                  <label>Play<input type="number" inputMode="numeric" min={1} max={32} value={gapPlayBars} onChange={(event) => { const next = Math.round(Number(event.target.value)); if (Number.isFinite(next)) setGapPlayBars(Math.min(32, Math.max(1, next))); }} aria-label="Bars playing" disabled={!!activeSequence} /></label>
+                  <ArrowRight size={14} />
+                  <label>Rest<input type="number" inputMode="numeric" min={1} max={32} value={gapRestBars} onChange={(event) => { const next = Math.round(Number(event.target.value)); if (Number.isFinite(next)) setGapRestBars(Math.min(32, Math.max(1, next))); }} aria-label="Bars resting" disabled={!!activeSequence} /></label>
+                </div>
+                <p className="control-hint">Plays {gapPlayBars} {gapPlayBars === 1 ? "bar" : "bars"}, then rests {gapRestBars} silent {gapRestBars === 1 ? "bar" : "bars"} with the beat dot still moving, repeating for as long as it runs -- keep your own tempo through the gap, then check it against the click when it returns.</p>
+              </>
+            ) : (
+              <p className="control-hint">Off. Turn on to play N bars, rest M bars silently, repeat -- the dot keeps time through the rest so you can check yourself against it when the click returns.</p>
+            )}
+          </article>
+          <article className={`control-card drop-control ${activeSequence ? "is-locked" : ""}`}>
+            <div className="control-head"><span><Dice5 size={15} /> Random drops</span><button type="button" role="switch" aria-checked={dropEnabled} className={`toggle ${dropEnabled ? "is-on" : ""}`} onClick={() => setDropEnabled((value) => !value)} aria-label="Random beat drops" disabled={!!activeSequence}><i /></button></div>
+            {dropEnabled ? (
+              <>
+                <div className="swing-row">
+                  <span>Chance</span>
+                  <input type="range" min="5" max="60" step="5" value={Math.round(dropProbability * 100)} onChange={(event) => setDropProbability(Number(event.target.value) / 100)} aria-label="Per-beat drop probability" disabled={!!activeSequence} />
+                  <small>{Math.round(dropProbability * 100)}%</small>
+                </div>
+                <div className="choice-row">
+                  <button type="button" onClick={() => setDropSeed((value) => value + 1)} disabled={!!activeSequence}><RotateCcw size={12} /> New pattern</button>
+                </div>
+                <p className="control-hint">Each beat independently has a {Math.round(dropProbability * 100)}% chance of dropping out after any count-in. The same pattern repeats every time you play this -- press &ldquo;New pattern&rdquo; for a different one, or save a preset to keep this one.</p>
+              </>
+            ) : (
+              <p className="control-hint">Off. Turn on for the click to randomly cut out on individual beats -- seeded, so the same preset drops the same beats every time instead of surprising you differently on every run.</p>
+            )}
+          </article>
           <article className="control-card haptic-control"><div><span><BellRing size={15} /> Feel the beat</span><p>A tactile pulse keeps your eyes on the music.</p></div><button type="button" role="switch" aria-checked={haptics} className={`toggle ${haptics ? "is-on" : ""}`} onClick={() => setHaptics((value) => !value)} aria-label="Feel the beat"><i /></button></article>
         </aside>
       </div>
@@ -741,7 +825,7 @@ export function PulseView({ tuningOptions = EQUAL_A440 }: { tuningOptions?: Tuni
         <div><span className="card-kicker"><Save size={14} /> Presets</span><h2 id="metronome-presets-title">Save the feel you’re working on.</h2><p>Count-ins, silent bars, tempo ramps and per-beat accents all stay with each preset on this device.</p></div>
         <div className="preset-list">{presets.map((preset) => (
           <span key={preset.id} className="preset-chip-wrap">
-            <button className="preset-chip" onClick={() => applyPreset(preset)}><strong>{preset.name}</strong><small>{preset.bpm} BPM · {preset.beatsPerBar}/4{preset.muteEveryBars ? " · silent bar" : ""}{preset.rampToBpm ? ` · ramp to ${preset.rampToBpm}` : ""}</small></button>
+            <button className="preset-chip" onClick={() => applyPreset(preset)}><strong>{preset.name}</strong><small>{preset.bpm} BPM · {preset.beatsPerBar}/4{preset.muteEveryBars ? " · silent bar" : ""}{preset.rampToBpm ? ` · ramp to ${preset.rampToBpm}` : ""}{preset.gapPlayBars && preset.gapRestBars ? ` · gap ${preset.gapPlayBars}/${preset.gapRestBars}` : ""}{preset.dropProbability ? ` · ${Math.round(preset.dropProbability * 100)}% drops` : ""}</small></button>
             {!DEFAULT_METRONOME_PRESETS.some((defaultPreset) => defaultPreset.id === preset.id) && (
               <button type="button" className="chip-delete" aria-label={`Delete preset ${preset.name}`} onClick={() => deletePreset(preset.id)}><X size={12} /></button>
             )}

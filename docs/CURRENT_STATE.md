@@ -1,6 +1,6 @@
 # Bocal current state
 
-Updated 17 September 2026 for PR #9, `feat/production-v1-hardening`.
+Updated 18 September 2026 for `feat/w2-practice` (W2-C practice-tools-depth), on top of PR #9's `feat/production-v1-hardening`.
 
 ## Release decision
 
@@ -55,13 +55,25 @@ The V1 candidate removes the unused Drizzle/D1 template layer that was the only 
 
 React/RSC, Vite, Vinext and Cloudflare tooling remain on the registry-confirmed versions introduced by the hardening pass.
 
-## Wave 2: Analyze depth (W2-B, in progress)
+## Wave 2: Analyze depth (W2-B)
 
 - The Analyze view has a fourth live mode, Spectrogram: a log-frequency waterfall (note-name ticks, 20-second scrolling window) drawn from the same analyser the other three modes already use, with no second AnalyserNode. It follows `prefers-reduced-motion` by scrolling more slowly rather than not updating, and pauses/resumes with the rest of live capture.
 - A saved take can be compared against a second saved take: an A/B overlay draws the compared take's pitch trace dashed in a second colour on top of the primary one, aligned either by each recording's own start or by its first sounding note, with a one-line difference summary (mean cents, spread) between the two. The compared take's analysis is cached the same way the primary take's is.
 - Takes can carry free-text tags and notes, sanitised and stored in the same IndexedDB record as the recording; the take library can be sorted (newest/oldest/longest/shortest/name) and filtered by tag. None of this changes the no-eviction, commit-aware storage semantics already in place.
 - A transcription can be exported as a Standard MIDI File or MusicXML (`app/score-export.ts`, buttons in the Transcribe panel, saved through the same native-aware save path takes use). Both are quantised to a fixed, honestly-labelled tempo grid -- Bocal has no beat detector, so this is not a measured tempo.
 - The theme text-contrast audit (`tests/theme.test.mjs`) now populates the take library with two imported fixtures and walks the spectrogram tab and the A/B compare view, not just the previously-empty take card. That coverage surfaced a pre-existing light-theme contrast gap in the take list and tempo/loop controls (never exercised before because the audit never had a saved take to show); it is fixed in `app/styles/analysis.css` with the same fixed-dark-backdrop technique already used for the harmonics overlay, without editing `globals.css`.
+
+## Wave 2: Practice tools depth (W2-C)
+
+The metronome (Pulse) and tone generator's exercise player share one lookahead audio scheduler now (`app/audio-scheduler.ts`) instead of each hand-rolling the same wake-on-a-timer loop; this was a behaviour-preserving extraction, verified against the full gate list before any feature work built on it.
+
+The metronome gained a TonalEnergy-style gap drill (play N bars, rest M bars silently while the beat dot keeps moving) and seeded random beat drops (a per-beat chance of dropping out, repeatable from a saved seed so the same preset drops the same beats every time). Both compose with the existing tempo ramp, preset sequences and polyrhythm.
+
+The tone generator's exercise player gained a saved exercise library (`app/exercise-library.ts`, key `bocal-exercises-v1`): scale (major, natural/harmonic/melodic minor, the five other modes, major/minor pentatonic), arpeggio (major/minor/dominant7/diminished7/augmented), chromatic, harmonic series, interval leaps, and a custom typed note list, each with a written root, a written range that repeats the pattern upward (by an octave, or another interval such as a fifth) as far as the range allows, tempo, note length, an articulation gap, loop, and a semitones-written-to-concert transposition. Six built-in presets ship (long tones, major scale by fifths, overtone series, interval leaps, chromatic warm-up, register slur) -- Bocal's own starting points, not transcribed from a method book. Export/import round-trips through the same save-file path takes and analysis exports already use.
+
+The practice log (Practice tab) now lists individual logged sessions (tuner, metronome, tone generator, analysis, chords, repertoire) with a per-entry rename and delete, and its export uses that same save-file path -- closing a gap where it previously fell back to a plain browser download with no Android system picker. The weekly goal ring already counted every tool's logged minutes, not just the tuner's, before this wave; that part of the plan's brief undersold what was already shipped.
+
+None of this has real-device audio/latency testing behind it; it is exercised by the same emulator/browser gates as the rest of the app.
 
 ## Still not proven
 

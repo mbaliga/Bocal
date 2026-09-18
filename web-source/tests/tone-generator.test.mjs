@@ -12,6 +12,10 @@ import {
   EXERCISE_PATTERNS,
   exerciseMidis,
   exerciseTones,
+  SCALE_DEGREES,
+  ARPEGGIO_DEGREES,
+  parseNoteName,
+  expandPatternAcrossRange,
 } from "../app/tone-math.ts";
 
 // ---------------------------------------------------------------------------
@@ -123,11 +127,104 @@ test("root voicing under just intonation adds the root an exact octave down", ()
 // Exercise patterns
 // ---------------------------------------------------------------------------
 
-test("every exercise pattern is offered", () => {
-  assert.deepEqual(
-    EXERCISE_PATTERNS.map((pattern) => pattern.id),
-    ["chromatic", "major-scale", "harmonic-series", "interval-leaps"],
-  );
+test("every exercise pattern is offered, including the scale/arpeggio/custom patterns added for the exercise library", () => {
+  const ids = EXERCISE_PATTERNS.map((pattern) => pattern.id);
+  assert.deepEqual(ids.slice(0, 4), ["chromatic", "major-scale", "harmonic-series", "interval-leaps"], "the original four must keep their order for backward compatibility");
+  for (const id of Object.keys(SCALE_DEGREES)) assert.ok(ids.includes(id), `missing scale pattern ${id}`);
+  for (const id of Object.keys(ARPEGGIO_DEGREES)) assert.ok(ids.includes(id), `missing arpeggio pattern ${id}`);
+  assert.ok(ids.includes("custom"), "missing the custom note-list pattern");
+  assert.equal(new Set(ids).size, ids.length, "no duplicate pattern ids");
+});
+
+// ---------------------------------------------------------------------------
+// Scale/arpeggio patterns and custom note lists -- exercise library (W2-C)
+// ---------------------------------------------------------------------------
+
+test("every scale pattern runs root to the octave above (starts at 0, ends at 12)", () => {
+  for (const [id, degrees] of Object.entries(SCALE_DEGREES)) {
+    assert.equal(degrees[0], 0, `${id} should start on the root`);
+    assert.equal(degrees[degrees.length - 1], 12, `${id} should end on the octave`);
+    assert.deepEqual(exerciseMidis(60, id), degrees.map((s) => 60 + s));
+  }
+});
+
+test("natural minor, harmonic minor and melodic minor (ascending) differ only where they should", () => {
+  assert.deepEqual(SCALE_DEGREES["natural-minor"], [0, 2, 3, 5, 7, 8, 10, 12]);
+  assert.deepEqual(SCALE_DEGREES["harmonic-minor"], [0, 2, 3, 5, 7, 8, 11, 12]); // raised 7th
+  assert.deepEqual(SCALE_DEGREES["melodic-minor"], [0, 2, 3, 5, 7, 9, 11, 12]); // raised 6th and 7th
+});
+
+test("every arpeggio pattern runs root to the octave above through its chord tones", () => {
+  for (const [id, degrees] of Object.entries(ARPEGGIO_DEGREES)) {
+    assert.equal(degrees[0], 0, `${id} should start on the root`);
+    assert.equal(degrees[degrees.length - 1], 12, `${id} should end on the octave`);
+    assert.deepEqual(exerciseMidis(60, id), degrees.map((s) => 60 + s));
+  }
+});
+
+test("parseNoteName reads western note names into MIDI, middle C = C4 = 60", () => {
+  assert.equal(parseNoteName("C4"), 60);
+  assert.equal(parseNoteName("A4"), 69);
+  assert.equal(parseNoteName("F#5"), 78);
+  assert.equal(parseNoteName("Bb3"), 58);
+  assert.equal(parseNoteName("C♯4"), 61);
+  assert.equal(parseNoteName("D♭4"), 61);
+  assert.equal(parseNoteName("c4"), 60, "lowercase letter should still parse");
+});
+
+test("parseNoteName rejects garbage input instead of throwing", () => {
+  for (const bad of ["", "H4", "C", "4", "C#", "banana", "C##4", null, undefined]) {
+    assert.equal(parseNoteName(bad ?? ""), null, `expected null for ${JSON.stringify(bad)}`);
+  }
+});
+
+test("the custom pattern plays exactly the parsed note list in order, dropping unparsable entries", () => {
+  const midis = exerciseMidis(60, "custom", { customNotes: ["C4", "not-a-note", "E4", "G4"] });
+  assert.deepEqual(midis, [60, 64, 67]);
+});
+
+test("the custom pattern falls back to the root when nothing parses", () => {
+  assert.deepEqual(exerciseMidis(60, "custom", { customNotes: ["garbage", ""] }), [60]);
+  assert.deepEqual(exerciseMidis(60, "custom"), [60]);
+});
+
+// ---------------------------------------------------------------------------
+// expandPatternAcrossRange -- exercise library's saved low/high range
+// ---------------------------------------------------------------------------
+
+test("expandPatternAcrossRange repeats a pattern up by whole octaves while it fits the range", () => {
+  const tuning = { referenceHz: 440, temperament: "equal", keyPc: 0 };
+  const base = exerciseTones(60, "major-scale", tuning); // C4..C5, 8 notes
+  const expanded = expandPatternAcrossRange(base, 48, 84); // C3..C6: fits 3 full octave passes (C3-C4, C4-C5, C5-C6)
+  assert.equal(expanded.length, 24);
+  assert.ok(expanded.every((tone) => tone.midi >= 48 && tone.midi <= 84));
+  assert.equal(expanded[0].midi, 48);
+  assert.equal(expanded[expanded.length - 1].midi, 84);
+});
+
+test("expandPatternAcrossRange shifts the base pass up to the range floor first", () => {
+  const tuning = { referenceHz: 440, temperament: "equal", keyPc: 0 };
+  const base = exerciseTones(60, "major-scale", tuning); // starts at C4=60
+  const expanded = expandPatternAcrossRange(base, 72, 96); // range starts above the base pass entirely
+  assert.ok(expanded.length > 0);
+  assert.equal(expanded[0].midi, 72, "should shift the first repetition up to the range floor");
+});
+
+test("expandPatternAcrossRange returns [] when the pattern cannot fit the range at all", () => {
+  const tuning = { referenceHz: 440, temperament: "equal", keyPc: 0 };
+  const base = exerciseTones(60, "major-scale", tuning); // a full octave span
+  assert.deepEqual(expandPatternAcrossRange(base, 60, 65), [], "a 5-semitone range cannot fit a full-octave scale");
+  assert.deepEqual(expandPatternAcrossRange([], 40, 80), []);
+});
+
+test("expandPatternAcrossRange preserves each tone's cents and scales hz by the exact octave shift", () => {
+  const base = [{ midi: 60, hz: 261.63, cents: -31.2 }];
+  const expanded = expandPatternAcrossRange(base, 60, 90);
+  assert.equal(expanded.length, 3); // 60, 72, 84
+  assert.deepEqual(expanded.map((t) => t.midi), [60, 72, 84]);
+  expanded.forEach((tone) => assert.equal(tone.cents, -31.2));
+  assert.ok(Math.abs(expanded[1].hz - base[0].hz * 2) < 1e-9);
+  assert.ok(Math.abs(expanded[2].hz - base[0].hz * 4) < 1e-9);
 });
 
 test("chromatic scale runs every semitone from the root to the octave above", () => {
