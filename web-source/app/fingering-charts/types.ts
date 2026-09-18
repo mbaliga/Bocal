@@ -34,6 +34,8 @@ export type ChartAlternate = {
   halfKeys?: string[];
   hint: string;
   useWhen: string;
+  /** See {@link Fingering.badge}. */
+  badge?: string;
 };
 
 export type Fingering = {
@@ -50,6 +52,15 @@ export type Fingering = {
   hint: string;
   /** Only ever used for a genuinely universal alternate -- see the file comments. */
   alternates?: ChartAlternate[];
+  /**
+   * An extra honesty badge shown next to this fingering, on top of the
+   * chart-wide `review` string every chart already carries. Every flute,
+   * clarinet, oboe and bassoon fingering leaves this unset -- their whole
+   * range is confirmed the same way. The saxophone chart (generated from
+   * sax-data.ts) sets it to "Unverified" for altissimo entries, carrying
+   * over that file's own per-note review flag instead of re-deriving it.
+   */
+  badge?: string;
 };
 
 export type FingeringChart = {

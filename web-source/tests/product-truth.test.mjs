@@ -39,7 +39,12 @@ test("the licensed sax model owns the fingering targets", async () => {
   const canvas = await readFile(new URL("../app/ImportedInstrumentCanvas.tsx", import.meta.url), "utf8");
   const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
   assert.match(lab, /src="\/models\/saxophone-alto\.glb"/);
-  assert.match(lab, /fingeringMarkers=\{SAX_KEYS\}/);
+  // Baritone's low A key was added to SAX_KEYS for the 2D chart (fingering
+  // charts don't need a 3D mesh position), but the alto model has no such
+  // key, so the 3D canvas gets SAX_KEYS filtered to what the model actually
+  // has -- see SAX_3D_KEYS's declaration in SaxophoneLab.tsx.
+  assert.match(lab, /const SAX_3D_KEYS = SAX_KEYS\.filter\(\(key\) => key\.id !== "lowA"\);/);
+  assert.match(lab, /fingeringMarkers=\{SAX_3D_KEYS\}/);
   assert.match(lab, /activeMarkerIds=\{activeKeys\}/);
   assert.doesNotMatch(lab, /Saxophone model mode/);
   assert.match(canvas, /fingeringMarkers/);
