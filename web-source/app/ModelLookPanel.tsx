@@ -7,10 +7,12 @@ import {
   ENVIRONMENTS,
   OBOE_KEY_FINISHES,
   OBOE_WOOD_TYPES,
+  SAX_BELL_FINISH_MATCH_ID,
   SAX_BODY_FINISHES,
   SAX_KEYWORK_FINISHES,
   SAX_LIGATURE_OPTIONS,
   SAX_MOUTHPIECE_OPTIONS,
+  SAX_NECK_VARIANTS,
   type ModelLook,
 } from "./model-looks";
 
@@ -82,6 +84,29 @@ export function ModelLookPanel({
 
       {isSax && (
         <>
+          <div className="model-look-group">
+            <small>Neck</small>
+            <div className="model-look-row">
+              {SAX_NECK_VARIANTS.map((option) => (
+                <Chip key={option.id} active={look.neckVariant === option.id} label={option.name} onClick={() => onChange({ neckVariant: option.id })} />
+              ))}
+            </div>
+          </div>
+          <div className="model-look-group">
+            <small>Bell finish</small>
+            <div className="model-look-row">
+              <Chip active={look.bellFinish === SAX_BELL_FINISH_MATCH_ID} label="Match body" onClick={() => onChange({ bellFinish: SAX_BELL_FINISH_MATCH_ID })} />
+              {SAX_BODY_FINISHES.map((option) => (
+                <Chip
+                  key={option.id}
+                  active={look.bellFinish === option.id}
+                  swatch={hex(option.body)}
+                  label={option.name}
+                  onClick={() => onChange({ bellFinish: option.id })}
+                />
+              ))}
+            </div>
+          </div>
           <div className="model-look-group">
             <small>Mouthpiece</small>
             <div className="model-look-row">

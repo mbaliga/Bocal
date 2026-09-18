@@ -33,7 +33,17 @@ file's structure from the loaded three.js scene. Note:
   (body, keys, pads, cork, embouchure plate). The flute candidate (Sketchfab
   uid `08cb4375f9924366b725c439fd6163a8`) reports 6 materials against the
   sax's 4 and the oboe's 2 -- confirm on download whether that maps to
-  body/keys/pads/cork before assuming it.
+  body/keys/pads/cork before assuming it. If a functional part is fused into
+  a bigger mesh with no name or material signal, check whether it is at
+  least topologically separable (a tube like the sax's body/bow/bell, or a
+  straight joint like the oboe's, both re-segmented in wave 2 --
+  `scripts/segment-model.mjs`) before writing a geometric heuristic; a
+  heuristic over a mesh with many small, differently-shaped, fused
+  sub-components (like the sax's keywork -- rods, springs, cups and pads
+  fused into one 30k-vertex primitive with 137 disconnected pieces and no
+  per-piece shape signal) is a much harder, multi-day problem. Wave 2
+  investigated extracting a "pads" group from the keywork this way and did
+  not ship it for exactly that reason -- see that script's header comment.
 
 ## 3. Write the parts sidecar
 
