@@ -44,6 +44,36 @@ html[data-theme="light"] .harmonics-overlay li.is-out-of-range .harmonic-cents {
   color: #a3a39f;
 }
 
+/* Pre-existing light-theme contrast gaps in the take card, found once the
+ * theme audit's new A/B-compare state (tests/theme.test.mjs) actually
+ * populated the take list and tempo/loop controls for the first time --
+ * this UI already existed before W2-B, it just had never been exercised by
+ * the automated gate with any saved takes present. .take-list button keeps
+ * the same fixed #111114 backdrop in both themes (globals.css), the same
+ * "deliberately dark regardless of theme" pattern as .harmonics-overlay
+ * above, so it gets the same light-on-dark fixed-colour treatment rather
+ * than the page's normal light-theme tokens. .take-tools sits on the
+ * ordinary theme panel background, so its labels just need a darker grey
+ * under light theme, matching this file's other muted-text overrides.
+ * Scoped here on higher specificity than globals.css's declarations, so
+ * globals.css (owned by another package) doesn't need editing. */
+html[data-theme="light"] .take-list button {
+  color: #cfcac0;
+}
+html[data-theme="light"] .take-list button span {
+  color: #cfcac0;
+}
+html[data-theme="light"] .take-list button small {
+  color: #a3a39f;
+}
+html[data-theme="light"] .take-list button.is-active span {
+  color: #08fed5;
+}
+html[data-theme="light"] .take-tools label,
+html[data-theme="light"] .take-loop {
+  color: #5e5a5a;
+}
+
 .harmonics-vibrato-tag {
   margin-left: 0.5em;
   padding: 0.05em 0.5em;
