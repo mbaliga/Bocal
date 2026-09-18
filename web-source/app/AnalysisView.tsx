@@ -13,6 +13,11 @@ import { recordPracticeActivity } from "./practice-data";
 import { deleteStoredTake, extensionForMime, listStoredTakes, MAX_TAKES, putStoredTake, renameStoredTake, saveOrShareFile, setStoredTakeDetails, type StoredTake } from "./takes-store";
 import { audioImportError, canCreateTake, CaptureRequestGate, KeyedTaskQueue, MAX_RECORDING_SECONDS, RECORDING_STOP_BYTES, sanitizeTags, sanitizeTakeNotes, takeId } from "./take-policy";
 import { readingFor, REFERENCE_HZ_DEFAULT, REFERENCE_HZ_MAX, REFERENCE_HZ_MIN, TEMPERAMENT_PROFILES, type TemperamentId, type TuningOptions } from "./tuning";
+// Read-only: this view mirrors the live tuner's calibration to score a take
+// against the same reference pitch and temperament, but never writes these
+// keys. storage-keys.ts (owned by the tuner package) is their single source
+// of truth now instead of a private copy of the same three literals.
+import { TUNING_KEYS } from "./storage-keys";
 import "./styles/analysis.css";
 
 type AnalysisMode = "waveform" | "spectrum" | "harmonics" | "spectrogram";
@@ -21,7 +26,6 @@ function formatTime(seconds: number) {
   const rounded = Math.max(0, Math.floor(seconds));
   return `${Math.floor(rounded / 60).toString().padStart(2, "0")}:${(rounded % 60).toString().padStart(2, "0")}`;
 }
-const TUNING_KEYS = { referenceHz: "bocal-reference-hz", temperament: "bocal-temperament", keyPc: "bocal-temperament-key" } as const;
 function readTuningOptions(): TuningOptions {
   const fallback: TuningOptions = { referenceHz: REFERENCE_HZ_DEFAULT, temperament: "equal", keyPc: 0 };
   if (typeof window === "undefined") return fallback;

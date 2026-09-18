@@ -83,6 +83,11 @@ async function walkStates(page,theme,instrument,results){
     await page.waitForTimeout(200);
   };
   await select(1);await record('tune');
+  const targetPicker=page.locator('.target-lock-picker select');
+  if(await targetPicker.isVisible()){
+    const options=await targetPicker.locator('option').all();
+    if(options.length>1){await targetPicker.selectOption({index:1});await record('tune/target-locked');await targetPicker.selectOption('');}
+  }
   const calibration=page.locator('.calibration-toggle');
   if(await calibration.isVisible()){await calibration.click();await record('tune/calibration-open','.calibration-picker');await calibration.click();}
   await page.getByRole('button',{name:'Choose instrument',exact:true}).click();

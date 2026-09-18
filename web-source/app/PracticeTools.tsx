@@ -48,6 +48,9 @@ import {
   SKILL_EVIDENCE_STORAGE_KEY,
   type SkillEvidenceBundle,
 } from "./skill-rating";
+// Imported (not redeclared) from storage-keys.ts, per the wave-2 plan's
+// "PulseView.tsx/PracticeTools.tsx (import only)" note.
+import { LESSON_NOTE_STORAGE_KEY, SESSIONS_STORAGE_KEY, WEEKLY_GOAL_STORAGE_KEY } from "./storage-keys";
 import "./styles/practice.css";
 
 // PulseView used to live in this file; it moved to its own module (see
@@ -158,12 +161,12 @@ export function PracticeView({
     // (private browsing) or one key can hold hand-edited/corrupt JSON, and
     // neither case should blank out the other five restores along with it.
     const restore = () => {
-      try { setSessions(parseSessions(localStorage.getItem("bocal-sessions"))); } catch { /* ignore */ }
+      try { setSessions(parseSessions(localStorage.getItem(SESSIONS_STORAGE_KEY))); } catch { /* ignore */ }
       try { setActivities(parsePracticeActivities(localStorage.getItem(PRACTICE_ACTIVITY_STORAGE_KEY))); } catch { /* ignore */ }
       try { setSongWishes(parseSongWishlist(localStorage.getItem(SONG_WISHLIST_STORAGE_KEY))); } catch { /* ignore */ }
       try { setCompleted(parseCompleted(localStorage.getItem(COMPLETED_PRACTICE_STORAGE_KEY))); } catch { /* ignore */ }
-      try { setWeeklyGoal(Number(localStorage.getItem("bocal-weekly-goal-minutes") ?? 60)); } catch { /* ignore */ }
-      try { setSavedNote(localStorage.getItem("bocal-lesson-note") ?? ""); } catch { /* ignore */ }
+      try { setWeeklyGoal(Number(localStorage.getItem(WEEKLY_GOAL_STORAGE_KEY) ?? 60)); } catch { /* ignore */ }
+      try { setSavedNote(localStorage.getItem(LESSON_NOTE_STORAGE_KEY) ?? ""); } catch { /* ignore */ }
       try { setSkillEvidence(parseSkillEvidence(localStorage.getItem(SKILL_EVIDENCE_STORAGE_KEY))); } catch { /* ignore */ }
     };
     const restoreTimer = window.setTimeout(restore, 0);
@@ -230,7 +233,7 @@ export function PracticeView({
     if (!clean) return;
     setSavedNote(clean);
     setNote("");
-    try { localStorage.setItem("bocal-lesson-note", clean); } catch { /* Non-critical local enhancement. */ }
+    try { localStorage.setItem(LESSON_NOTE_STORAGE_KEY, clean); } catch { /* Non-critical local enhancement. */ }
   };
   const exportData = () => {
     const payload = { schemaVersion: 2, exportedAt: new Date().toISOString(), sessions, activities, songWishes, lessonNote: savedNote, completed, skillEvidence, skillRating };
@@ -288,7 +291,7 @@ export function PracticeView({
   });
   const changeWeeklyGoal = (next: number) => {
     setWeeklyGoal(next);
-    try { localStorage.setItem("bocal-weekly-goal-minutes", String(next)); } catch { /* Optional local goal persistence. */ }
+    try { localStorage.setItem(WEEKLY_GOAL_STORAGE_KEY, String(next)); } catch { /* Optional local goal persistence. */ }
   };
 
   return (

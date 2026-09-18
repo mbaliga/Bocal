@@ -152,6 +152,17 @@ export function ToneGenerator({
    * is locked. Passed by the page once the tuner wires it up; the "Follow my
    * pitch" toggle only appears once a caller actually supplies this. */
   followMidi?: number | null;
+  // TODO(w2-tuner-structure-and-depth): the tuner's Calibration > Readout
+  // toggle now exists (TunerView.tsx) and passes these two through, but
+  // nothing here reads them yet -- the note names this generator shows are
+  // still whatever its own root/interval/exercise controls pick, not tied to
+  // the live tuner's display mode. Wiring that up is package C's call (it
+  // owns this file's internals); these props are here so it can without a
+  // prop-plumbing change at every call site.
+  /** Which pitch space the tuner's readout is currently showing. */
+  displayMode?: "written" | "concert";
+  /** Semitones from concert to written pitch for the current instrument. */
+  writtenOffset?: number;
 }) {
   const [octave, setOctave] = useState(4);
   const [waveform, setWaveform] = useState<Waveform>("sine");

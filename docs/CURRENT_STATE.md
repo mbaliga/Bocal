@@ -49,6 +49,47 @@ The alto saxophone's fused body mesh (neck tube, body, bow and bell in one primi
 - Signed candidate builds require all signing inputs, verify signatures and checksums, and do not automatically publish or claim device acceptance.
 - The standalone bundle's build target is Chrome 69, and the Android shell checks the installed WebView's version before loading it: below Chrome 69 (Android System WebView from mid-2018) it shows a native "update WebView" screen with a link to the Play listing instead of a blank, silently-crashing page. The API 26 `google_apis` emulator image ships Chrome 69 exactly, so CI's API 26 job exercises the floor itself, not just old `minSdk`.
 
+## Tuner structure and depth (wave 2, W2-A)
+
+`page.tsx` (formerly 2054 lines) is decomposed into `useTuner.ts` (the
+AudioContext/analyser/StablePitchTracker/pitch-history sampling loop),
+`usePersistedSetting.ts` (a generic localStorage-backed setting hook),
+`TunerView.tsx` and `DownloadCenter.tsx`, verified behaviour-preserving
+before any feature landed. Every localStorage key the app writes is now a
+named constant in `storage-keys.ts`; a test asserts every call site
+resolves to one. `hzToMidi`/`midiToHz`/`centsBetween`/`median`/`clamp` have
+one implementation each in `music-math.ts`, migrated into this package's own
+files (other packages' copies are unmigrated by design, left for wave 2's
+round 2).
+
+New tuner features:
+
+- **Manual target-note lock**: tap the note name (or pick any note from the
+  instrument's range via the secondary "Target" control) to lock the
+  reading to that exact note; cents are then measured against the lock
+  regardless of what the pitch tracker would otherwise round to. Persists
+  across Start/Stop within the page session, not across a reload.
+- **Pitch pipe**: press and hold the readout to hear the locked (or
+  currently showing) note through the existing calibrated reference-tone
+  path, released on pointer up. Shares the tuner's one AudioContext.
+- **Written/concert readout toggle** (Calibration, shown for any
+  transposing instrument): flips the note name, staff and pitch-history
+  staff mode between written and concert pitch.
+- **Auto-follow wiring**: the tone generator's existing "Follow my pitch"
+  toggle is now actually wired to the live tuner's locked reading.
+- **dBFS level meter** replaces the old gate-relative "Input" bar: RMS
+  converted to dBFS, a 1s peak hold, and a clip indicator off the raw
+  sample peak, labelled honestly as dBFS.
+- Cents are tracked to tenths internally (`tuning.ts`'s
+  `TuningReading.centsTenths`, additive -- existing callers' whole-cent
+  `cents` field is unchanged) so the ±2¢ (Ultra) precision setting compares
+  an unrounded value against its own tolerance; the readout shows whole
+  cents except at Ultra, where it shows one decimal.
+
+None of this has been checked against a physical device or a teacher; the
+browser/contrast/e2e gates are automated-only evidence, same caveat as the
+rest of this document.
+
 ## Security snapshot
 
 The V1 candidate removes the unused Drizzle/D1 template layer that was the only remaining npm audit advisory chain. The release gate now rejects **any** registry-reported low, moderate, high or critical dependency finding instead of accepting moderate development-tool findings. A fresh audit remains mandatory for each candidate.
