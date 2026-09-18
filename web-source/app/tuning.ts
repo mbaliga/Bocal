@@ -105,7 +105,10 @@ export const TEMPERAMENTS: Record<Exclude<TemperamentId, "custom">, number[]> = 
   young1799: [0, -9.78, -3.91, -5.87, -7.82, -1.96, -11.73, -1.96, -7.82, -5.87, -3.91, -9.78],
 };
 
-export const CUSTOM_TEMPERAMENT_STORAGE_KEY = "bocal-temperament-custom";
+// Re-exported so existing callers that import it from here (this module is
+// where a temperament-shaped consumer would look for it) keep working;
+// storage-keys.ts is the constant's single source of truth.
+export { CUSTOM_TEMPERAMENT_STORAGE_KEY } from "./storage-keys";
 export const CUSTOM_TEMPERAMENT_DEFAULT: number[] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
 /**

@@ -115,10 +115,12 @@ test("first run uses an immersive instrument gallery and replayable onboarding",
 test("landscape navigation can sit on either side and persists locally", async () => {
   const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
   // The "Landscape navigation" radiogroup lives in the settings overlay,
-  // moved out to DownloadCenter.tsx.
+  // moved out to DownloadCenter.tsx; the storage key itself is declared
+  // once in storage-keys.ts and imported by page.tsx.
   const downloadCenter = await readFile(new URL("../app/DownloadCenter.tsx", import.meta.url), "utf8");
+  const storageKeys = await readFile(new URL("../app/storage-keys.ts", import.meta.url), "utf8");
   const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
-  assert.match(page, /bocal-navigation-side/);
+  assert.match(storageKeys, /export const NAVIGATION_SIDE_STORAGE_KEY = "bocal-navigation-side"/);
   assert.match(downloadCenter, /Landscape navigation side/);
   assert.match(page, /nav-\$\{railSide\}/);
   assert.match(styles, /@media \(orientation: landscape\) and \(min-width: 681px\)/);

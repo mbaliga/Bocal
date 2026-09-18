@@ -47,7 +47,6 @@ import { PracticeView, PulseView } from "./PracticeTools";
 import {
   loadCustomTemperamentCents,
   serializeCustomTemperamentCents,
-  CUSTOM_TEMPERAMENT_STORAGE_KEY,
   REFERENCE_HZ_DEFAULT,
   REFERENCE_HZ_MAX,
   REFERENCE_HZ_MIN,
@@ -55,6 +54,24 @@ import {
   type TemperamentId,
   type TuningOptions,
 } from "./tuning";
+import {
+  CUSTOM_TEMPERAMENT_STORAGE_KEY,
+  DAMPING_STORAGE_KEY,
+  HISTORY_MODE_STORAGE_KEY,
+  INSTRUMENT_STORAGE_KEY,
+  KEY_CENTRE_MODE_STORAGE_KEY,
+  NAVIGATION_SIDE_STORAGE_KEY,
+  NOTATION_STORAGE_KEY,
+  PARTNER_INSTRUMENT_STORAGE_KEY,
+  PRECISION_STORAGE_KEY,
+  REFERENCE_HZ_STORAGE_KEY,
+  SENSITIVITY_STORAGE_KEY,
+  SESSIONS_STORAGE_KEY,
+  TEMPERAMENT_KEY_STORAGE_KEY,
+  TEMPERAMENT_STORAGE_KEY,
+  THEME_STORAGE_KEY,
+  TONIC_STORAGE_KEY,
+} from "./storage-keys";
 
 // The Android WebView shell (WP7) exposes this bridge as `window.bocalHost`.
 // Declared here so the web app can call it defensively ahead of that work
@@ -66,21 +83,6 @@ const SaxophoneLab = dynamic(
 );
 
 type Mode = "tune" | "sax" | "pulse" | "analyze" | "practice";
-
-const NAVIGATION_SIDE_STORAGE_KEY = "bocal-navigation-side";
-const INSTRUMENT_STORAGE_KEY = "bocal-instrument";
-const PARTNER_INSTRUMENT_STORAGE_KEY = "bocal-instrument-partner";
-const NOTATION_STORAGE_KEY = "bocal-notation";
-const TONIC_STORAGE_KEY = "bocal-sa-tonic";
-const REFERENCE_HZ_STORAGE_KEY = "bocal-reference-hz";
-const TEMPERAMENT_STORAGE_KEY = "bocal-temperament";
-const TEMPERAMENT_KEY_STORAGE_KEY = "bocal-temperament-key";
-const THEME_STORAGE_KEY = "bocal-theme";
-const SENSITIVITY_STORAGE_KEY = "bocal-tuner-sensitivity";
-const DAMPING_STORAGE_KEY = "bocal-tuner-damping";
-const HISTORY_MODE_STORAGE_KEY = "bocal-tuner-history-mode";
-const PRECISION_STORAGE_KEY = "bocal-tuner-precision";
-const KEY_CENTRE_MODE_STORAGE_KEY = "bocal-temperament-key-mode";
 
 function formatTime(seconds: number) {
   const minutes = Math.floor(seconds / 60).toString().padStart(2, "0");
@@ -325,9 +327,9 @@ export default function Home() {
   const toggleSession = () => {
     if (sessionActive) {
       try {
-        const existing = JSON.parse(localStorage.getItem("bocal-sessions") ?? "[]");
+        const existing = JSON.parse(localStorage.getItem(SESSIONS_STORAGE_KEY) ?? "[]");
         existing.unshift({ date: new Date().toISOString(), seconds: sessionSeconds });
-        localStorage.setItem("bocal-sessions", JSON.stringify(existing.slice(0, 30)));
+        localStorage.setItem(SESSIONS_STORAGE_KEY, JSON.stringify(existing.slice(0, 30)));
       } catch {
         // Device-local history is an enhancement; the session still works without it.
       }

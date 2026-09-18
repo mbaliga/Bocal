@@ -43,6 +43,12 @@ import {
   withRhythmAttempt,
 } from "./skill-rating";
 import { targetHzFor, type TuningOptions } from "./tuning";
+// Imported (not redeclared) from storage-keys.ts, per the wave-2 plan's
+// "PulseView.tsx/PracticeTools.tsx (import only)" note.
+import {
+  METRONOME_PRESETS_STORAGE_KEY as METRONOME_PRESETS_KEY,
+  METRONOME_SEQUENCES_STORAGE_KEY as METRONOME_SEQUENCES_KEY,
+} from "./storage-keys";
 import "./styles/pulse.css";
 
 // The Android/WebView host contract (see PLAN.md "Shared conventions" §6).
@@ -65,7 +71,6 @@ type MetronomePreset = {
   rampToBpm?: number;
   rampBars?: number;
 };
-const METRONOME_PRESETS_KEY = "bocal-metronome-presets-v1";
 const DEFAULT_METRONOME_PRESETS: MetronomePreset[] = [
   { id: "straight-4", name: "Straight 4/4", bpm: 92, beatsPerBar: 4, subdivision: 1, voice: "pure", countInBars: 1, muteEveryBars: 0, accentPattern: defaultAccentPattern(4) },
   { id: "slow-landing", name: "Slow landing", bpm: 56, beatsPerBar: 4, subdivision: 2, voice: "wood", countInBars: 2, muteEveryBars: 0, accentPattern: defaultAccentPattern(4) },
@@ -121,7 +126,6 @@ function sanitizePreset(preset: unknown): MetronomePreset | null {
 /** A named, ordered chain of saved presets -- Bocal's answer to TE's preset sequences. */
 type MetronomeSequenceStep = { presetId: string; bars: number };
 type MetronomeSequence = { id: string; name: string; steps: MetronomeSequenceStep[]; loop: boolean };
-const METRONOME_SEQUENCES_KEY = "bocal-metronome-sequences-v1";
 
 /** Drops an unusable sequence (missing name/steps) rather than letting a bad entry reach render, where `.steps.map` would throw. */
 function sanitizeSequence(value: unknown): MetronomeSequence | null {
