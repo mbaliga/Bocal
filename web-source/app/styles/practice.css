@@ -67,3 +67,103 @@
   border-color: var(--cyan);
   color: var(--cyan);
 }
+
+/* --- Practice log (W2-C): per-session list with rename/delete ---------- */
+
+.practice-log-card {
+  margin-top: 18px;
+  padding: 20px 22px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--panel);
+}
+
+.practice-log-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.practice-log-row {
+  display: grid;
+  grid-template-columns: 10px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  border-top: 1px solid var(--line-soft);
+  padding: 11px 0;
+}
+.practice-log-row:first-child {
+  border-top: none;
+}
+.practice-log-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--dot-color, var(--muted));
+}
+.practice-log-detail {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.practice-log-detail strong {
+  font-size: 13px;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.practice-log-detail > span {
+  color: var(--muted);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.practice-log-edit-input {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-2);
+  color: var(--ink);
+  padding: 5px 8px;
+  font: inherit;
+  font-size: 13px;
+  width: 100%;
+}
+.practice-log-actions {
+  display: flex;
+  gap: 6px;
+}
+.practice-log-actions button {
+  appearance: none;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--subtle);
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  padding: 0;
+}
+.practice-log-actions button:hover {
+  color: var(--ink);
+  border-color: var(--cyan);
+}
+.practice-log-more {
+  margin-top: 12px;
+  width: 100%;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--subtle);
+  padding: 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.practice-log-more:hover {
+  color: var(--cyan);
+  border-color: var(--cyan);
+}
