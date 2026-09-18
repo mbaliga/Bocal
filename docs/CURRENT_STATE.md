@@ -1,6 +1,6 @@
 # Bocal current state
 
-Updated 17 September 2026 for PR #9, `feat/production-v1-hardening`.
+Updated 18 September 2026 for `feat/w2-practice` (W2-C practice-tools-depth), on top of PR #9's `feat/production-v1-hardening`.
 
 ## Release decision
 
@@ -50,6 +50,18 @@ The distinctive mobile arc and configurable landscape edge remain in the shared 
 The V1 candidate removes the unused Drizzle/D1 template layer that was the only remaining npm audit advisory chain. The release gate now rejects **any** registry-reported low, moderate, high or critical dependency finding instead of accepting moderate development-tool findings. A fresh audit remains mandatory for each candidate.
 
 React/RSC, Vite, Vinext and Cloudflare tooling remain on the registry-confirmed versions introduced by the hardening pass.
+
+## Practice tools depth (W2-C, `feat/w2-practice`)
+
+The metronome (Pulse) and tone generator's exercise player share one lookahead audio scheduler now (`app/audio-scheduler.ts`) instead of each hand-rolling the same wake-on-a-timer loop; this was a behaviour-preserving extraction, verified against the full gate list before any feature work built on it.
+
+The metronome gained a TonalEnergy-style gap drill (play N bars, rest M bars silently while the beat dot keeps moving) and seeded random beat drops (a per-beat chance of dropping out, repeatable from a saved seed so the same preset drops the same beats every time). Both compose with the existing tempo ramp, preset sequences and polyrhythm.
+
+The tone generator's exercise player gained a saved exercise library (`app/exercise-library.ts`, key `bocal-exercises-v1`): scale (major, natural/harmonic/melodic minor, the five other modes, major/minor pentatonic), arpeggio (major/minor/dominant7/diminished7/augmented), chromatic, harmonic series, interval leaps, and a custom typed note list, each with a written root, a written range that repeats the pattern upward (by an octave, or another interval such as a fifth) as far as the range allows, tempo, note length, an articulation gap, loop, and a semitones-written-to-concert transposition. Six built-in presets ship (long tones, major scale by fifths, overtone series, interval leaps, chromatic warm-up, register slur) -- Bocal's own starting points, not transcribed from a method book. Export/import round-trips through the same save-file path takes and analysis exports already use.
+
+The practice log (Practice tab) now lists individual logged sessions (tuner, metronome, tone generator, analysis, chords, repertoire) with a per-entry rename and delete, and its export uses that same save-file path -- closing a gap where it previously fell back to a plain browser download with no Android system picker. The weekly goal ring already counted every tool's logged minutes, not just the tuner's, before this wave; that part of the plan's brief undersold what was already shipped.
+
+None of this has real-device audio/latency testing behind it; it is exercised by the same emulator/browser gates as the rest of the app.
 
 ## Still not proven
 
