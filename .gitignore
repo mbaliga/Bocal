@@ -44,3 +44,5 @@ Thumbs.db
 # script (see android/app/build.gradle.kts stageWebApp task) and must never
 # be committed stale.
 android/app/src/main/assets/www/app.html
+qa/reports/
+__pycache__/
