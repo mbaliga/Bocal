@@ -63,6 +63,8 @@ export type UseTunerOptions = {
   tuning: TuningOptions;
   historyMode: PitchHistoryMode;
   precision: "standard" | "fine" | "ultra";
+  /** Which pitch space the pitch-history graph's staff mode plots. */
+  displayMode: "written" | "concert";
 };
 
 /**
@@ -107,6 +109,11 @@ export function useTuner(instrument: InstrumentProfile, options: UseTunerOptions
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const frameRef = useRef<number | null>(null);
+  // The pitch pipe's currently-sounding oscillator/gain pair, if any --
+  // shares audioContextRef with everything else here (no second
+  // AudioContext), and is torn down by `stopPitchPipe` on pointer-up or by
+  // `stopListening` when the tuner session itself stops.
+  const pitchPipeRef = useRef<{ oscillator: OscillatorNode; gain: GainNode } | null>(null);
 
   // Sensitivity (acquireFrames/switchFrames/minimumConfidence), Damping
   // (holdMs/smoothing) and the instrument's frequency range are reapplied to
@@ -142,6 +149,14 @@ export function useTuner(instrument: InstrumentProfile, options: UseTunerOptions
   useEffect(() => {
     tuningOptionsRef.current = options.tuning;
   }, [options.tuning]);
+
+  // Same pattern as tuningOptionsRef -- read live in the sampling loop so
+  // toggling Calibration > Readout mid-session changes which midi new
+  // history samples plot without needing a fresh "Start live tuner" press.
+  const displayModeRef = useRef(options.displayMode);
+  useEffect(() => {
+    displayModeRef.current = options.displayMode;
+  }, [options.displayMode]);
 
   // The pitch-history ring buffer lives in a ref, not React state, so pushing
   // a new sample every ~30ms during a session never triggers a re-render --
@@ -252,7 +267,29 @@ export function useTuner(instrument: InstrumentProfile, options: UseTunerOptions
     }
   }, [instrument.id, instrument.shortName]);
 
+  // Stops the pitch pipe's currently-sounding tone, if any -- a short
+  // release ramp rather than an abrupt cut, then disconnects the nodes.
+  // Declared ahead of stopListening/startListening so both can call it.
+  const stopPitchPipe = useCallback(() => {
+    const active = pitchPipeRef.current;
+    pitchPipeRef.current = null;
+    if (!active) return;
+    const { oscillator, gain } = active;
+    const audioContext = audioContextRef.current;
+    if (audioContext) {
+      const now = audioContext.currentTime;
+      gain.gain.cancelScheduledValues(now);
+      gain.gain.setValueAtTime(Math.max(gain.gain.value, 0.0001), now);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
+      oscillator.stop(now + 0.09);
+    } else {
+      oscillator.stop();
+    }
+    oscillator.onended = () => { oscillator.disconnect(); gain.disconnect(); };
+  }, []);
+
   const stopListening = useCallback(() => {
+    stopPitchPipe();
     tunerGateRef.current.cancel();
     tunerPendingRef.current = false;
     referenceEpochRef.current += 1;
@@ -280,7 +317,7 @@ export function useTuner(instrument: InstrumentProfile, options: UseTunerOptions
     // awake) between tuner sessions; startListening resumes it on the next
     // "Start live tuner" press.
     if (audioContextRef.current?.state === "running") void audioContextRef.current.suspend().catch(() => undefined);
-  }, [saveTunerEvidence]);
+  }, [saveTunerEvidence, stopPitchPipe]);
 
   useForegroundPause(stopListening);
 
@@ -389,7 +426,9 @@ export function useTuner(instrument: InstrumentProfile, options: UseTunerOptions
             pitchHistoryRef.current.push({
               tMs: now,
               cents: nextTrackerReading.accepted ? nextReading.cents : null,
-              midi: nextTrackerReading.accepted ? nextReading.writtenMidi : null,
+              midi: nextTrackerReading.accepted
+                ? (displayModeRef.current === "concert" ? nextReading.concertMidi : nextReading.writtenMidi)
+                : null,
             });
           } else {
             pitchHistoryRef.current.push({ tMs: now, cents: null, midi: null });
@@ -446,6 +485,33 @@ export function useTuner(instrument: InstrumentProfile, options: UseTunerOptions
     }
   }, []);
 
+  // Pitch pipe: tap-and-hold the readout to hear the target note through
+  // this same calibrated reference-tone path (targetHzFor, the shared
+  // AudioContext -- no second one), released on pointer up rather than a
+  // fixed envelope. `startPitchPipe` is idempotent with an in-flight pipe
+  // tone: it stops the previous one first, so a finger sliding between
+  // notes on the target picker retriggers cleanly.
+  const startPitchPipe = useCallback(async (midi: number) => {
+    stopPitchPipe();
+    try {
+      const audioContext = !audioContextRef.current || audioContextRef.current.state === "closed" ? new AudioContext() : audioContextRef.current;
+      audioContextRef.current = audioContext;
+      if (audioContext.state === "suspended") await audioContext.resume();
+      if (!tunerMountedRef.current || document.hidden) return;
+      const oscillator = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      oscillator.type = "sine";
+      oscillator.frequency.value = targetHzFor(midi, tuningOptionsRef.current);
+      gain.gain.setValueAtTime(0.0001, audioContext.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.14, audioContext.currentTime + 0.04);
+      oscillator.connect(gain).connect(audioContext.destination);
+      oscillator.start();
+      pitchPipeRef.current = { oscillator, gain };
+    } catch {
+      if (tunerMountedRef.current) setMicMessage("Pitch pipe could not play. Check the audio output and try again.");
+    }
+  }, [stopPitchPipe]);
+
   // Locks (or, with `null`, releases) the manual target note. Mirrors the
   // call into the tracker instance (so the sampling loop measures against
   // it starting on the very next frame) and into React state (so the
@@ -481,6 +547,8 @@ export function useTuner(instrument: InstrumentProfile, options: UseTunerOptions
     start: startListening,
     stop: stopListening,
     playReference: playReferenceTone,
+    startPitchPipe,
+    stopPitchPipe,
     history: {
       canvasRef: setHistoryCanvas,
       clear: clearHistory,

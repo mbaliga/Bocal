@@ -30,6 +30,7 @@ export const DAMPING_STORAGE_KEY = "bocal-tuner-damping";
 export const HISTORY_MODE_STORAGE_KEY = "bocal-tuner-history-mode";
 export const PRECISION_STORAGE_KEY = "bocal-tuner-precision";
 export const KEY_CENTRE_MODE_STORAGE_KEY = "bocal-temperament-key-mode";
+export const DISPLAY_MODE_STORAGE_KEY = "bocal-tuner-display-mode";
 export const SESSIONS_STORAGE_KEY = "bocal-sessions";
 export const WEEKLY_GOAL_STORAGE_KEY = "bocal-weekly-goal-minutes";
 export const LESSON_NOTE_STORAGE_KEY = "bocal-lesson-note";

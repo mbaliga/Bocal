@@ -112,6 +112,18 @@ try {
       const badge = page.locator(".target-lock-badge");
       await badge.waitFor();
       assert.equal(await picker.inputValue(), optionValue, `${label}: picker keeps showing the locked note`);
+      const lockedBadgeText = await badge.innerText();
+      // Toggling Calibration > Readout (written/concert) must not disturb
+      // the lock -- it only changes which pitch space the note *name*
+      // reads in, not which physical note is locked.
+      await page.locator(".calibration-toggle").click();
+      const concertRadio = page.getByRole("radio", { name: "Concert" });
+      if (await concertRadio.isVisible()) {
+        await concertRadio.click();
+        await page.getByRole("radio", { name: "Written" }).click();
+      }
+      await page.locator(".calibration-toggle").click();
+      assert.equal(await badge.innerText(), lockedBadgeText, `${label}: the readout target stays put across the written/concert toggle`);
       await badge.click();
       await page.waitForTimeout(150);
       assert.equal(await page.locator(".target-lock-badge").count(), 0, `${label}: releasing drops the badge`);

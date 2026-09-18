@@ -181,6 +181,8 @@ const CalibrationPicker = memo(function CalibrationPicker({
   writtenOffset,
   keyCentreMode,
   onKeyCentreModeChange,
+  displayMode,
+  onDisplayModeChange,
 }: {
   referenceHz: number;
   temperament: TemperamentId;
@@ -198,6 +200,8 @@ const CalibrationPicker = memo(function CalibrationPicker({
   writtenOffset: number;
   keyCentreMode: "concert" | "written";
   onKeyCentreModeChange: (next: "concert" | "written") => void;
+  displayMode: "written" | "concert";
+  onDisplayModeChange: (next: "written" | "concert") => void;
 }) {
   const [open, setOpen] = useState(false);
   const profile = TEMPERAMENT_PROFILES[temperament];
@@ -429,6 +433,37 @@ const CalibrationPicker = memo(function CalibrationPicker({
             </div>
             <p className="notation-hint">{DAMPING_HINTS[damping]}</p>
           </div>
+
+          {writtenOffset !== 0 && (
+            <div className="calibration-row">
+              <label>Readout</label>
+              <div className="notation-switch" role="radiogroup" aria-label="Readout pitch space">
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={displayMode === "written"}
+                  className={displayMode === "written" ? "is-active" : ""}
+                  onClick={() => onDisplayModeChange("written")}
+                >
+                  Written
+                </button>
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={displayMode === "concert"}
+                  className={displayMode === "concert" ? "is-active" : ""}
+                  onClick={() => onDisplayModeChange("concert")}
+                >
+                  Concert
+                </button>
+              </div>
+              <p className="notation-hint">
+                {displayMode === "written"
+                  ? "The note name, staff and history graph show your written pitch -- what you read off the page."
+                  : "The note name, staff and history graph show concert pitch -- what the note actually sounds as."}
+              </p>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -473,6 +508,10 @@ export const TunerView = memo(function TunerView({
   onKeyCentreModeChange,
   lockedTargetMidi,
   onLockTarget,
+  displayMode,
+  onDisplayModeChange,
+  onPlayPitchPipe,
+  onStopPitchPipe,
   onOpenKeyboardHelp,
 }: {
   reading: PitchReading | null;
@@ -513,6 +552,12 @@ export const TunerView = memo(function TunerView({
   /** Concert MIDI of the manually locked target note, or null when unlocked. */
   lockedTargetMidi: number | null;
   onLockTarget: (midi: number | null) => void;
+  /** Which pitch space the primary readout, staff and history graph show. */
+  displayMode: "written" | "concert";
+  onDisplayModeChange: (next: "written" | "concert") => void;
+  /** Pitch pipe: plays `midi` (concert) through the calibrated reference-tone path until stopped. */
+  onPlayPitchPipe: (midi: number) => void;
+  onStopPitchPipe: () => void;
   onOpenKeyboardHelp: () => void;
 }) {
   const tolerance = PRECISION_TOLERANCE[precision];
@@ -535,6 +580,26 @@ export const TunerView = memo(function TunerView({
     else if (reading) onLockTarget(reading.concertMidi);
   };
   const lockedTargetLabel = isTargetLocked ? fullNoteLabel(lockedTargetMidi, "western") : null;
+  // Written/concert readout toggle (Calibration): both midi values are the
+  // same physical pitch, so only which one is *displayed* changes here --
+  // cents (the deviation) is identical either way.
+  const displayMidi = reading === null ? null : displayMode === "concert" ? reading.concertMidi : reading.writtenMidi;
+  const displayLabel = reading === null ? null : fullNoteLabel(displayMidi!, notation, saTonic);
+  // Pitch pipe: whichever note the readout is currently framing as "the
+  // target" -- the locked target if there is one (works even in silence),
+  // else the concert pitch of the note currently showing.
+  const pitchPipeMidi = lockedTargetMidi ?? reading?.concertMidi ?? null;
+  const [isPitchPiping, setIsPitchPiping] = useState(false);
+  const startPipe = () => {
+    if (pitchPipeMidi === null) return;
+    setIsPitchPiping(true);
+    onPlayPitchPipe(pitchPipeMidi);
+  };
+  const stopPipe = () => {
+    if (!isPitchPiping) return;
+    setIsPitchPiping(false);
+    onStopPitchPipe();
+  };
   const targetNoteChoices = useMemo(() => {
     const low = Math.ceil(hzToMidi(instrument.range.minHz));
     const high = Math.floor(hzToMidi(instrument.range.maxHz));
@@ -629,7 +694,7 @@ export const TunerView = memo(function TunerView({
             style={{ position: "absolute", width: 1, height: 1, padding: 0, margin: -1, overflow: "hidden", clip: "rect(0,0,0,0)", whiteSpace: "nowrap", border: 0 }}
           >
             {reading
-              ? `${fullNoteLabel(reading.writtenMidi, notation, saTonic)}, ${Math.abs(reading.cents)} cents ${reading.cents === 0 ? "in tune" : reading.cents > 0 ? "sharp" : "flat"}`
+              ? `${displayLabel}, ${Math.abs(Math.round(reading.cents))} cents ${reading.cents === 0 ? "in tune" : reading.cents > 0 ? "sharp" : "flat"}`
               : trackerLabel}
           </p>
           <div className="tuner-card-top">
@@ -640,31 +705,35 @@ export const TunerView = memo(function TunerView({
           <div className="note-readout">
             <button
               type="button"
-              className={`note-readout-tap ${isTargetLocked ? "is-target-locked" : ""}`}
+              className={`note-readout-tap ${isTargetLocked ? "is-target-locked" : ""} ${isPitchPiping ? "is-piping" : ""}`}
               onClick={toggleTargetLock}
+              onPointerDown={startPipe}
+              onPointerUp={stopPipe}
+              onPointerLeave={stopPipe}
+              onPointerCancel={stopPipe}
               disabled={!isTargetLocked && !reading}
               aria-pressed={isTargetLocked}
               aria-label={
                 isTargetLocked
-                  ? `Release the locked target, ${lockedTargetLabel}`
+                  ? `Release the locked target, ${lockedTargetLabel}. Press and hold to hear it.`
                   : reading
-                    ? `Lock the target to ${fullNoteLabel(reading.writtenMidi, notation, saTonic)}`
+                    ? `Lock the target to ${displayLabel}. Press and hold to hear it.`
                     : "Play a note to lock a target"
               }
-              title={isTargetLocked ? "Tap to release the target" : "Tap to lock the target to this note"}
+              title={isTargetLocked ? "Tap to release the target, press and hold to hear it" : "Tap to lock the target to this note, press and hold to hear it"}
             >
               {notation === "staff" ? (
                 <StaffNote
-                  midi={reading?.writtenMidi ?? null}
+                  midi={displayMidi}
                   clef={instrument.clef}
-                  title={reading ? `Written ${fullNoteLabel(reading.writtenMidi, "western")}` : "No note detected yet"}
+                  title={reading ? `${displayMode === "concert" ? "Concert" : "Written"} ${fullNoteLabel(displayMidi!, "western")}` : "No note detected yet"}
                 />
               ) : (
                 <div className={`note-name ${reading ? "" : "is-empty"}`}>
                   {reading ? (
                     <>
-                      {noteName(reading.writtenMidi, notation, saTonic)}
-                      <sup>{octaveLabel(reading.writtenMidi, notation, saTonic)}</sup>
+                      {noteName(displayMidi!, notation, saTonic)}
+                      <sup>{octaveLabel(displayMidi!, notation, saTonic)}</sup>
                     </>
                   ) : (
                     "—"
@@ -676,6 +745,7 @@ export const TunerView = memo(function TunerView({
               <span>{reading ? `${reading.cents > 0 ? "+" : ""}${reading.cents} cents` : "Waiting for a stable tone"}</span>
               <small>{reading ? `${reading.hz.toFixed(1)} Hz · sounds ${concertNote}` : "No note is shown until confidence passes the lock threshold"}</small>
             </div>
+            {pitchPipeMidi !== null && <p className="pitch-pipe-hint">Press and hold to hear it</p>}
             <div className="target-lock-row">
               {isTargetLocked && (
                 <button type="button" className="target-lock-badge" onClick={() => onLockTarget(null)}>
@@ -723,6 +793,8 @@ export const TunerView = memo(function TunerView({
             writtenOffset={instrument.writtenOffset}
             keyCentreMode={keyCentreMode}
             onKeyCentreModeChange={onKeyCentreModeChange}
+            displayMode={displayMode}
+            onDisplayModeChange={onDisplayModeChange}
           />
 
           <div
@@ -847,6 +919,9 @@ export const TunerView = memo(function TunerView({
         notation={notation}
         saTonic={saTonic}
         customCents={customCents}
+        followMidi={trackerReading.state === "locked" ? reading?.concertMidi ?? null : null}
+        displayMode={displayMode}
+        writtenOffset={instrument.writtenOffset}
       />
 
       <section className="today-strip">

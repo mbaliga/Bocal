@@ -57,6 +57,7 @@ import {
 import {
   CUSTOM_TEMPERAMENT_STORAGE_KEY,
   DAMPING_STORAGE_KEY,
+  DISPLAY_MODE_STORAGE_KEY,
   HISTORY_MODE_STORAGE_KEY,
   INSTRUMENT_STORAGE_KEY,
   KEY_CENTRE_MODE_STORAGE_KEY,
@@ -230,6 +231,16 @@ export default function Home() {
     (raw) => (raw === "concert" || raw === "written" ? raw : undefined),
     "concert",
   );
+  // Written/concert readout toggle (Calibration): flips the primary note
+  // name, the staff and the pitch-history staff mode between the player's
+  // written pitch and concert pitch. Independent of keyCentreMode above,
+  // which is about which pitch space a *picker* stores its value in, not
+  // which one the live readout displays.
+  const [displayMode, setDisplayMode] = usePersistedSetting<"written" | "concert">(
+    DISPLAY_MODE_STORAGE_KEY,
+    (raw) => (raw === "written" || raw === "concert" ? raw : undefined),
+    "written",
+  );
   const [keyboardHelpOpen, setKeyboardHelpOpen] = useState(false);
   const [sessionActive, setSessionActive] = useState(false);
   const [sessionSeconds, setSessionSeconds] = useState(0);
@@ -244,6 +255,7 @@ export default function Home() {
     tuning: tuningOptions,
     historyMode,
     precision,
+    displayMode,
   });
   // Seated left to right along the pill arc, current instrument first.
   const pillInstruments = useMemo<InstrumentId[]>(
@@ -566,6 +578,10 @@ export default function Home() {
             historyCanvasRef={tuner.history.canvasRef}
             keyCentreMode={keyCentreMode}
             onKeyCentreModeChange={setKeyCentreMode}
+            displayMode={displayMode}
+            onDisplayModeChange={setDisplayMode}
+            onPlayPitchPipe={tuner.startPitchPipe}
+            onStopPitchPipe={tuner.stopPitchPipe}
             onOpenKeyboardHelp={() => setKeyboardHelpOpen(true)}
           />
         )}
