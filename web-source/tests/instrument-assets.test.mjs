@@ -38,13 +38,25 @@ test("oboe preview isolates one authored finish and orbiting cannot remount the 
 test("both models ship an explicit part classification sidecar, not a name/luminance heuristic", async () => {
   const saxParts = JSON.parse(await readFile(new URL("../public/models/saxophone-alto.parts.json", import.meta.url), "utf8"));
   const oboeParts = JSON.parse(await readFile(new URL("../public/models/oboe-howarth-s20c.parts.json", import.meta.url), "utf8"));
-  assert.equal(saxParts.parts.Object_2.role, "body");
+  // Wave 2: Object_2 (body + bow + bell + neck, originally one mesh) was
+  // re-segmented into four primitives -- all still role "body".
+  assert.equal(saxParts.parts.Object_2_neck.role, "body");
+  assert.equal(saxParts.parts.Object_2_neck.subPart, "neck");
+  assert.equal(saxParts.parts.Object_2_body.subPart, "body");
+  assert.equal(saxParts.parts.Object_2_bow.subPart, "bow");
+  assert.equal(saxParts.parts.Object_2_bell.subPart, "bell");
   assert.equal(saxParts.parts.Object_5.role, "mouthpiece");
   assert.equal(saxParts.parts.Object_6.role, "ligature");
+  assert.ok(saxParts.modifications.length > 0, "the Object_2 re-segmentation must be recorded per CC BY 4.0");
   assert.equal(oboeParts.groups.Oboe_Base.role, "body");
   assert.equal(oboeParts.groups.Static.role, "keywork");
   assert.equal(oboeParts.groups.Moving.role, "keywork");
   assert.equal(oboeParts.goldKeyTexture.materialIndex, 1);
+  // Wave 2: Oboe_Base_My_Oboe_0 was split by Y into three primitives.
+  assert.equal(oboeParts.groups.Oboe_Base.subParts.Oboe_Base_My_Oboe_0_top_joint.subPart, "top_joint");
+  assert.equal(oboeParts.groups.Oboe_Base.subParts.Oboe_Base_My_Oboe_0_lower_joint.subPart, "lower_joint");
+  assert.equal(oboeParts.groups.Oboe_Base.subParts.Oboe_Base_My_Oboe_0_bell.subPart, "bell");
+  assert.ok(oboeParts.modifications.length > 0, "the body split must be recorded per CC BY 4.0");
 
   const glb = await readFile(new URL("../public/models/oboe-howarth-s20c.glb", import.meta.url));
   const jsonLength = glb.readUInt32LE(12);
