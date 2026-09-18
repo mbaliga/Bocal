@@ -17,7 +17,7 @@ import {
   TimerReset,
   Volume2,
 } from "lucide-react";
-import { memo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import { ToneGenerator } from "./ToneGenerator";
 import {
   DAMPING_HINTS,
@@ -33,6 +33,7 @@ import {
   type Sensitivity,
 } from "./pitch-engine";
 import { PRECISION_TOLERANCE, type PitchReading } from "./useTuner";
+import { hzToMidi } from "./music-math";
 import { CORRECTION_COPY, type InstrumentProfile } from "./instruments";
 import StaffNote from "./StaffNote";
 import {
@@ -54,6 +55,7 @@ import {
   TEMPERAMENTS,
   type TemperamentId,
 } from "./tuning";
+import "./styles/tuner.css";
 
 const REFERENCE_PRESETS: { hz: number; label: string }[] = [
   { hz: 415, label: "Baroque" },
@@ -469,6 +471,8 @@ export const TunerView = memo(function TunerView({
   historyCanvasRef,
   keyCentreMode,
   onKeyCentreModeChange,
+  lockedTargetMidi,
+  onLockTarget,
   onOpenKeyboardHelp,
 }: {
   reading: PitchReading | null;
@@ -506,6 +510,9 @@ export const TunerView = memo(function TunerView({
   historyCanvasRef: (node: HTMLCanvasElement | null) => void;
   keyCentreMode: "concert" | "written";
   onKeyCentreModeChange: (next: "concert" | "written") => void;
+  /** Concert MIDI of the manually locked target note, or null when unlocked. */
+  lockedTargetMidi: number | null;
+  onLockTarget: (midi: number | null) => void;
   onOpenKeyboardHelp: () => void;
 }) {
   const tolerance = PRECISION_TOLERANCE[precision];
@@ -517,6 +524,24 @@ export const TunerView = memo(function TunerView({
   // happens in letter names whatever the player reads from.
   const concertNote = reading === null ? null : fullNoteLabel(reading.concertMidi, "western");
   const writtenLabel = reading === null ? null : fullNoteLabel(reading.writtenMidi, notation, saTonic);
+  // Manual target-note lock (TonalEnergy "Target", Tunable's note lock).
+  // Tapping the note name locks/releases the *currently shown* note; the
+  // "pick any note" select is the secondary control for locking to a note
+  // that isn't sounding yet. Both write concert MIDI -- pitch-engine.ts's
+  // StablePitchTracker only knows raw (concert) pitch.
+  const isTargetLocked = lockedTargetMidi !== null;
+  const toggleTargetLock = () => {
+    if (isTargetLocked) onLockTarget(null);
+    else if (reading) onLockTarget(reading.concertMidi);
+  };
+  const lockedTargetLabel = isTargetLocked ? fullNoteLabel(lockedTargetMidi, "western") : null;
+  const targetNoteChoices = useMemo(() => {
+    const low = Math.ceil(hzToMidi(instrument.range.minHz));
+    const high = Math.floor(hzToMidi(instrument.range.maxHz));
+    const choices: { midi: number; label: string }[] = [];
+    for (let midi = low; midi <= high; midi += 1) choices.push({ midi, label: fullNoteLabel(midi, "western") });
+    return choices;
+  }, [instrument.range.minHz, instrument.range.maxHz]);
   const trackerLabel = !listening ? "Ready" : {
     calibrating: "Calibrating room",
     silence: "No clear tone",
@@ -613,27 +638,65 @@ export const TunerView = memo(function TunerView({
           </div>
 
           <div className="note-readout">
-            {notation === "staff" ? (
-              <StaffNote
-                midi={reading?.writtenMidi ?? null}
-                clef={instrument.clef}
-                title={reading ? `Written ${fullNoteLabel(reading.writtenMidi, "western")}` : "No note detected yet"}
-              />
-            ) : (
-              <div className={`note-name ${reading ? "" : "is-empty"}`}>
-                {reading ? (
-                  <>
-                    {noteName(reading.writtenMidi, notation, saTonic)}
-                    <sup>{octaveLabel(reading.writtenMidi, notation, saTonic)}</sup>
-                  </>
-                ) : (
-                  "—"
-                )}
-              </div>
-            )}
+            <button
+              type="button"
+              className={`note-readout-tap ${isTargetLocked ? "is-target-locked" : ""}`}
+              onClick={toggleTargetLock}
+              disabled={!isTargetLocked && !reading}
+              aria-pressed={isTargetLocked}
+              aria-label={
+                isTargetLocked
+                  ? `Release the locked target, ${lockedTargetLabel}`
+                  : reading
+                    ? `Lock the target to ${fullNoteLabel(reading.writtenMidi, notation, saTonic)}`
+                    : "Play a note to lock a target"
+              }
+              title={isTargetLocked ? "Tap to release the target" : "Tap to lock the target to this note"}
+            >
+              {notation === "staff" ? (
+                <StaffNote
+                  midi={reading?.writtenMidi ?? null}
+                  clef={instrument.clef}
+                  title={reading ? `Written ${fullNoteLabel(reading.writtenMidi, "western")}` : "No note detected yet"}
+                />
+              ) : (
+                <div className={`note-name ${reading ? "" : "is-empty"}`}>
+                  {reading ? (
+                    <>
+                      {noteName(reading.writtenMidi, notation, saTonic)}
+                      <sup>{octaveLabel(reading.writtenMidi, notation, saTonic)}</sup>
+                    </>
+                  ) : (
+                    "—"
+                  )}
+                </div>
+              )}
+            </button>
             <div className="pitch-detail">
               <span>{reading ? `${reading.cents > 0 ? "+" : ""}${reading.cents} cents` : "Waiting for a stable tone"}</span>
               <small>{reading ? `${reading.hz.toFixed(1)} Hz · sounds ${concertNote}` : "No note is shown until confidence passes the lock threshold"}</small>
+            </div>
+            <div className="target-lock-row">
+              {isTargetLocked && (
+                <button type="button" className="target-lock-badge" onClick={() => onLockTarget(null)}>
+                  <LockKeyhole size={12} /> Locked to {lockedTargetLabel} <span aria-hidden="true">✕</span>
+                </button>
+              )}
+              <label className="target-lock-picker">
+                <span>Target</span>
+                <select
+                  value={lockedTargetMidi ?? ""}
+                  onChange={(event) => onLockTarget(event.target.value === "" ? null : Number(event.target.value))}
+                  aria-label="Lock the tuner to any note"
+                >
+                  <option value="">Off</option>
+                  {targetNoteChoices.map((choice) => (
+                    <option key={choice.midi} value={choice.midi}>
+                      {choice.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
           </div>
 

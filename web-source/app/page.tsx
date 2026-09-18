@@ -538,6 +538,8 @@ export default function Home() {
             micMessage={tuner.micMessage}
             onListen={tuner.start}
             onReference={() => tuner.playReference()}
+            lockedTargetMidi={tuner.lockedTargetMidi}
+            onLockTarget={tuner.lockTarget}
             onOpenSax={() => selectMode("sax")}
             instrument={instrument}
             notation={notation}

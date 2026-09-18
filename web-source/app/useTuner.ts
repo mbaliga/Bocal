@@ -89,6 +89,14 @@ export function useTuner(instrument: InstrumentProfile, options: UseTunerOptions
   const [acceptedFrames, setAcceptedFrames] = useState(0);
   const [listening, setListening] = useState(false);
   const [micMessage, setMicMessage] = useState("");
+  // Manual target-note lock (TonalEnergy "Target", Tunable's note lock):
+  // mirrors StablePitchTracker's own target so the UI can show a lock badge
+  // without reaching into the tracker instance directly. Concert MIDI, the
+  // same pitch space the raw tracker and `reading.concertMidi` use --
+  // written/concert is purely a display concern, handled where the note
+  // name is rendered. React state (not a ref) since the badge needs to
+  // re-render when it changes; `lockTarget` is the only writer.
+  const [lockedTargetMidi, setLockedTargetMidi] = useState<number | null>(null);
 
   const tunerGateRef = useRef(new CaptureRequestGate());
   const tunerPendingRef = useRef(false);
@@ -438,6 +446,18 @@ export function useTuner(instrument: InstrumentProfile, options: UseTunerOptions
     }
   }, []);
 
+  // Locks (or, with `null`, releases) the manual target note. Mirrors the
+  // call into the tracker instance (so the sampling loop measures against
+  // it starting on the very next frame) and into React state (so the
+  // readout can show a lock badge). Safe to call whether or not the tuner
+  // is currently listening -- the tracker itself accepts it either way, and
+  // `reset()` (called on every Start) preserves a set target, per
+  // pitch-engine.ts's own `setTarget`/`reset` contract.
+  const lockTarget = useCallback((midi: number | null) => {
+    trackerRef.current?.setTarget(midi);
+    setLockedTargetMidi(midi);
+  }, []);
+
   // Whether a session is running OR a mic permission request is still in
   // flight (`tunerPendingRef`, read live rather than mirrored into React
   // state so waiting for permission doesn't add another render source).
@@ -456,6 +476,8 @@ export function useTuner(instrument: InstrumentProfile, options: UseTunerOptions
     listening,
     micMessage,
     isBusy,
+    lockedTargetMidi,
+    lockTarget,
     start: startListening,
     stop: stopListening,
     playReference: playReferenceTone,

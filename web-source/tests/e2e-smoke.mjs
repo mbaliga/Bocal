@@ -89,6 +89,37 @@ try {
     results.push({ label: "fresh-onboarding-and-reload", passed: true });
   } catch (error) { errors.push(`fresh onboarding: ${error.message}`); }
   finally { await context.close(); }
+  // Manual target-note lock: pick any note via the secondary "Target"
+  // control (works without a live reading), confirm the badge appears and
+  // the picker keeps showing the locked note, then release it -- both
+  // themes.
+  for (const theme of ["dark", "light"]) {
+    const label = `target-lock-${theme}`;
+    const context = await browser.newContext({ viewport: { width: 412, height: 915 } });
+    try {
+      const page = await context.newPage();
+      page.setDefaultTimeout(10000);
+      await page.addInitScript((t) => {
+        localStorage.setItem("bocal-onboarding-v2", "complete");
+        localStorage.setItem("bocal-theme", t);
+      }, theme);
+      await page.goto(preview.url);
+      await page.locator(".app-shell").waitFor();
+      const picker = page.locator(".target-lock-picker select");
+      await picker.waitFor();
+      const optionValue = await picker.locator("option").nth(1).getAttribute("value");
+      await picker.selectOption(optionValue);
+      const badge = page.locator(".target-lock-badge");
+      await badge.waitFor();
+      assert.equal(await picker.inputValue(), optionValue, `${label}: picker keeps showing the locked note`);
+      await badge.click();
+      await page.waitForTimeout(150);
+      assert.equal(await page.locator(".target-lock-badge").count(), 0, `${label}: releasing drops the badge`);
+      assert.equal(await picker.inputValue(), "", `${label}: picker returns to Off after release`);
+      results.push({ label, passed: true });
+    } catch (error) { errors.push(`${label}: ${error.message}`); }
+    finally { await context.close(); }
+  }
 } finally {
   await browser.close();
   await preview.close();

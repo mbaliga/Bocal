@@ -1,0 +1,124 @@
+/* W2-A: styles for the tuner readout features that landed after wave 1 --
+   the manual target-note lock, the pitch pipe hold-to-play hint, the
+   written/concert readout toggle and the dBFS level meter. Everything here
+   uses the shared theme tokens from globals.css (WP6 owns that file, so new
+   rules live here instead of being added to it) and is re-checked in both
+   themes by tests/theme.test.mjs. */
+
+/* The note name/staff is now a <button> (tap to lock/release the manual
+   target) instead of a plain div -- reset it back to looking like inert
+   text until it's interacted with. */
+.note-readout-tap {
+  all: unset;
+  cursor: pointer;
+  display: grid;
+  justify-items: center;
+  border-radius: 18px;
+  transition: background 160ms ease;
+}
+.note-readout-tap:disabled {
+  cursor: default;
+}
+.note-readout-tap:not(:disabled):hover,
+.note-readout-tap:not(:disabled):focus-visible {
+  background: color-mix(in srgb, var(--cyan) 8%, transparent);
+}
+.note-readout-tap:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+.note-readout-tap.is-target-locked .note-name,
+.note-readout-tap.is-target-locked .staff-note {
+  color: var(--cyan);
+}
+
+.target-lock-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 14px;
+}
+.target-lock-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--cyan);
+  background: color-mix(in srgb, var(--cyan) 14%, transparent);
+  color: var(--accent-ink);
+  font-size: 11px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.target-lock-badge span {
+  opacity: 0.7;
+}
+.target-lock-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.target-lock-picker select {
+  background: var(--panel-2);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 5px 8px;
+  font-size: 12px;
+  font-family: inherit;
+}
+
+/* Pitch-pipe hold hint on the readout tap target. */
+.note-readout-tap.is-piping {
+  background: color-mix(in srgb, var(--cyan) 16%, transparent);
+}
+.pitch-pipe-hint {
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* dBFS level meter, replacing the old gate-relative "Input" bar. */
+.level-meter {
+  position: relative;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--line-soft);
+  overflow: hidden;
+}
+.level-meter > .level-meter-fill {
+  position: absolute;
+  inset: 0;
+  width: var(--level-fill, 0%);
+  background: var(--cyan);
+  border-radius: inherit;
+  transition: width 90ms linear;
+}
+.level-meter > .level-meter-peak {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--level-peak, 0%);
+  width: 2px;
+  background: var(--ink);
+  opacity: 0.6;
+}
+.level-meter.is-clipping > .level-meter-fill {
+  background: #ff6e6e;
+}
+html[data-theme="light"] .level-meter.is-clipping > .level-meter-fill {
+  background: #c14a3a;
+}
+.level-meter-clip-label {
+  color: #ff6e6e;
+  font-weight: 650;
+}
+html[data-theme="light"] .level-meter-clip-label {
+  color: #c14a3a;
+}
