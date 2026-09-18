@@ -1,3 +1,5 @@
+import { clamp, hzToMidi, median, midiToHz } from "./music-math";
+
 export type PitchCandidate = {
   hz: number;
   confidence: number;
@@ -35,8 +37,6 @@ export type StablePitchTrackerOptions = {
   /** Smoothing rate used once a frame's confidence reaches 0.96 or above. */
   smoothingAlphaHigh?: number;
 };
-
-const clamp = (value: number, minimum: number, maximum: number) => Math.min(maximum, Math.max(minimum, value));
 
 export function frameRms(buffer: Float32Array) {
   let total = 0;
@@ -129,21 +129,6 @@ export function detectPitchYin(
   const confidence = clamp(1 - center, 0, 1);
   if (!Number.isFinite(hz) || hz < minHz || hz > maxHz) return null;
   return { hz, confidence };
-}
-
-function midiFloat(hz: number) {
-  return 69 + 12 * Math.log2(hz / 440);
-}
-
-function midiToHz(midi: number) {
-  return 440 * 2 ** ((midi - 69) / 12);
-}
-
-function median(values: number[]) {
-  if (values.length === 0) return 0;
-  const ordered = [...values].sort((left, right) => left - right);
-  const middle = Math.floor(ordered.length / 2);
-  return ordered.length % 2 === 0 ? (ordered[middle - 1] + ordered[middle]) / 2 : ordered[middle];
 }
 
 export class StablePitchTracker {
@@ -239,7 +224,7 @@ export class StablePitchTracker {
 
     if (!reliable || !candidate) return this.unreliableReading(nowMs, rms, gate, candidate);
 
-    const rawMidi = midiFloat(candidate.hz);
+    const rawMidi = hzToMidi(candidate.hz);
     const candidateMidi = Math.round(rawMidi);
     this.lastConfidence = candidate.confidence;
 
