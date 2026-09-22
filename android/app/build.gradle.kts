@@ -68,6 +68,10 @@ android {
         buildConfig = true
     }
 
+    if (providers.gradleProperty("sharedLibrariesDir").isPresent) {
+        sourceSets.getByName("main").java.srcDir("src/sharedSessionBeta/kotlin")
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -80,6 +84,9 @@ android {
 }
 
 dependencies {
+    if (providers.gradleProperty("sharedLibrariesDir").isPresent) {
+        implementation("dev.aarso:local-session-core:0.1.0")
+    }
     implementation("androidx.core:core-ktx:1.19.0")
     implementation("androidx.activity:activity-compose:1.13.0")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.11.0")
