@@ -4,9 +4,9 @@ Bocal does not currently have a live cross-device multiplayer transport. Its bet
 opt-in bridge to the authoritative `dev.aarso:local-session-core` module in Shared-Libraries-asoc.
 That module owns session identity, packet vocabulary, event ordering and duplicate suppression.
 Bocal's beta bridge now exposes the shared TCP local-network transport as well. The bridge can pass
-a six-digit pairing code to the shared handshake before accepting packets; Bocal remains responsible
-for discovery, code display/entry, reconnect policy, encryption/platform identity and mapping
-instrument events.
+a six-digit pairing code to the shared handshake before accepting packets. The shared transport also
+rejects frames larger than 64 KiB. Bocal remains responsible for discovery, code display/entry,
+reconnect policy, encryption/platform identity and mapping instrument events.
 
 Build the beta bridge with:
 
