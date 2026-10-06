@@ -14,6 +14,8 @@ Local-first music practice: a stable-note tuner, metronome, tone generation, loc
 | `docs/` | Current state, release acceptance, product/design handoff and historical research |
 | `web-source-v6/`, `web-standalone/`, `models/glb/` | Historical prototypes/reference assets; not production build entry points |
 
+Hosts for Ubuntu Touch, Linux, iOS/iPadOS, macOS and Windows are planned only; none exists yet. See [docs/PORTING_PLAN.md](docs/PORTING_PLAN.md).
+
 The maintained app has ten instrument profiles and **two** licensed detailed 3D models (alto saxophone and Howarth oboe). The other sax profiles use the alto model; cor anglais uses the oboe model; flute/clarinet/bassoon have charts rather than equivalent 3D labs. See [model attribution](web-source/public/models/ATTRIBUTION.md). Historical counts of 35 generated models do not describe production readiness.
 
 ## Run the maintained web app
