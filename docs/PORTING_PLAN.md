@@ -396,3 +396,60 @@ In this repo (profile of 2026-10-06; §2.1 and the cited lines were re-read dire
   `web-standalone/LICENSE-CODE.md`.
 - Outside this repo: `Personal-Tracker/PORTING_PROGRAM.md` (§0-§3, §4.1-§4.6, the §5 row, §6-§8), the briefs in
   `Personal-Tracker/porting/platforms/`, and `Personal-Tracker/NAMES.md` and `CONSTELLATION.md` (neither has a Bocal row).
+
+## Owner rulings and the proposed line (added 2026-10-07)
+
+Status: PLAN. Nothing here is built, run on a device, signed or submitted. The program-level plan is Personal-Tracker `PORTING_PROGRAM.md` ([PR #10](https://github.com/mbaliga/Personal-Tracker/pull/10)), which holds the owner's rulings and section 5A, the proposed port / no-port line. The cells, estimates and open questions above are this repo's original plan and are unedited. Where the owner has since answered a question, the answer is below. Section 5A is a proposal; the owner has not yet confirmed it.
+
+### Where Bocal sits in the proposed line (program section 5A.3, a proposal)
+
+| Target       | Verdict | Weeks and flags |
+| ------------ | ------- | --------------- |
+| Ubuntu Touch | port    | 4w g            |
+| Linux        | port    | 3w g            |
+| iOS/iPadOS   | port    | 5w              |
+| macOS        | no-port | -               |
+| Windows      | port    | 2w              |
+
+Key: `follows` means it ports only as far as the products that depend on it; `exists` means the program reads it as already running there, unverified (finish, verify and sign); flags: `g` gated on a prerequisite, `r` re-estimate or floor, `o` its own program, `s` scope note. The program's P4, P8, P12 and P13 gate whole columns or repos and are not flagged per cell. A port verdict counts the deliverable in the line; where this repo's plan calls a deliverable a reframe (program rule R12) it keeps that label. Tests cited in the reason: (a) the owner said it is needed there; (b) its job is really done on that OS by real users; (c) that OS is where it is sold or its audience is; it has no reason to exist if (x) its surface is absent or untouchable, (y) the capability is forbidden or impossible, or (z) the only form is a thin wrapper or a different product nobody asked for. P-numbers and OQ-numbers refer to the program plan (Personal-Tracker `PORTING_PROGRAM.md`, sections 5A.5 and 8).
+
+Reason: iOS is where its audience is. On UT, Linux and Windows it is a web bundle in a native host, and the owner's answer of 2026-10-07 makes those ports (OQ-34, read through program section 5A.1 clause (a)). The program's per-repo review had Linux and Windows no-port under (z), because the standalone bundle already runs in a desktop browser; the case the answer accepts is that its labs (Analyze, Transcribe, MIDI and MusicXML export, 3D) are workbench-like (test b). UT waits on S-BOC-UT1 (microphone grant and WebGL in QtWebEngine) and Linux on a WebKitGTK media spike (program P15); if that spike fails the program plan assumes neither Electron nor a return to no-port (OQ-15 asks you). The UT 4w assumes Linux pays the shared Step 0 (about 1w moves to UT if Linux drops). macOS stays no-port (Designed for iPad covers Apple silicon).
+
+### Owner rulings that apply here
+
+- **OQ-34 web hosts (2026-10-07):** "Yes, extend it": a web bundle in a native host counts as a port for Bocal on Ubuntu Touch, Linux and Windows. Bocal is a web app and not on the Android-only list of the Ubuntu Touch scope ruling, so that ruling does not apply to it. Bocal macOS stays no-port. The Ubuntu Touch and Linux spikes (program P15) still gate those cells; if the WebKitGTK spike fails, the program plan assumes neither Electron nor a return to no-port (OQ-15 asks the owner).
+- **Ubuntu Touch device:** the owner owns one and says it is a OnePlus 6; research reads it as 20.04-only while the program plan targets 24.04. On 2026-10-07 the owner chose "OnePlus 6 pre-spike now, decide later" (OQ-37): a labelled "S-UT1 (focal)" headless-JVM pre-spike, no 24.04 flashing, a 24.04 device decision afterwards. Every Ubuntu Touch device gate stays NDV until then. The pre-spike tests a headless JVM and does not exercise this repo's shape (a QML WebEngineView host with a C++ main; its own gate is S-BOC-UT1 on a 24.04 device).
+- **OQ-31 Mac (2026-10-06 and 2026-10-07):** "Buy a Mac", and on 2026-10-07 an Apple-silicon Mac mini, not yet bought; no Apple device gate is called checkable before then.
+- **Apple (OQ-2, 2026-10-06):** "Whatever let's me sell apps on the app store": the paid Developer Program and the App Store are the target channel. TestFlight is not used until the exception to I-1 (OQ-32, drafted as PROPOSED-1, not approved) is approved.
+- **OQ-20 CI (2026-10-06):** "Linux-only CI when private (Recommended)": this repo is public, so the ruling does not limit its macOS and Windows lanes; going private would stop them. Actions artifact storage is still exhausted (program rule R6).
+- **OQ-5 hardware (2026-10-06):** the owner's answer changes which of their other machines can serve as device gates, so a gate this plan names on specific hardware may be moved or dropped. Which machine carries which device gate is not decided (OQ-33).
+- **Directives (2026-10-06):** "Draft amendments for approval": program directives I-1 to I-12 and rules R1 to R12 are unchanged; PROPOSED-1 to PROPOSED-4 in Personal-Tracker `DECISIONS.md` are drafts awaiting the owner.
+
+### Prerequisites and open questions that touch this repo (program sections 5A.5 and 8)
+
+Prerequisites (program-level; not costed here):
+
+- program P4: A device that can run the 24.04 Ubuntu Touch the program plan targets (the owner's OnePlus 6 is read as 20.04-only)
+- program P8: An Apple-silicon Mac (OQ-31: a Mac mini chosen on 2026-10-07, not yet bought)
+- program P15: S-BOC-UT1 (microphone grant and WebGL in QtWebEngine) and a WebKitGTK media spike on Linux (Electron fallback only via OQ-15)
+
+Owner questions in the program register that concern this repo (status as of 2026-10-07):
+
+- OQ-1 (ruled): Ubuntu Touch device (see the device bullet above)
+- OQ-2 (ruled): Apple Developer Program and the delivery route
+- OQ-3 (open): Signing custody
+- OQ-4 (open): Channels and store compatibility
+- OQ-5 (ruled): Hardware stance
+- OQ-12 (open): Licences for repos without a LICENSE (the register does not name Bocal; plan Q6 proposes adding it)
+- OQ-15 (open): Runout and Bocal: for Bocal, the optional loopback origin on Ubuntu Touch and the Electron fallback if the WebKitGTK spike fails (Bocal needs no COOP/COEP)
+- OQ-20 (ruled): CI minutes, storage and repo visibility
+- OQ-24 (open): Sharing mechanism for non-Gradle artefacts and prebuilt binaries
+- OQ-25 (open): Identifier registry
+- OQ-26 (open): I-3 scope for the non-Hyle repos (Bocal is named)
+- OQ-31 (ruled): CI for App Store builds; which Mac
+- OQ-32 (open): Exception to I-1 for TestFlight and App Store crash reports
+- OQ-33 (open): Hardware details still open
+- OQ-34 (ruled): Web-view hosts and "installed apps will always have more to offer"
+- OQ-37 (answered in part): A second Ubuntu Touch device
+
+When the owner confirms or changes the line, this repo's original cells above stay as the engineering detail; only the verdicts and re-costs in program section 5A change.
