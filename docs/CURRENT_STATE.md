@@ -119,3 +119,7 @@ None of this has real-device audio/latency testing behind it; it is exercised by
 ## Still not proven
 
 Real-device audio/latency/thermal and accessibility acceptance; specialist review of fingerings and 3D touch targets; production signing identity and distribution; comprehensive TonalEnergy parity/superiority; dedicated 3D parity across the other instrument families.
+
+## Platform targets
+
+Android is the only shell today. Ubuntu Touch, Linux, iOS/iPadOS, macOS and Windows hosts are planned, not built: see `docs/PORTING_PLAN.md` (PLAN, 2026-10-06; nothing in it is built or device-verified).
