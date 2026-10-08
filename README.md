@@ -77,3 +77,7 @@ Recording storage failures are visible; request success is not treated as a comm
 Physical-device audio/routing/rotation/accessibility/performance, real signed-release installation, final visual approval and specialist fingering validation remain explicit acceptance gates. No TonalEnergy superiority or full 3D parity across every instrument is claimed.
 
 The previous root README is retained in [the historical archive](docs/archive/README-before-v1-hardening.md). It is not a current build guide.
+
+## Licence
+
+Source-available, free for noncommercial use under the [PolyForm Noncommercial License 1.0.0](LICENSE). If you make money with it, you need a commercial licence: see [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md).
