@@ -6,7 +6,7 @@ This directory is the source of truth for the hosted web app, its licensed 3D as
 
 ## Current instrument support
 
-All ten instruments below are selectable today; see `docs/CURRENT_STATE.md` for the
+All eleven instruments below are selectable today; see `docs/CURRENT_STATE.md` for the
 full instrument × capability table. None of the fingering data has had a teacher
 review yet — every chart and the sax altissimo set are badged "not yet
 teacher-reviewed" in the app.
@@ -31,7 +31,7 @@ those cards are not selectable.
 - Local waveform/spectrum views with named multi-take recording, import, loop, tempo playback, rename, delete and download.
 - Practice distribution, weekly goals, gentle streak feedback, editable song progress and a local coach assignment/export board.
 - Detailed licensed alto GLB with 23 semantic touch targets, view presets and full-screen focus mode.
-- First-run expanding-panel instrument gallery (Woodwinds and Strings sections) and a replayable four-step onboarding whose "Learn" step and proof tile adapt to the chosen instrument's lab tier.
+- First-run expanding-panel instrument gallery (Woodwinds, Strings and Vocal sections) and a replayable four-step onboarding whose "Learn" step and proof tile adapt to the chosen instrument's lab tier.
 - Visual setup-part coverflow for finishes, necks, mouthpieces, reeds and ligatures.
 - A WebView shell under `android/` (`MainActivity` → `WebAppScreen`) serving this build's static output; no APK is claimed until built and tested with an Android SDK and physical devices.
 

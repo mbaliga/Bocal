@@ -20,6 +20,7 @@ or a `labTier` changes.
 | Clarinet | chart | Yes | 2 semitones | 2D fingering chart, 3D model not licensed | Chart verified against the source; considered the most reliable of the three chart-only instruments |
 | Bassoon | chart | Yes | 0 | 2D fingering chart, no 3D model | Missing LH pinky keys against the cited source |
 | Guitar | none | String tuner (no reed/embouchure model) | n/a | Chord fretboard chart + follow player | Follow-player advance is tempo-selectable and scheduled on the AudioContext clock |
+| Vocal | vocal | Yes | 0 | Vocal practice prompts | Pitch-first support only; no vocal-technique grading or healthy-range claim |
 
 ## Cross-cutting state
 

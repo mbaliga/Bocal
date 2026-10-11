@@ -20,7 +20,7 @@ if (!existsSync(PREVIEW_HTML)) {
 }
 const PREVIEW_URL = `file://${PREVIEW_HTML}`;
 
-const INSTRUMENTS = ["alto-sax", "clarinet", "oboe"];
+const INSTRUMENTS = ["alto-sax", "clarinet", "oboe", "vocal"];
 const THEMES = ["dark", "light"];
 const WORKSPACE_COUNT = 5;
 

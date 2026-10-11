@@ -3,7 +3,7 @@
 **Version:** 2.1
 **Date:** 18 September 2026
 **Status:** Active release candidate for the web surface; Android release and teacher review are still pending
-**Current public instruments:** Ten — see the table in §2. Nine woodwinds (alto/tenor/soprano/baritone saxophone, oboe, cor anglais, flute, clarinet, bassoon) plus guitar.
+**Current public instruments:** Eleven — see the table in §2. Nine woodwinds (alto/tenor/soprano/baritone saxophone, oboe, cor anglais, flute, clarinet, bassoon), guitar and Vocal.
 **Product principle:** local-first, educationally honest, usable in one or two taps during real practice
 
 This is the single canonical handoff document. `web-source/public/downloads/BOCAL_HANDOFF.md`
@@ -20,7 +20,7 @@ account and no network calls beyond loading the app itself.
 
 ## 2. Instrument support
 
-All ten rows below are selectable in the instrument picker today; none are
+All eleven rows below are selectable in the instrument picker today; none are
 placeholders. `labTier` in `web-source/app/instruments.ts` drives what each
 instrument's second workspace tab shows.
 
@@ -36,6 +36,7 @@ instrument's second workspace tab shows.
 | Clarinet | B♭ | Yes | 2D fingering chart, 3D model not licensed |
 | Bassoon | C | Yes | 2D fingering chart, no 3D model |
 | Guitar | — | String tuner | Chord fretboard chart + a follow player that waits for the played root |
+| Vocal | C | Yes | Vocal practice prompts; pitch-first, no vocal-technique grading |
 
 **Every fingering chart and the saxophone altissimo set are badged "not yet
 teacher-reviewed"** — they are checked against two published references
@@ -53,7 +54,8 @@ instrument × capability matrix and known data gaps per instrument.
 - **Lab** (label varies by instrument tier) — the sax family's interactive 3D
   fingering trainer on a licensed alto model with key-glow; the oboe's 3D anatomy
   preview; 2D fingering charts for flute, clarinet and bassoon (and as a second view
-  for oboe/cor anglais); the guitar's chord fretboard and follow player.
+  for oboe/cor anglais); the guitar's chord fretboard and follow player; Vocal's
+  pitch-first singing prompts.
 - **Pulse** — metronome with tap tempo, count-in, click voice options, silent-bar
   drills, saved presets and multi-section sequences, plus a drone.
 - **Analyze** — live waveform and spectrum views, a harmonics/partial-level overlay,
@@ -75,6 +77,8 @@ exhaustive — see the source and regression tests named below for the current d
   player; source-level fixtures and badges do not replace that sign-off.
 - The pitch tracker's capture window is instrument-specific, but real microphone
   validation at the extremes of every instrument remains outstanding.
+- Vocal support is intentionally pitch-first: it does not claim to assess vocal
+  technique, breath management, diction, or healthy range.
 - The 3D models have a bronze default, with local material, keywork, mouthpiece,
   environment and camera controls available through the Look panel.
 - Takes recorded in Analyze use local IndexedDB persistence when available and fall
@@ -122,7 +126,7 @@ closed when signing secrets are absent and verifies the resulting AAB signature.
   yet have a way to review or correct the shipped fingering data in-app (that stays a
   code change today — see §4).
 - **Casual/curious visitor** — opens the instrument gallery, browses the Woodwinds
-  and Strings sections and the further-planned families, and may leave without an
+  Woodwinds, Strings and Vocal sections and the further-planned families, and may leave without an
   account, which the app supports (no sign-in exists at all).
 
 Each persona's workflow is a straight-line loop: pick an instrument once, then tune,

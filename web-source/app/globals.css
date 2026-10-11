@@ -79,6 +79,13 @@ button:focus-visible, [role="button"]:focus-visible, a:focus-visible, input:focu
 .instrument-picker span:nth-child(2) { display: grid; font-size: 13px; font-weight: 590; line-height: 1.2; }
 .instrument-picker small { color: var(--subtle); font-size: 10px; text-transform: uppercase; letter-spacing: .1em; font-weight: 600; margin-bottom: 3px; }
 .instrument-icon { width: 35px; height: 35px; background: var(--violet-deep); color: #b8adff; border-radius: 10px; display: grid; place-items: center; }
+.vocal-studio-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 28px; }
+.vocal-studio-card { min-height: 210px; padding: 22px; border: 1px solid var(--line); border-radius: 18px; background: var(--card); display: flex; flex-direction: column; align-items: flex-start; }
+.vocal-studio-icon { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 12px; color: #d2c9ff; background: var(--violet-deep); margin-bottom: 24px; }
+.vocal-studio-card small { color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-size: 10px; }
+.vocal-studio-card h2 { margin: 8px 0; font-size: 19px; }
+.vocal-studio-card p { margin: 0; color: var(--muted); line-height: 1.55; font-size: 13px; }
+@media (max-width: 760px) { .vocal-studio-grid { grid-template-columns: 1fr; } .vocal-studio-card { min-height: 0; } }
 .instrument-menu { position: absolute; top: calc(100% + 8px); left: 0; width: min(340px, calc(100vw - 32px)); padding: 7px; border: 1px solid #323238; border-radius: 15px; background: rgba(16,16,18,.98); box-shadow: 0 24px 70px rgba(0,0,0,.58); backdrop-filter: blur(18px); }
 .instrument-menu > button { width: 100%; min-height: 62px; padding: 9px 11px; border: 1px solid transparent; border-radius: 11px; background: transparent; color: #88888c; display: grid; grid-template-columns: 35px 1fr 18px; align-items: center; gap: 10px; text-align: left; cursor: pointer; }
 .instrument-menu > button:hover { background: #19191c; color: var(--ink); }

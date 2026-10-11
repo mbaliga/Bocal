@@ -2,7 +2,7 @@
 
 Bocal is a local-first music practice app: a stable-note tuner, pulse and practice
 tools, local analysis, and instrument-specific fingering/anatomy learning, covering
-ten instruments (nine woodwinds plus guitar).
+eleven instruments (nine woodwinds, guitar and Vocal).
 
 ## Current product (read this first)
 

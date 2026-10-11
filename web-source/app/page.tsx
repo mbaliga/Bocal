@@ -16,6 +16,7 @@ import {
   Guitar,
   LockKeyhole,
   Mic,
+  Mic2,
   MoreHorizontal,
   Music2,
   Pause,
@@ -42,6 +43,7 @@ import {
   OnboardingGuide,
 } from "./InstrumentExperience";
 import { GuitarStudio } from "./GuitarStudio";
+import { VocalStudio } from "./VocalStudio";
 import { ToneGenerator } from "./ToneGenerator";
 import {
   DAMPING_HINTS,
@@ -202,6 +204,13 @@ function labCardCopy(instrument: InstrumentProfile, writtenLabel: string | null)
       body: "Pick a written note and see exactly which keys to press.",
     };
   }
+  if (instrument.labTier === "vocal") {
+    return {
+      kicker: "Vocal practice",
+      heading: "Find the centre of your voice.",
+      body: "Sing a comfortable sustained note, then open Vocal for pitch-first practice prompts.",
+    };
+  }
   return { kicker: "Lab", heading: `Open the ${name} tools.`, body: "Tuner and practice tools are ready for this instrument." };
 }
 
@@ -226,6 +235,7 @@ function navLabelFor(itemId: Mode, instrument: InstrumentProfile): string {
   if (itemId !== "sax") return navItems.find((item) => item.id === itemId)?.label ?? "";
   if (instrument.labTier === "fingering" || instrument.labTier === "anatomy") return "Lab";
   if (instrument.labTier === "chart") return "Chart";
+  if (instrument.labTier === "vocal") return "Vocal";
   return "Strings";
 }
 
@@ -994,7 +1004,7 @@ export default function Home() {
         <header className="top-bar">
           <div className="instrument-picker-wrap">
             <button className="instrument-picker" aria-label="Choose instrument" aria-expanded={instrumentPickerOpen} onClick={() => setInstrumentPickerOpen((value) => !value)}>
-              <span className="instrument-icon">{instrument.id === "guitar" ? <Guitar size={18} /> : <Wind size={18} />}</span>
+              <span className="instrument-icon">{instrument.id === "guitar" ? <Guitar size={18} /> : instrument.id === "vocal" ? <Mic2 size={18} /> : <Wind size={18} />}</span>
               <span><small>Instrument</small>{instrument.shortName} · {instrument.pitchLabel}</span>
               <ChevronDown size={16} />
             </button>
@@ -1061,7 +1071,9 @@ export default function Home() {
         )}
         {mode === "sax" && (instrumentId === "guitar"
           ? <GuitarStudio reading={reading ? { hz: reading.hz, cents: reading.cents, midi: reading.concertMidi } : null} listening={listening} onListen={startListening} />
-          : <SaxophoneLab onBack={() => selectMode("tune")} instrumentId={instrumentId} notation={notation} saTonic={saTonic} />)}
+          : instrumentId === "vocal"
+            ? <VocalStudio onOpenTune={() => selectMode("tune")} />
+            : <SaxophoneLab onBack={() => selectMode("tune")} instrumentId={instrumentId} notation={notation} saTonic={saTonic} />)}
         {mode === "pulse" && <PulseView tuningOptions={tuningOptions} />}
         {mode === "analyze" && <AnalysisView instrument={instrument} notation={notation} saTonic={saTonic} />}
         {mode === "practice" && (
