@@ -2,10 +2,20 @@ import type { InstrumentId } from "../instruments";
 import { BASSOON_CHART } from "./bassoon";
 import { CLARINET_CHART } from "./clarinet";
 import { FLUTE_CHART } from "./flute";
+import { CHROMATIC_HARMONICA_CHART, DIATONIC_HARMONICA_CHART, type HarmonicaChartData } from "./harmonica";
 import { OBOE_CHART } from "./oboe";
 import { SAXOPHONE_CHART } from "./saxophone";
 import type { FingeringChart } from "./types";
 
+export {
+  buildDiatonicHarmonicaChart,
+  CHROMATIC_HARMONICA_CHART,
+  DEFAULT_HARMONICA_KEY,
+  DIATONIC_HARMONICA_CHART,
+  HARMONICA_KEYS,
+  sanitiseHarmonicaKey,
+} from "./harmonica";
+export type { HarmonicaChartData, HarmonicaKeyId, HarmonicaNote } from "./harmonica";
 export type { ChartAlternate, ChartKey, ChartKeyHand, ChartKeyShape, Fingering, FingeringChart } from "./types";
 
 /**
@@ -43,4 +53,16 @@ export const FINGERING_CHARTS: Partial<Record<InstrumentId, FingeringChart>> = {
   "alto-sax": SAXOPHONE_CHART,
   "tenor-sax": SAXOPHONE_CHART,
   "bari-sax": SAXOPHONE_CHART,
+};
+
+/**
+ * The harmonicas have no key diagram, so they are not a `FingeringChart`;
+ * they carry the same honesty `review` string and are registered here so the
+ * badge and the chart tests see them next to everything else. The diatonic
+ * entry is the key-of-C default -- HarmonicaChart.tsx rebuilds it for the
+ * player's chosen key with `buildDiatonicHarmonicaChart`.
+ */
+export const HARMONICA_CHARTS: Partial<Record<InstrumentId, HarmonicaChartData>> = {
+  "diatonic-harmonica": DIATONIC_HARMONICA_CHART,
+  "chromatic-harmonica": CHROMATIC_HARMONICA_CHART,
 };

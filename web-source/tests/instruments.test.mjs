@@ -10,7 +10,7 @@ import { INSTRUMENTS, INSTRUMENT_ORDER, isInstrumentId } from "../app/instrument
 // range) rather than replacing this file.
 
 const CLEFS = new Set(["treble", "bass"]);
-const LAB_TIERS = new Set(["fingering", "anatomy", "chart", "vocal", "none"]);
+const LAB_TIERS = new Set(["fingering", "anatomy", "chart", "vocal", "harmonica", "none"]);
 
 test("INSTRUMENT_ORDER lists every instrument in INSTRUMENTS exactly once", () => {
   const ids = Object.keys(INSTRUMENTS);
@@ -58,7 +58,7 @@ test("writtenOffset matches the known transposition for every transposing instru
 });
 
 test("concert-pitch instruments have a zero writtenOffset", () => {
-  for (const id of ["flute", "oboe", "bassoon", "guitar", "vocal"]) {
+  for (const id of ["flute", "oboe", "bassoon", "diatonic-harmonica", "chromatic-harmonica", "guitar", "vocal"]) {
     assert.equal(INSTRUMENTS[id].writtenOffset, 0, `${id} is a concert-pitch instrument`);
   }
 });
@@ -76,6 +76,7 @@ test("lab tier reflects which asset each instrument actually ships", () => {
   for (const id of saxes) assert.equal(INSTRUMENTS[id].labTier, "fingering");
   for (const id of ["oboe", "cor-anglais"]) assert.equal(INSTRUMENTS[id].labTier, "anatomy");
   for (const id of ["flute", "clarinet", "bassoon"]) assert.equal(INSTRUMENTS[id].labTier, "chart");
+  for (const id of ["diatonic-harmonica", "chromatic-harmonica"]) assert.equal(INSTRUMENTS[id].labTier, "harmonica");
   assert.equal(INSTRUMENTS.guitar.labTier, "none");
   assert.equal(INSTRUMENTS.vocal.labTier, "vocal");
   assert.equal(INSTRUMENTS.vocal.embouchure, "voice");

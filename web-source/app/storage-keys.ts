@@ -36,6 +36,8 @@ export const WEEKLY_GOAL_STORAGE_KEY = "bocal-weekly-goal-minutes";
 export const LESSON_NOTE_STORAGE_KEY = "bocal-lesson-note";
 export const METRONOME_PRESETS_STORAGE_KEY = "bocal-metronome-presets-v1";
 export const METRONOME_SEQUENCES_STORAGE_KEY = "bocal-metronome-sequences-v1";
+/** The diatonic harmonica's chosen key id (one of HARMONICA_KEYS in fingering-charts/harmonica.ts); read through sanitiseHarmonicaKey. */
+export const HARMONICA_KEY_STORAGE_KEY = "bocal-harmonica-key-v1";
 
 /**
  * The three calibration keys AnalysisView reads (read-only -- it mirrors the

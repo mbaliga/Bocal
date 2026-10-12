@@ -1,0 +1,101 @@
+/* Harmonica lab: the hole comb, its controls and the side panel. Built on
+ * the page tokens (--ink, --muted, --panel, --panel-2, --line, --cyan,
+ * --violet) so both themes read from one set of rules; the only literal
+ * colours are the ink on a filled (selected) cell, which follows the same
+ * pairing the note strip already uses in each theme.
+ *
+ * Kept to CSS an older Android WebView (Chrome 69) understands: grid with
+ * gap, sticky, no aspect-ratio, no flex gap, no clamp().
+ */
+
+.harmonica-chart:focus { outline: none; }
+.harmonica-chart:focus-visible { outline: 2px solid var(--cyan); outline-offset: 4px; }
+
+.harmonica-chart .chart-review-badge { font-size: 11px; margin-bottom: 8px; }
+.harmonica-caveat { margin: 0 0 14px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+
+.harmonica-controls { display: flex; flex-wrap: wrap; align-items: flex-end; margin: 0 0 14px -6px; }
+.harmonica-controls > * { margin: 0 0 8px 6px; }
+.harmonica-key { display: grid; color: var(--muted); font-size: 11px; }
+.harmonica-key span { margin-bottom: 4px; }
+.harmonica-key select {
+  min-height: 44px; min-width: 96px; padding: 0 12px; border: 1px solid var(--line-strong);
+  border-radius: 10px; background: var(--panel-2); color: var(--ink); font-size: 14px;
+}
+.harmonica-toggle {
+  min-height: 44px; padding: 0 14px; border: 1px solid var(--line-strong); border-radius: 10px;
+  background: var(--panel-2); color: var(--ink); font-size: 12px; cursor: pointer;
+}
+.harmonica-toggle.is-on { border-color: var(--cyan); box-shadow: inset 0 0 0 1px var(--cyan); }
+.harmonica-toggle.is-on::before { content: "\2713\00a0"; color: var(--accent-ink); font-weight: 700; }
+
+.harmonica-stage { align-items: stretch; min-height: 0; padding: 14px; }
+.harmonica-comb {
+  display: grid; grid-gap: 4px; align-items: stretch; overflow-x: auto; padding-bottom: 8px;
+  -webkit-overflow-scrolling: touch;
+}
+.hc-corner, .hc-hole, .hc-rowlabel, .hc-empty { min-height: 0; }
+.hc-corner, .hc-hole { display: flex; align-items: center; justify-content: center; min-height: 28px; color: var(--muted); font-size: 12px; font-weight: 700; }
+.hc-corner { justify-content: flex-start; font-weight: 400; }
+.hc-rowlabel {
+  position: sticky; left: 0; z-index: 1; display: flex; align-items: center; padding-right: 6px;
+  background: var(--panel); color: var(--muted); font-size: 11px; line-height: 1.2;
+}
+.hc-rowlabel.is-first { color: var(--ink); font-weight: 700; font-size: 12px; }
+
+.hc-cell {
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-height: 44px; padding: 2px; border: 1px solid var(--line-strong); border-radius: 8px;
+  background: var(--panel-2); color: var(--ink); font: inherit; cursor: pointer;
+}
+.hc-cell b { font-size: 12px; font-weight: 700; letter-spacing: -.02em; white-space: nowrap; }
+.hc-cell i { color: var(--muted); font-size: 11px; font-style: normal; line-height: 1.1; }
+.hc-cell.is-first { min-height: 52px; }
+.hc-cell.is-first.is-blow { border-bottom-width: 3px; }
+.hc-cell.is-first.is-draw { border-top-width: 3px; }
+.hc-cell.is-bend { border-style: dashed; }
+.hc-cell.is-advanced { border-style: dotted; }
+.hc-cell:hover { border-color: var(--cyan); }
+
+.hc-cell.is-detected { outline: 2px solid var(--violet); outline-offset: 1px; }
+.hc-cell.is-detected::after {
+  content: ""; position: absolute; top: 3px; right: 3px; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--violet);
+}
+.hc-cell.is-selected { background: var(--cyan); border-color: var(--cyan); color: #04211c; }
+.hc-cell.is-selected i { color: #04211c; }
+html[data-theme="light"] .hc-cell.is-selected { color: #ffffff; }
+html[data-theme="light"] .hc-cell.is-selected i { color: #ffffff; }
+
+.harmonica-legend { display: flex; flex-wrap: wrap; margin: 6px 0 0; color: var(--muted); font-size: 11px; }
+.harmonica-legend span { display: inline-flex; align-items: center; margin-right: 14px; }
+.harmonica-legend i { display: inline-block; width: 12px; height: 12px; margin-right: 6px; border-radius: 3px; border: 1px solid var(--line-strong); }
+.harmonica-legend .hl-selected { background: var(--cyan); border-color: var(--cyan); }
+.harmonica-legend .hl-detected { border: 2px solid var(--violet); }
+.harmonica-legend .hl-bend { border-style: dashed; }
+
+.harmonica-where { display: grid; grid-template-columns: 1fr 1fr; grid-gap: 12px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+.harmonica-where > div { display: grid; }
+.harmonica-where small { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
+.harmonica-where strong { margin-top: 6px; font-size: 28px; letter-spacing: -.05em; color: var(--ink); }
+.harmonica-how { margin: 12px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+
+.harmonica-chart .chart-panel .chart-staff-slot { margin-top: 8px; color: var(--subtle); }
+.harmonica-chart .tone-button { font-size: 13px; }
+.harmonica-chart .finger-hint p { font-size: 12px; }
+.harmonica-chart .fingering-choices > small { font-size: 11px; color: var(--muted); }
+.harmonica-chart .fingering-choices button { font-size: 12px; min-height: 40px; }
+.harmonica-chart .fingering-choices button:not(.is-active) { color: var(--ink); background: var(--panel-2); border-color: var(--line-strong); }
+.harmonica-chart .review-badge { margin-bottom: 8px; align-self: flex-start; font-size: 11px; }
+
+.harmonica-tuner { margin-top: 14px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel-2); }
+.harmonica-tuner p { margin: 0; color: var(--ink); font-size: 12px; line-height: 1.5; }
+.harmonica-tuner button {
+  margin-top: 10px; min-height: 44px; padding: 0 14px; border: 1px solid var(--line-strong); border-radius: 10px;
+  background: var(--panel); color: var(--ink); font-size: 12px; cursor: pointer; display: inline-flex; align-items: center;
+}
+.harmonica-tuner button svg { margin-right: 6px; }
+
+@media (max-width: 680px) {
+  .harmonica-where strong { font-size: 24px; }
+}

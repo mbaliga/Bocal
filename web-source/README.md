@@ -6,7 +6,7 @@ This directory is the source of truth for the hosted web app, its licensed 3D as
 
 ## Current instrument support
 
-All eleven instruments below are selectable today; see `docs/CURRENT_STATE.md` for the
+All thirteen instruments below are selectable today; see `docs/CURRENT_STATE.md` for the
 full instrument × capability table. None of the fingering data has had a teacher
 review yet — every chart and the sax altissimo set are badged "not yet
 teacher-reviewed" in the app.
@@ -17,6 +17,7 @@ teacher-reviewed" in the app.
 | Oboe | Yes | 3D anatomy preview + fingering chart |
 | Cor anglais | Yes | 3D anatomy preview (shown on the oboe model) + oboe fingering chart |
 | Flute, clarinet, bassoon | Yes | 2D fingering chart, no licensed 3D model |
+| Diatonic and chromatic harmonica | Yes | Hole-and-breath chart computed from the standard layout, not teacher-reviewed; overblows unverified; no 3D model |
 | Guitar | String tuner | Chord fretboard chart + follow player, no 3D model |
 
 The instrument gallery also shows further planned families (bowed strings, brass,
