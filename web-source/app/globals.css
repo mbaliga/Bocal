@@ -420,8 +420,8 @@ button:focus-visible, [role="button"]:focus-visible, a:focus-visible, input:focu
 .oboe-truth-card p { margin: 6px 0 0; color: #747478; font-size: 8px; line-height: 1.55; }
 .model-credit { margin-top: auto; padding-top: 18px; color: #78727f; display: flex; align-items: flex-start; gap: 7px; font-size: 8px; line-height: 1.45; text-decoration: none; }
 .model-credit:hover { color: #a69add; }
-.model-license-link { margin-top: 8px; color: #78727f; display: inline-flex; align-items: center; gap: 6px; font-size: 8px; line-height: 1.45; text-decoration: none; }
-.model-license-link:hover { color: #a69add; }
+.model-license-link { margin-top: 8px; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; font-size: 8px; line-height: 1.45; text-decoration: none; }
+.model-license-link:hover { color: var(--ink); }
 
 /* 2D fingering charts (flute, clarinet, bassoon, and the oboe/cor-anglais
    section beneath their 3D stage). Reuses the sax lab's note-browser,
