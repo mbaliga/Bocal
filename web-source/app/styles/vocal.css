@@ -415,6 +415,19 @@
 .vocal-take-list button:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
 .vocal-take-list button.is-active { border-color: var(--cyan); background-color: var(--cyan-deep); }
 .vocal-take-detail { display: grid; gap: 10px; min-width: 0; }
+.vocal-takes .button.primary,
+.vocal-melody .button.primary {
+  border: 0;
+  color: #04120f;
+  font-weight: 650;
+  background-color: #08fed5;
+  background-image: radial-gradient(circle at 40% 32%, #5fffe4 0%, #08fed5 55%, #06b89a 100%);
+  box-shadow: inset 0 2px 2px rgba(255, 255, 255, 0.45), inset 0 -4px 8px rgba(0, 0, 0, 0.3), 0 3px 7px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(0, 0, 0, 0.25);
+}
+.vocal-takes .button.primary:hover:not(:disabled),
+.vocal-melody .button.primary:hover:not(:disabled) { transform: none; filter: brightness(1.06); }
+.vocal-takes .button.primary:disabled,
+.vocal-melody .button.primary:disabled { opacity: 0.5; cursor: default; }
 .vocal-take-detail .take-pitch-trace canvas { height: 190px; }
 .vocal-take-detail .take-pitch-legend { font-size: 12px; }
 .vocal-take-detail .take-compare-diff { font-size: 13px; }

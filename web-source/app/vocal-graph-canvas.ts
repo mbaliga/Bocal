@@ -291,9 +291,10 @@ export function drawVocalGraph(canvas: HTMLCanvasElement, input: DrawVocalGraphI
       const x0 = xOf(segment.startMs);
       const x1 = xOf(segment.endMs);
       if (x1 < box.left || x0 > right) continue;
-      const top = yOf(segment.midi + bandSemitones);
-      const base = yOf(segment.midi - bandSemitones);
-      const bandHeight = Math.max(3, base - top);
+      // Never thinner than 8 px, so a narrow band on a tall axis can still be seen.
+      const half = Math.max(4, (yOf(segment.midi - bandSemitones) - yOf(segment.midi + bandSemitones)) / 2);
+      const top = yOf(segment.midi) - half;
+      const bandHeight = half * 2;
       ctx.fillStyle = withAlpha(theme.mark, 0.2);
       ctx.fillRect(x0, top, Math.max(1, x1 - x0 - 1), bandHeight);
       ctx.strokeStyle = withAlpha(theme.mark, 0.85);
