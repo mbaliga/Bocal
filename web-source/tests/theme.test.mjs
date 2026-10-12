@@ -1,7 +1,8 @@
 // Real browser text-contrast gate. Both themes must pass; a historical failure
 // count is not an acceptance threshold. This is not complete accessibility QA.
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { launchChromium } from "./browser.mjs";
@@ -83,6 +84,18 @@ async function walkStates(page,theme,instrument,results){
     await page.waitForTimeout(200);
   };
   await select(1);await record('tune');
+  // V-C play-along: the drill under the tone generator, idle with the microphone off, then
+  // after Start with no microphone to hear (the notice explains why nothing began).
+  const drill=page.locator('.call-response');
+  if(await drill.isVisible()){
+    await drill.scrollIntoViewIfNeeded();
+    await record('tune/call-response','.call-response');
+    await drill.getByRole('button',{name:'Strict',exact:true}).click();
+    await drill.getByRole('button',{name:'Start',exact:true}).click();
+    await drill.locator('.call-response-notice').waitFor();
+    await record('tune/call-response-mic-off','.call-response');
+    await drill.getByRole('button',{name:'Standard',exact:true}).click();
+  }
   const targetPicker=page.locator('.target-lock-picker select');
   if(await targetPicker.isVisible()){
     const options=await targetPicker.locator('option').all();
@@ -113,6 +126,7 @@ async function walkStates(page,theme,instrument,results){
   await record('analyze/compare','.take-card');
   await select(3);await record('pulse');
   await select(2);await page.waitForTimeout(500);await record('lab/learn');
+  if(await page.locator('.call-response').isVisible())await record('lab/learn-call-response','.call-response');
   // Vocal workspace: audit the guided warm-up routine as well as the step cards.
   const vocalCard=page.locator('.vocal-studio-card').first();
   if(await vocalCard.isVisible()){
@@ -121,6 +135,8 @@ async function walkStates(page,theme,instrument,results){
     // card (a stored range is seeded by the init script), the range finder's
     // in-progress prompt and each warm-up card driving the graph.
     await record('vocal/graph','.vocal-stage');
+    // V-C play-along on the Vocal stage.
+    await record('vocal/call-response','.call-response');
     await page.getByRole('button',{name:'Hold',exact:true}).click();
     await page.locator('.vocal-graph.is-held').waitFor();
     await record('vocal/graph-held','.vocal-stage');
@@ -166,6 +182,48 @@ async function walkHarmonica(page,theme,instrument,results){
   await page.getByRole('button',{name:'Choose instrument',exact:true}).click();
   await page.waitForTimeout(200);
   await record('harmonica/picker-free-reed','.experience-overlay');
+}
+
+// V-C play-along result state. Chromium's fake microphone plays this WAV: five
+// steady notes (the Five-note scale, C4 to G4) sung after a lead of silence that
+// lines up with the drill's phrase and count-in, so a real round runs end to end
+// and the drill's result is on screen. Whether it reads "matched" or "not yet"
+// does not matter here; the audit checks the text contrast of that state.
+function sungPhraseWav(){
+  const rate=48000,lead=5.2,hold=0.75,gap=0.1,notes=[60,62,64,65,67];
+  const total=Math.round((lead+notes.length*(hold+gap)+10)*rate);
+  const samples=new Int16Array(total);
+  let at=Math.round(lead*rate);
+  for(const midi of notes){
+    const hz=440*2**((midi-69)/12),count=Math.round(hold*rate);
+    for(let i=0;i<count;i++)samples[at+i]=Math.round(9000*Math.min(1,i/600,(count-i)/600)*Math.sin(2*Math.PI*hz*i/rate));
+    at+=count+Math.round(gap*rate);
+  }
+  const bytes=Buffer.alloc(44+total*2);
+  bytes.write('RIFF',0);bytes.writeUInt32LE(bytes.length-8,4);bytes.write('WAVEfmt ',8);
+  bytes.writeUInt32LE(16,16);bytes.writeUInt16LE(1,20);bytes.writeUInt16LE(1,22);
+  bytes.writeUInt32LE(rate,24);bytes.writeUInt32LE(rate*2,28);
+  bytes.writeUInt16LE(2,32);bytes.writeUInt16LE(16,34);bytes.write('data',36);bytes.writeUInt32LE(total*2,40);
+  for(let i=0;i<total;i++)bytes.writeInt16LE(samples[i],44+i*2);
+  return bytes;
+}
+
+async function walkDrillResult(page,theme,instrument,results){
+  const record=async(state,scope)=>{
+    const text=await textAudit(page,scope);
+    assert.ok(Array.isArray(text),`${instrument}/${state}: missing required scope ${scope}`);
+    results.push({theme,instrument,state,text});
+    if(text.length){console.log(`${theme}/${instrument}/${state}: ${text.length} contrast failures`);for(const f of text)console.log(`  ${f.sel} "${f.text}" ${f.ratio}:1, need ${f.threshold}, ${f.fg} on ${f.bg}`);}
+  };
+  await page.locator('.mobile-nav button[aria-keyshortcuts="2"]').click();
+  const drill=page.locator('.call-response');
+  await drill.waitFor();
+  await drill.scrollIntoViewIfNeeded();
+  await drill.getByRole('button',{name:'Start',exact:true}).click();
+  await page.waitForFunction(()=>document.querySelector('.call-response')?.getAttribute('data-state')==='playing',null,{timeout:20000});
+  await record('vocal/call-response-playing','.call-response');
+  await page.waitForFunction(()=>document.querySelector('.call-response')?.getAttribute('data-state')==='scored',null,{timeout:60000});
+  await record('vocal/call-response-result','.call-response');
 }
 
 // Tiny synthetic WAV so the A/B compare state below has two real takes to
@@ -215,6 +273,23 @@ try {
       const results=[];await walkHarmonica(page,theme,instrument,results);
       for(const result of results){counts[`${theme}/${instrument}/${result.state}`]=result.text.length;for(const item of result.text)failures.push({theme,instrument,state:result.state,...item});}
     } finally {await context.close();}
+  }
+  // The drill's playing and result states need a microphone that hears something.
+  for(const theme of ['light','dark']){
+    const wavDir=mkdtempSync(path.join(tmpdir(),'bocal-sung-'));
+    const wav=path.join(wavDir,'phrase.wav');
+    writeFileSync(wav,sungPhraseWav());
+    const micBrowser=await launchChromium({args:['--use-fake-device-for-media-stream','--use-fake-ui-for-media-stream',`--use-file-for-fake-audio-capture=${wav}%noloop`,'--autoplay-policy=no-user-gesture-required']});
+    try {
+      const context=await micBrowser.newContext({viewport:{width:412,height:915},permissions:['microphone']});
+      const page=await context.newPage();page.setDefaultTimeout(10000);
+      await page.addInitScript(({theme})=>{
+        localStorage.setItem('bocal-onboarding-v2','complete');localStorage.setItem('bocal-theme',theme);localStorage.setItem('bocal-instrument','vocal');
+      },{theme});
+      await page.goto(preview.url);await page.locator('.app-shell').waitFor();await page.waitForTimeout(400);
+      const results=[];await walkDrillResult(page,theme,'vocal',results);
+      for(const result of results){counts[`${theme}/vocal/${result.state}`]=result.text.length;for(const item of result.text)failures.push({theme,instrument:'vocal',state:result.state,...item});}
+    } finally {await micBrowser.close();rmSync(wavDir,{recursive:true,force:true});}
   }
 } finally {
   await browser.close();await preview.close();

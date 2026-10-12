@@ -167,6 +167,57 @@ try {
     } catch (error) { errors.push(`${label}: ${error.message}`); }
     finally { await context.close(); }
   }
+  // Play-along drill: open the Tune workspace, find the drill under the tone
+  // generator and see its phrase controls and the honesty line. No microphone
+  // is needed to see them; pressing Start without one must say so rather than
+  // do nothing. Both themes.
+  for (const theme of ["dark", "light"]) {
+    const label = `play-along-tune-${theme}`;
+    const context = await browser.newContext({ viewport: { width: 412, height: 915 } });
+    try {
+      const page = await context.newPage();
+      page.setDefaultTimeout(10000);
+      const pageErrors = [];
+      page.on("pageerror", (error) => pageErrors.push(String(error)));
+      await page.addInitScript((t) => {
+        localStorage.setItem("bocal-onboarding-v2", "complete");
+        localStorage.setItem("bocal-theme", t);
+        localStorage.setItem("bocal-instrument", "alto-sax");
+      }, theme);
+      await page.goto(preview.url);
+      await page.locator(".app-shell").waitFor();
+      const drill = page.locator(".call-response");
+      await drill.waitFor();
+      await drill.scrollIntoViewIfNeeded();
+      // It sits below the tone generator in the Tune workspace.
+      const toneBox = await page.locator(".tone-generator-card").boundingBox();
+      const drillBox = await drill.boundingBox();
+      assert.ok(toneBox && drillBox && drillBox.y > toneBox.y + toneBox.height - 1, `${label}: the drill is below the tone generator`);
+      await page.getByRole("heading", { name: "Hear a phrase, then answer it" }).waitFor();
+      const phraseSelect = drill.getByLabel("Phrase");
+      assert.deepEqual((await phraseSelect.locator("option").allInnerTexts()).slice(0, 3), ["Five-note scale", "Arpeggio", "Descending fifth"], `${label}: the bundled phrases come first`);
+      assert.equal(await drill.getByRole("group", { name: "How close the notes must be" }).getByRole("button").count(), 3, `${label}: lenient, standard, strict`);
+      await drill.getByLabel("Tries per phrase").waitFor();
+      await drill.getByLabel("Move on by itself").waitFor();
+      const box = await drill.locator(".call-response-canvas").boundingBox();
+      assert.ok(box && box.width > 200 && box.height > 100, `${label}: the phrase plot has a real size`);
+      // An alto sax reads the concert phrase nine semitones up, so the chips are written pitch.
+      assert.ok((await drill.locator(".call-response-notes li").count()) >= 4, `${label}: the phrase is listed note by note`);
+      assert.match(await drill.locator(".call-response-honesty").innerText(), /pitch and order only[\s\S]*Timing is not judged[\s\S]*Bocal.s own settings/, `${label}: the honesty line is visible`);
+      // A choice is kept.
+      await drill.getByRole("button", { name: "Strict", exact: true }).click();
+      assert.equal(await drill.getByRole("button", { name: "Strict", exact: true }).getAttribute("aria-pressed"), "true");
+      await page.waitForFunction(() => /"threshold":"strict"/.test(localStorage.getItem("bocal-call-response-v1") || ""));
+      // Without a microphone, Start says why.
+      await drill.getByRole("button", { name: "Start", exact: true }).click();
+      await drill.locator(".call-response-notice").waitFor();
+      assert.equal(await drill.getAttribute("data-state"), "idle", `${label}: no round starts without a microphone`);
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth <= 1), `${label}: no horizontal overflow`);
+      assert.deepEqual(pageErrors, [], `${label}: browser errors`);
+      results.push({ label, passed: true });
+    } catch (error) { errors.push(`${label}: ${error.message}`); }
+    finally { await context.close(); }
+  }
 } finally {
   await browser.close();
   await preview.close();

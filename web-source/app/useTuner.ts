@@ -24,6 +24,7 @@ import {
   withTunerSession,
 } from "./skill-rating";
 import { recordPracticeActivity } from "./practice-data";
+import { publishCallHost, type CallHost, type PhraseTone } from "./call-host";
 
 export type PitchReading = {
   hz: number;
@@ -169,6 +170,9 @@ export function useTuner(instrument: InstrumentProfile, options: UseTunerOptions
   // AudioContext), and is torn down by `stopPitchPipe` on pointer-up or by
   // `stopListening` when the tuner session itself stops.
   const pitchPipeRef = useRef<{ oscillator: OscillatorNode; gain: GainNode } | null>(null);
+  // The play-along drill's scheduled phrase (see call-host.ts): the same
+  // AudioContext as everything else here, every note queued on its clock.
+  const phraseVoicesRef = useRef<{ oscillator: OscillatorNode; gain: GainNode }[]>([]);
 
   // Sensitivity (acquireFrames/switchFrames/minimumConfidence), Damping
   // (holdMs/smoothing) and the instrument's frequency range are reapplied to
@@ -346,8 +350,33 @@ export function useTuner(instrument: InstrumentProfile, options: UseTunerOptions
     oscillator.onended = () => { oscillator.disconnect(); gain.disconnect(); };
   }, []);
 
+  // Silences whatever the play-along phrase still has queued: a short
+  // release, then the oscillators stop. Declared ahead of stopListening so the
+  // microphone stopping (which suspends the context) cannot strand a phrase.
+  const stopPhrase = useCallback(() => {
+    const voices = phraseVoicesRef.current;
+    phraseVoicesRef.current = [];
+    const audioContext = audioContextRef.current;
+    voices.forEach(({ oscillator, gain }) => {
+      try {
+        if (audioContext) {
+          const now = audioContext.currentTime;
+          gain.gain.cancelScheduledValues(now);
+          gain.gain.setValueAtTime(Math.max(gain.gain.value, 0.0001), now);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.05);
+          oscillator.stop(now + 0.06);
+        } else {
+          oscillator.stop();
+        }
+      } catch {
+        // Already stopped.
+      }
+    });
+  }, []);
+
   const stopListening = useCallback(() => {
     stopPitchPipe();
+    stopPhrase();
     tunerGateRef.current.cancel();
     tunerPendingRef.current = false;
     referenceEpochRef.current += 1;
@@ -376,7 +405,7 @@ export function useTuner(instrument: InstrumentProfile, options: UseTunerOptions
     // awake) between tuner sessions; startListening resumes it on the next
     // "Start live tuner" press.
     if (audioContextRef.current?.state === "running") void audioContextRef.current.suspend().catch(() => undefined);
-  }, [saveTunerEvidence, stopPitchPipe]);
+  }, [saveTunerEvidence, stopPhrase, stopPitchPipe]);
 
   useForegroundPause(stopListening);
 
@@ -592,6 +621,62 @@ export function useTuner(instrument: InstrumentProfile, options: UseTunerOptions
     }
   }, []);
 
+  // Play-along phrase: every note is queued on the AudioContext clock at its
+  // own start time (never a timer), through the same calibrated frequency
+  // path as the reference tone and the shared context. Resolves with the
+  // clock time the phrase starts at, so the drill can line its count-in and
+  // listening window up with it.
+  const schedulePhrase = useCallback(async (tones: PhraseTone[]): Promise<{ startTime: number } | null> => {
+    stopPhrase();
+    const epoch = referenceEpochRef.current;
+    try {
+      const audioContext = !audioContextRef.current || audioContextRef.current.state === "closed" ? new AudioContext() : audioContextRef.current;
+      audioContextRef.current = audioContext;
+      if (audioContext.state === "suspended") await audioContext.resume();
+      if (!tunerMountedRef.current || document.hidden || epoch !== referenceEpochRef.current) return null;
+      const startTime = audioContext.currentTime + 0.12;
+      const voices: { oscillator: OscillatorNode; gain: GainNode }[] = [];
+      tones.forEach((tone) => {
+        const oscillator = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        const click = tone.kind === "click";
+        const level = click ? 0.08 : 0.15;
+        const begin = startTime + tone.startSec;
+        const end = begin + tone.durationSec;
+        const attack = Math.min(0.03, tone.durationSec / 3);
+        oscillator.type = click ? "triangle" : "sine";
+        oscillator.frequency.value = targetHzFor(tone.midi, tuningOptionsRef.current);
+        gain.gain.setValueAtTime(0.0001, begin);
+        gain.gain.exponentialRampToValueAtTime(level, begin + attack);
+        gain.gain.setValueAtTime(level, Math.max(begin + attack, end - 0.05));
+        gain.gain.exponentialRampToValueAtTime(0.0001, end);
+        oscillator.connect(gain).connect(audioContext.destination);
+        const voice = { oscillator, gain };
+        oscillator.onended = () => {
+          oscillator.disconnect();
+          gain.disconnect();
+          phraseVoicesRef.current = phraseVoicesRef.current.filter((item) => item !== voice);
+        };
+        oscillator.start(begin);
+        oscillator.stop(end + 0.02);
+        voices.push(voice);
+      });
+      phraseVoicesRef.current = voices;
+      return { startTime };
+    } catch {
+      if (tunerMountedRef.current) setMicMessage("The phrase could not play. Check the audio output and try again.");
+      return null;
+    }
+  }, [stopPhrase]);
+
+  // Both clocks at one instant, so the drill can turn an audio-clock moment
+  // into a `performance.now()` moment and read the matching pitch frames.
+  const readClocks = useCallback(() => {
+    const audioContext = audioContextRef.current;
+    if (!audioContext || audioContext.state === "closed") return null;
+    return { audioSec: audioContext.currentTime, perfMs: performance.now() };
+  }, []);
+
   // Pitch pipe: tap-and-hold the readout to hear the target note through
   // this same calibrated reference-tone path (targetHzFor, the shared
   // AudioContext -- no second one), released on pointer up rather than a
@@ -641,6 +726,24 @@ export function useTuner(instrument: InstrumentProfile, options: UseTunerOptions
   // a listening session.
   const isBusy = useCallback(() => listening || tunerPendingRef.current, [listening]);
 
+  // What the play-along drill reads, wherever it is mounted (see call-host.ts).
+  const callHost = useMemo<CallHost>(() => ({
+    listening,
+    micMessage,
+    onListen: startListening,
+    graph: vocalChannel.source,
+    instrumentId: instrument.id,
+    // The vocal buffer holds written pitch unless the readout is on concert.
+    bufferOffset: options.displayMode === "concert" ? 0 : instrument.writtenOffset,
+    schedulePhrase,
+    stopPhrase,
+    clock: readClocks,
+  }), [listening, micMessage, startListening, vocalChannel, instrument.id, instrument.writtenOffset, options.displayMode, schedulePhrase, stopPhrase, readClocks]);
+  useEffect(() => {
+    publishCallHost(callHost);
+  }, [callHost]);
+  useEffect(() => () => publishCallHost(null), []);
+
   return {
     reading,
     trackerReading,
@@ -655,6 +758,7 @@ export function useTuner(instrument: InstrumentProfile, options: UseTunerOptions
     start: startListening,
     stop: stopListening,
     playReference: playReferenceTone,
+    callHost,
     startPitchPipe,
     stopPitchPipe,
     vocalGraph: vocalChannel.source,

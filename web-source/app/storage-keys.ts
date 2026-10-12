@@ -41,6 +41,9 @@ export const VOCAL_RANGE_KEY = "bocal-vocal-range-v1";
 /** The diatonic harmonica's chosen key id (one of HARMONICA_KEYS in fingering-charts/harmonica.ts); read through sanitiseHarmonicaKey. */
 export const HARMONICA_KEY_STORAGE_KEY = "bocal-harmonica-key-v1";
 
+/** The play-along drill's settings: threshold, auto-advance, tries per phrase, last phrase, octave (JSON, sanitised by call-response.ts). */
+export const CALL_RESPONSE_SETTINGS_KEY = "bocal-call-response-v1";
+
 /**
  * The three calibration keys AnalysisView reads (read-only -- it mirrors the
  * live tuner's calibration to score a take against the same reference pitch
