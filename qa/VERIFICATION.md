@@ -16,6 +16,17 @@ From `web-source/`: `npm ci`, `npm test`, `npm run lint`, `npm run build`, `node
 
 From the root: `python3 -m unittest discover -s scripts -p 'test_*.py'`.
 
+## Dependency audit allowlist
+
+`node ../scripts/audit-dependencies.mjs --enforce` fails on any `npm audit` finding unless every advisory behind it is listed in `scripts/audit-allowlist.json`. The allowlist is not a suppression: it is a time-boxed, reviewed exception list.
+
+- Each entry has the advisory `id` (GHSA), a one-line `justification`, `added`, and an `expires` date at most 60 days after `added`.
+- The gate fails when an entry has expired, is malformed, or is no longer reported by `npm audit` (remove stale entries). Critical findings can never be allowlisted, and a new advisory on an already-allowlisted package still fails because only listed advisory IDs are accepted.
+- Renewing an entry means re-checking whether a fixed version now exists (`npm view <pkg> versions`, `npm audit --json` `via[].url`), taking it if so, and otherwise rewriting the justification and dates.
+- `web-source/tests/audit-allowlist.test.mjs` covers the matching, expiry and validation logic.
+
+Current entry (added 2026-10-12, expires 2026-12-11): GHSA-vfj7-8cjw-p6xm, braces stack exhaustion on deeply nested brace patterns. No patched `braces` exists (3.0.3 is the latest release), and the only `npm audit fix --force` options are downgrades (eslint-config-next 14, vite-plugin-singlefile 0.9, vinext 0.0.15). It reaches the project only through build and lint tooling (eslint-config-next, vinext, vite-plugin-singlefile; `npm audit --omit=dev` reports 0), with glob patterns taken from our own configuration rather than user input.
+
 Android's workflow stages that exact web bundle, compiles debug/instrumentation/minified release variants, verifies payload identity, and runs the debug instrumentation suite in an API 35 emulator. Browser fake capture and emulator installation are not measurements of physical mic accuracy or musical performance.
 
 ## Explicit exclusions

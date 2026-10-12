@@ -1,0 +1,12 @@
+{
+  "$comment": "Time-boxed exceptions for scripts/audit-dependencies.mjs --enforce. Each entry needs a one-line justification and an `expires` date at most 60 days after `added`; the gate fails once an entry expires or is no longer reported. See qa/VERIFICATION.md.",
+  "entries": [
+    {
+      "id": "GHSA-vfj7-8cjw-p6xm",
+      "package": "braces <=3.0.3 (braces > micromatch > fast-glob/vite-plugin-singlefile; reached via eslint-config-next, vinext, vite-plugin-singlefile)",
+      "justification": "Stack-exhaustion DoS on deeply nested brace patterns; no patched braces release exists (3.0.3 is latest) and every offered npm audit fix is a downgrade, and the chain is dev/build-time only (npm audit --omit=dev reports 0) with glob patterns coming from our own config, never from users.",
+      "added": "2026-10-12",
+      "expires": "2026-12-11"
+    }
+  ]
+}
