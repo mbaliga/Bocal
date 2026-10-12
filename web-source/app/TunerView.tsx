@@ -101,6 +101,13 @@ function labCardCopy(instrument: InstrumentProfile, writtenLabel: string | null)
       body: "Pick a written note and see exactly which keys to press.",
     };
   }
+  if (instrument.labTier === "vocal") {
+    return {
+      kicker: "Vocal practice",
+      heading: "Find the centre of your voice.",
+      body: "Sing a comfortable sustained note, then open Vocal for pitch-first practice prompts.",
+    };
+  }
   return { kicker: "Lab", heading: `Open the ${name} tools.`, body: "Tuner and practice tools are ready for this instrument." };
 }
 
