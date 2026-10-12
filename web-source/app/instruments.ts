@@ -77,8 +77,8 @@ export const CORRECTION_COPY: Record<EmbouchureFamily, { sharp: string; flat: st
     flat: "Support the air and bring the pitch up without biting harder.",
   },
   "air-reed": {
-    sharp: "Roll the embouchure hole slightly outward, or ease the air speed.",
-    flat: "Roll the embouchure hole slightly inward, or speed the air up.",
+    sharp: "Roll the embouchure hole slightly inward, or ease the air speed.",
+    flat: "Roll the embouchure hole slightly outward, or speed the air up.",
   },
   "double-reed": {
     sharp: "Relax the embouchure pressure on the reed without losing support.",
