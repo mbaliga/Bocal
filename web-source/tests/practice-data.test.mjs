@@ -22,8 +22,6 @@ installStorageStub();
 const {
   parsePracticeActivities,
   recordPracticeActivity,
-  updatePracticeActivity,
-  deletePracticeActivity,
   parseSongWishlist,
   addSongWish,
   updateSongWish,
@@ -55,7 +53,7 @@ test("parsePracticeActivities drops entries missing required fields or with an u
 });
 
 test("parsePracticeActivities accepts every known activity type", () => {
-  const types = ["tuning", "fingering", "rhythm", "chords", "analysis", "repertoire", "session"];
+  const types = ["tuning", "fingering", "rhythm", "chords", "analysis", "repertoire", "session", "vocal"];
   const entries = types.map((type, i) => ({ id: `id-${i}`, capturedAt: "2026-01-01T00:00:00.000Z", seconds: 1, type }));
   const result = parsePracticeActivities(JSON.stringify(entries));
   assert.equal(result.length, types.length);
@@ -77,6 +75,15 @@ test("recordPracticeActivity writes a rounded, clamped entry and dispatches an e
   assert.ok(events.includes("bocal-practice-activity"));
 });
 
+test("Vocal warm-up activity is accepted and stored with its instrument and completed steps", () => {
+  const { store } = installStorageStub();
+  recordPracticeActivity({ type: "vocal", seconds: 94, instrumentId: "vocal", notes: ["Sustain", "Glide"], label: "Vocal warm-up" });
+  const [saved] = parsePracticeActivities(store.get(PRACTICE_ACTIVITY_STORAGE_KEY));
+  assert.equal(saved.type, "vocal");
+  assert.equal(saved.instrumentId, "vocal");
+  assert.deepEqual(saved.notes, ["Sustain", "Glide"]);
+});
+
 test("recordPracticeActivity clamps negative seconds to zero and prepends newest-first", () => {
   const { store } = installStorageStub();
   recordPracticeActivity({ type: "tuning", seconds: -5 });
@@ -94,64 +101,6 @@ test("recordPracticeActivity caps stored history at 360 entries", () => {
   }
   const saved = parsePracticeActivities(store.get(PRACTICE_ACTIVITY_STORAGE_KEY));
   assert.equal(saved.length, 360);
-});
-
-// ---------------------------------------------------------------------------
-// updatePracticeActivity / deletePracticeActivity -- practice log depth (W2-C)
-// ---------------------------------------------------------------------------
-
-test("updatePracticeActivity renames a logged activity's label and dispatches the event", () => {
-  const { store, events } = installStorageStub();
-  recordPracticeActivity({ id: "a1", capturedAt: "2026-01-01T00:00:00.000Z", type: "rhythm", seconds: 30, label: "Metronome" });
-  events.length = 0;
-  updatePracticeActivity("a1", { label: "Warm-up run" });
-  const saved = parsePracticeActivities(store.get(PRACTICE_ACTIVITY_STORAGE_KEY));
-  assert.equal(saved[0].label, "Warm-up run");
-  assert.ok(events.includes("bocal-practice-activity"));
-});
-
-test("updatePracticeActivity trims/caps the new label and treats a blank label as clearing it", () => {
-  const { store } = installStorageStub();
-  recordPracticeActivity({ id: "a1", capturedAt: "2026-01-01T00:00:00.000Z", type: "tuning", seconds: 10, label: "Old" });
-  updatePracticeActivity("a1", { label: `  ${"x".repeat(120)}  ` });
-  let saved = parsePracticeActivities(store.get(PRACTICE_ACTIVITY_STORAGE_KEY));
-  assert.equal(saved[0].label.length, 80);
-  updatePracticeActivity("a1", { label: "   " });
-  saved = parsePracticeActivities(store.get(PRACTICE_ACTIVITY_STORAGE_KEY));
-  assert.equal(saved[0].label, undefined);
-});
-
-test("updatePracticeActivity never touches type, seconds or capturedAt, and is a no-op for an unknown id", () => {
-  const { store } = installStorageStub();
-  recordPracticeActivity({ id: "a1", capturedAt: "2026-01-01T00:00:00.000Z", type: "chords", seconds: 42 });
-  const before = store.get(PRACTICE_ACTIVITY_STORAGE_KEY);
-  updatePracticeActivity("does-not-exist", { label: "Ghost" });
-  assert.deepEqual(JSON.parse(store.get(PRACTICE_ACTIVITY_STORAGE_KEY)), JSON.parse(before));
-
-  updatePracticeActivity("a1", { label: "Renamed" });
-  const saved = parsePracticeActivities(store.get(PRACTICE_ACTIVITY_STORAGE_KEY));
-  assert.equal(saved[0].type, "chords");
-  assert.equal(saved[0].seconds, 42);
-  assert.equal(saved[0].capturedAt, "2026-01-01T00:00:00.000Z");
-});
-
-test("deletePracticeActivity removes only the matching entry and dispatches the event", () => {
-  const { store, events } = installStorageStub();
-  recordPracticeActivity({ id: "a1", capturedAt: "2026-01-01T00:00:00.000Z", type: "rhythm", seconds: 10 });
-  recordPracticeActivity({ id: "a2", capturedAt: "2026-01-01T00:00:01.000Z", type: "tuning", seconds: 20 });
-  events.length = 0;
-  deletePracticeActivity("a1");
-  const saved = parsePracticeActivities(store.get(PRACTICE_ACTIVITY_STORAGE_KEY));
-  assert.deepEqual(saved.map((activity) => activity.id), ["a2"]);
-  assert.ok(events.includes("bocal-practice-activity"));
-});
-
-test("deletePracticeActivity is a no-op for an unknown id", () => {
-  const { store } = installStorageStub();
-  recordPracticeActivity({ id: "a1", capturedAt: "2026-01-01T00:00:00.000Z", type: "rhythm", seconds: 10 });
-  const before = store.get(PRACTICE_ACTIVITY_STORAGE_KEY);
-  deletePracticeActivity("does-not-exist");
-  assert.deepEqual(JSON.parse(store.get(PRACTICE_ACTIVITY_STORAGE_KEY)), JSON.parse(before));
 });
 
 // ---------------------------------------------------------------------------

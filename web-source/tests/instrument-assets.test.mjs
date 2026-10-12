@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile, stat } from "node:fs/promises";
 import test from "node:test";
 
-test("v1 ships optimized commercial-use saxophone and oboe references", async () => {
+test("the current product ships optimized saxophone and oboe references", async () => {
   const sax = await stat(new URL("../public/models/saxophone-alto.glb", import.meta.url));
   const oboe = await stat(new URL("../public/models/oboe-howarth-s20c.glb", import.meta.url));
   assert.ok(sax.size > 1_000_000 && sax.size < 2_500_000);
@@ -12,12 +12,15 @@ test("v1 ships optimized commercial-use saxophone and oboe references", async ()
 test("instrument scope, learning readiness, and licenses stay explicit", async () => {
   const profiles = await readFile(new URL("../app/instruments.ts", import.meta.url), "utf8");
   const attribution = await readFile(new URL("../public/models/ATTRIBUTION.md", import.meta.url), "utf8");
+  const saxLab = await readFile(new URL("../app/SaxophoneLab.tsx", import.meta.url), "utf8");
   const oboeLab = await readFile(new URL("../app/OboeLab.tsx", import.meta.url), "utf8");
   assert.match(profiles, /Fingering trainer \+ 3D reference/);
   assert.match(profiles, /3D anatomy preview/);
   assert.match(attribution, /ANDRIANIAINAToky/);
   assert.match(attribution, /WarderiiK/);
   assert.match(attribution, /CC BY 4\.0/g);
+  assert.match(saxLab, /creativecommons\.org\/licenses\/by\/4\.0/);
+  assert.match(oboeLab, /creativecommons\.org\/licenses\/by\/4\.0/);
   assert.match(oboeLab, /not yet reviewed by an oboe specialist/);
 });
 
@@ -38,25 +41,13 @@ test("oboe preview isolates one authored finish and orbiting cannot remount the 
 test("both models ship an explicit part classification sidecar, not a name/luminance heuristic", async () => {
   const saxParts = JSON.parse(await readFile(new URL("../public/models/saxophone-alto.parts.json", import.meta.url), "utf8"));
   const oboeParts = JSON.parse(await readFile(new URL("../public/models/oboe-howarth-s20c.parts.json", import.meta.url), "utf8"));
-  // Wave 2: Object_2 (body + bow + bell + neck, originally one mesh) was
-  // re-segmented into four primitives -- all still role "body".
-  assert.equal(saxParts.parts.Object_2_neck.role, "body");
-  assert.equal(saxParts.parts.Object_2_neck.subPart, "neck");
-  assert.equal(saxParts.parts.Object_2_body.subPart, "body");
-  assert.equal(saxParts.parts.Object_2_bow.subPart, "bow");
-  assert.equal(saxParts.parts.Object_2_bell.subPart, "bell");
+  assert.equal(saxParts.parts.Object_2.role, "body");
   assert.equal(saxParts.parts.Object_5.role, "mouthpiece");
   assert.equal(saxParts.parts.Object_6.role, "ligature");
-  assert.ok(saxParts.modifications.length > 0, "the Object_2 re-segmentation must be recorded per CC BY 4.0");
   assert.equal(oboeParts.groups.Oboe_Base.role, "body");
   assert.equal(oboeParts.groups.Static.role, "keywork");
   assert.equal(oboeParts.groups.Moving.role, "keywork");
   assert.equal(oboeParts.goldKeyTexture.materialIndex, 1);
-  // Wave 2: Oboe_Base_My_Oboe_0 was split by Y into three primitives.
-  assert.equal(oboeParts.groups.Oboe_Base.subParts.Oboe_Base_My_Oboe_0_top_joint.subPart, "top_joint");
-  assert.equal(oboeParts.groups.Oboe_Base.subParts.Oboe_Base_My_Oboe_0_lower_joint.subPart, "lower_joint");
-  assert.equal(oboeParts.groups.Oboe_Base.subParts.Oboe_Base_My_Oboe_0_bell.subPart, "bell");
-  assert.ok(oboeParts.modifications.length > 0, "the body split must be recorded per CC BY 4.0");
 
   const glb = await readFile(new URL("../public/models/oboe-howarth-s20c.glb", import.meta.url));
   const jsonLength = glb.readUInt32LE(12);

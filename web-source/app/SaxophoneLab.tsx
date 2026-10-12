@@ -89,24 +89,6 @@ function sameKeys(left: Set<SaxKeyId>, right: SaxKeyId[]) {
   return left.size === right.length && right.every((key) => left.has(key));
 }
 
-/**
- * `SAXOPHONE_FINGERINGS` filtered to what the given saxophone actually
- * plays. Every entry without an `instrument` list is shared by every horn;
- * baritone's low A3 is the one exception (see sax-data.ts).
- */
-function fingeringsFor(instrumentId: InstrumentId): Fingering[] {
-  return SAXOPHONE_FINGERINGS.filter((fingering) => !fingering.instrument || fingering.instrument.includes(instrumentId));
-}
-
-/**
- * `SAX_KEYS` minus the baritone-only low A key. Bocal's 3D reference model
- * is an alto, which has no low A key at all -- rendering it as a glowing
- * marker on the model would show a touch-piece that is not really there.
- * The 2D chart below (which does list every SAX_KEYS entry) is where
- * baritone players see it instead.
- */
-const SAX_3D_KEYS = SAX_KEYS.filter((key) => key.id !== "lowA");
-
 function fingeringChoices(fingering: Fingering): FingeringChoice[] {
   return [
     {
@@ -159,7 +141,7 @@ export function SaxophoneLab({
   if (tier === "anatomy") return <OboeLab onBack={onBack} instrumentId={instrumentId} notation={notation} saTonic={saTonic} />;
   if (tier === "chart") return <FingeringChartLab onBack={onBack} instrumentId={instrumentId} notation={notation} saTonic={saTonic} />;
   if (tier === "none") return <LabUnavailable onBack={onBack} instrumentId={instrumentId} />;
-  return <SaxFingeringLab onBack={onBack} instrumentId={instrumentId} notation={notation} saTonic={saTonic} />;
+  return <SaxFingeringLab onBack={onBack} instrumentId={instrumentId} />;
 }
 
 /**
@@ -233,29 +215,14 @@ function LabUnavailable({ onBack, instrumentId }: { onBack: () => void; instrume
  * every screen for a non-alto horn says so plainly instead of letting a
  * tenor or bari player think they are looking at their own instrument.
  */
-function SaxFingeringLab({
-  onBack,
-  instrumentId,
-  notation,
-  saTonic,
-}: {
-  onBack: () => void;
-  instrumentId: InstrumentId;
-  notation: NotationSystem;
-  saTonic: number;
-}) {
+function SaxFingeringLab({ onBack, instrumentId }: { onBack: () => void; instrumentId: InstrumentId }) {
   const instrument = INSTRUMENTS[instrumentId];
   const isAlto = instrumentId === "alto-sax";
-  const isBari = instrumentId === "bari-sax";
-  // Baritone's low A3 is the one fingering that is not shared by every
-  // saxophone (see sax-data.ts); every other list, index and pool below is
-  // built from this filtered array so a non-baritone never sees it.
-  const fingerings = useMemo(() => fingeringsFor(instrumentId), [instrumentId]);
-  const initialIndex = fingerings.findIndex((fingering) => fingering.id === "a4");
+  const initialIndex = SAXOPHONE_FINGERINGS.findIndex((fingering) => fingering.id === "a4");
   const [selectedIndex, setSelectedIndex] = useState(initialIndex);
   const [choiceIndex, setChoiceIndex] = useState(0);
   const [trainerMode, setTrainerMode] = useState<TrainerMode>("learn");
-  const [activeKeys, setActiveKeys] = useState<Set<SaxKeyId>>(() => new Set(fingerings[initialIndex].keys));
+  const [activeKeys, setActiveKeys] = useState<Set<SaxKeyId>>(() => new Set(SAXOPHONE_FINGERINGS[initialIndex].keys));
   const [challenge, setChallenge] = useState<Fingering | null>(null);
   const [feedback, setFeedback] = useState<"idle" | "correct" | "retry">("idle");
   // Altissimo is far more setup-dependent than the standard range covered by
@@ -274,13 +241,6 @@ function SaxFingeringLab({
   const [demoPlaying, setDemoPlaying] = useState<string | null>(null);
   const audioRef = useRef<AudioContext | null>(null);
   const challengeEvidenceRecordedRef = useRef(false);
-  // The 2D chart below the 3D stage is generated from this same data (see
-  // fingering-charts/saxophone.ts) but does not carry baritone's scoped low
-  // A3, so it tracks the 3D/note-browser selection by fingering id and
-  // simply holds its last position while a3 is selected up top instead of
-  // going out of range.
-  const chart2dChart = FINGERING_CHARTS[instrumentId];
-  const [chart2dIndex, setChart2dIndex] = useState(0);
 
   // Re-hydrate the look when the instrument identity changes (adjusting
   // state during render, not in an effect, so this never cascades).
@@ -297,12 +257,12 @@ function SaxFingeringLab({
     });
   }, [instrumentId]);
 
-  const selected = fingerings[selectedIndex];
+  const selected = SAXOPHONE_FINGERINGS[selectedIndex];
   const choices = fingeringChoices(selected);
   const selectedChoice = choices[Math.min(choiceIndex, choices.length - 1)];
   const firstAltissimoIndex = useMemo(
-    () => fingerings.findIndex((fingering) => fingering.level === "Altissimo"),
-    [fingerings],
+    () => SAXOPHONE_FINGERINGS.findIndex((fingering) => fingering.level === "Altissimo"),
+    [],
   );
   const colorway = SAX_COLORWAYS.find((candidate) => candidate.id === look.bodyFinish) ?? SAX_COLORWAYS[0];
   const setupPart = SAX_SETUP_PARTS.find((part) => part.id === setupPartId) ?? SAX_SETUP_PARTS[0];
@@ -339,8 +299,8 @@ function SaxFingeringLab({
   }, []);
 
   const chooseNote = useCallback((index: number) => {
-    const wrapped = (index + fingerings.length) % fingerings.length;
-    const next = fingerings[wrapped];
+    const wrapped = (index + SAXOPHONE_FINGERINGS.length) % SAXOPHONE_FINGERINGS.length;
+    const next = SAXOPHONE_FINGERINGS[wrapped];
     setSelectedIndex(wrapped);
     chooseChoice(next, 0);
     // Browsing notes while a challenge is active used to leave the on-screen
@@ -353,26 +313,7 @@ function SaxFingeringLab({
       setFeedback("idle");
       challengeEvidenceRecordedRef.current = false;
     }
-  }, [chooseChoice, trainerMode, fingerings]);
-
-  // Keep the 2D chart below the 3D stage pointed at the same note, by id
-  // (its own array excludes baritone's scoped low A3, so it cannot share a
-  // raw index with `fingerings` -- see the field's declaration above).
-  // Adjusted during render, not an effect, so it never cascades -- the same
-  // pattern this file already uses to re-hydrate the model look.
-  const [chart2dSyncedId, setChart2dSyncedId] = useState<string | null>(null);
-  if (selected.id !== chart2dSyncedId) {
-    setChart2dSyncedId(selected.id);
-    const index = chart2dChart?.fingerings.findIndex((fingering) => fingering.id === selected.id) ?? -1;
-    if (index >= 0) setChart2dIndex(index);
-  }
-
-  const selectFromChart2d = useCallback((index: number) => {
-    const note = chart2dChart?.fingerings[index];
-    if (!note) return;
-    const mainIndex = fingerings.findIndex((fingering) => fingering.id === note.id);
-    if (mainIndex >= 0) chooseNote(mainIndex);
-  }, [chart2dChart, fingerings, chooseNote]);
+  }, [chooseChoice, trainerMode]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -389,13 +330,13 @@ function SaxFingeringLab({
   }, [chooseNote, selectedIndex]);
 
   const findMatch = useCallback((next: Set<SaxKeyId>) => {
-    for (let fingeringIndex = 0; fingeringIndex < fingerings.length; fingeringIndex += 1) {
-      const options = fingeringChoices(fingerings[fingeringIndex]);
+    for (let fingeringIndex = 0; fingeringIndex < SAXOPHONE_FINGERINGS.length; fingeringIndex += 1) {
+      const options = fingeringChoices(SAXOPHONE_FINGERINGS[fingeringIndex]);
       const optionIndex = options.findIndex((option) => sameKeys(next, option.keys));
       if (optionIndex >= 0) return { fingeringIndex, optionIndex };
     }
     return null;
-  }, [fingerings]);
+  }, []);
 
   const toggleKey = useCallback((id: SaxKeyId) => {
     setActiveKeys((current) => {
@@ -479,12 +420,12 @@ function SaxFingeringLab({
     // Every standard-range note is fair game, including the low pinky-table
     // notes (Bb3-C#4) that a silent `.slice(4)` used to drop from the pool --
     // those are exactly what a beginner needs to drill.
-    const pool = fingerings
+    const pool = SAXOPHONE_FINGERINGS
       .filter((fingering) => includeAltissimoInChallenge || fingering.level !== "Altissimo");
     const next = pool[Math.floor(Math.random() * pool.length)];
     setTrainerMode("challenge");
     setChallenge(next);
-    setSelectedIndex(fingerings.indexOf(next));
+    setSelectedIndex(SAXOPHONE_FINGERINGS.indexOf(next));
     setChoiceIndex(0);
     setActiveKeys(new Set());
     setFeedback("idle");
@@ -587,8 +528,8 @@ function SaxFingeringLab({
             those fingerings and alternates can feel or respond differently on {instrument.shortName.toLowerCase()}.
             The altissimo notes (G6 to C7) are unverified for every horn, alto included — see the badge on those
             fingerings.
-            {isBari &&
-              " Many baritones also have a low A key (written A3) below this chart's other notes; Bocal's alto model has no such key, so that fingering is shown on the 2D chart below, not on the 3D model."}
+            {instrumentId === "bari-sax" &&
+              " Many baritones also have a low A key (written A3) below this chart's lowest note; it isn't included here."}
           </p>
         </div>
       )}
@@ -596,7 +537,7 @@ function SaxFingeringLab({
       <div className="note-browser" aria-label="Written note selector">
         <button className="note-arrow" aria-label="Previous note" onClick={() => chooseNote(selectedIndex - 1)}><ChevronLeft size={18} /></button>
         <div className="note-scroll">
-          {fingerings.map((fingering, index) => (
+          {SAXOPHONE_FINGERINGS.map((fingering, index) => (
             <Fragment key={fingering.id}>
               {index === firstAltissimoIndex && (
                 <span className="note-scroll-divider" aria-hidden="true">Altissimo</span>
@@ -645,7 +586,7 @@ function SaxFingeringLab({
               }
               viewPreset={referenceViewPreset}
               resetView={resetView}
-              fingeringMarkers={SAX_3D_KEYS}
+              fingeringMarkers={SAX_KEYS}
               activeMarkerIds={activeKeys}
               showFingeringGuides={showGuides}
               onMarkerToggle={(id) => toggleKey(id as SaxKeyId)}
@@ -744,33 +685,6 @@ function SaxFingeringLab({
         </aside>
       </div>
 
-      {chart2dChart && (
-        <section className="oboe-chart-section">
-          <header className="oboe-chart-heading">
-            <p className="eyebrow">Fingering chart</p>
-            <h2>The same fingerings, as a 2D diagram.</h2>
-          </header>
-          {isBari && (
-            <div className="lab-instrument-notice">
-              <Info size={15} />
-              <p>
-                Baritone&apos;s low A key sits by the &quot;A&quot; lever near the octave key on the diagram below, but
-                it has no fingering of its own to browse to here — the 3D model above has no low A key to match it
-                against, so use the note browser above (written A3) instead: finger low C and add that lever.
-              </p>
-            </div>
-          )}
-          <FingeringChart
-            chart={chart2dChart}
-            instrument={instrument}
-            notation={notation}
-            tonic={saTonic}
-            selectedIndex={chart2dIndex}
-            onSelectIndex={selectFromChart2d}
-          />
-        </section>
-      )}
-
       <SetupExplorer
         selectedPartId={setupPartId}
         selectedPart={setupPart}
@@ -788,7 +702,10 @@ function SaxFingeringLab({
         <article className="is-setup"><span><Headphones size={16} /> Setup</span><strong>Compare the parts that change feel and response.</strong><p>Manufacturer descriptions are labelled, fit warnings stay visible, and finish colour is treated as visual only.</p></article>
         <article className="is-routes"><span><MousePointer2 size={16} /> Alternate fingerings</span><strong>See the standard route and checked alternatives.</strong><p>Front E and F show the exact touch-pieces used, including the B pad they move.</p></article>
       </div>
-      <a className="sax-model-credit" href="https://sketchfab.com/3d-models/saxophone-alto-08448f4bfbca474b80ba35a571648a27" target="_blank" rel="noreferrer">“saxophone alto” by ANDRIANIAINAToky · CC BY 4.0 <ExternalLink size={12} /></a>
+      <div className="model-credit-links">
+        <a className="sax-model-credit" href="https://sketchfab.com/3d-models/saxophone-alto-08448f4bfbca474b80ba35a571648a27" target="_blank" rel="noreferrer">“saxophone alto” by ANDRIANIAINAToky · CC BY 4.0 <ExternalLink size={12} /></a>
+        <a className="sax-model-credit" href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">License text · CC BY 4.0 <ExternalLink size={12} /></a>
+      </div>
     </div>
   );
 }

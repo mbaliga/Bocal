@@ -97,7 +97,19 @@ const STRING_GALLERY_INSTRUMENTS: GalleryInstrument[] = [
   },
 ];
 
-const ALL_GALLERY_INSTRUMENTS: GalleryInstrument[] = [...WOODWIND_GALLERY_INSTRUMENTS, ...STRING_GALLERY_INSTRUMENTS];
+const VOCAL_GALLERY_INSTRUMENTS: GalleryInstrument[] = [
+  {
+    id: "vocal",
+    name: "Vocal",
+    family: "Voice · singing",
+    pitch: "C",
+    status: "Vocal tuner + practice prompts",
+    gradient: "linear-gradient(160deg, #553d71, #1c132b 72%)",
+    availableId: "vocal",
+  },
+];
+
+const ALL_GALLERY_INSTRUMENTS: GalleryInstrument[] = [...WOODWIND_GALLERY_INSTRUMENTS, ...STRING_GALLERY_INSTRUMENTS, ...VOCAL_GALLERY_INSTRUMENTS];
 
 // Discovery only: these cards deliberately have no InstrumentId or action.
 // A beautiful gallery must not silently pretend that a string, keyboard, or
@@ -109,7 +121,6 @@ const OTHER_INSTRUMENTS: OtherInstrument[] = [
   { id: "brass", name: "Brass", family: "Trumpet · horn · trombone · tuba", status: "Instrument profiles in development", gradient: "linear-gradient(145deg, #76500e, #24190b 70%)", art: "brass" },
   { id: "keyboards", name: "Keyboards", family: "Piano · organ · synthesizer", status: "Instrument profiles in development", gradient: "linear-gradient(145deg, #304767, #101a28 70%)", art: "keys" },
   { id: "percussion", name: "Percussion", family: "Mallets · drums · hand percussion", status: "Practice tools planned", gradient: "linear-gradient(145deg, #6c253e, #221018 70%)", art: "percussion" },
-  { id: "voice", name: "Voice", family: "Classical · contemporary · choir", status: "Pitch tools planned", gradient: "linear-gradient(145deg, #553d71, #1c132b 70%)", art: "voice" },
   { id: "electronic", name: "Electronic & MIDI", family: "Controllers · wind synths · modular", status: "Profile research in progress", gradient: "linear-gradient(145deg, #0b5555, #0b2025 70%)", art: "electronic" },
 ];
 
@@ -179,7 +190,7 @@ function OtherInstrumentCollection() {
     <section className="other-instruments" aria-labelledby="other-instruments-title">
       <header className="other-instruments-heading">
         <div>
-          <p className="eyebrow">Beyond woodwinds</p>
+          <p className="eyebrow">Beyond woodwinds and vocal</p>
           <h3 id="other-instruments-title">Other Instruments</h3>
         </div>
         <p>Rich instrument profiles are coming only after their tuning, notation, and learning claims are validated.</p>
@@ -236,6 +247,10 @@ export function InstrumentPickerExperience({
           <div className="instrument-gallery-heading"><span id="string-instruments-title">Strings ({STRING_GALLERY_INSTRUMENTS.filter((item) => item.availableId).length} ready)</span></div>
           <InstrumentPanelDeck focusedId={focusedId} selectedId={selectedId} onFocus={setFocusedId} items={STRING_GALLERY_INSTRUMENTS} ariaLabel="String instruments" />
         </section>
+        <section className="instrument-gallery-section" aria-labelledby="vocal-instruments-title">
+          <div className="instrument-gallery-heading"><span id="vocal-instruments-title">Vocal ({VOCAL_GALLERY_INSTRUMENTS.filter((item) => item.availableId).length} ready)</span></div>
+          <InstrumentPanelDeck focusedId={focusedId} selectedId={selectedId} onFocus={setFocusedId} items={VOCAL_GALLERY_INSTRUMENTS} ariaLabel="Vocal instruments" />
+        </section>
         <OtherInstrumentCollection />
         <footer className="experience-footer">
           <div><small>{focused.family}</small><strong>{focused.name} · {focused.pitch}</strong><span>{focused.status}</span></div>
@@ -259,11 +274,12 @@ const ONBOARDING_STEPS = [
 
 // Step 2 and its proof tile depend on what the chosen instrument actually
 // has: a 3D fingering trainer (sax family), a 3D anatomy model (oboe / cor
-// anglais), a 2D chart (flute / clarinet / bassoon), or neither (guitar).
+// anglais), a 2D chart (flute / clarinet / bassoon), a vocal practice surface,
+// or neither (guitar).
 // Showing the sax's "rotate the instrument" / "3D key map" copy to a flute
 // or guitar player promised a model that instrument doesn't have.
 const LEARN_STEP_BY_TIER: Record<
-  "fingering" | "anatomy" | "chart" | "none",
+  "fingering" | "anatomy" | "chart" | "vocal" | "none",
   { title: string; kicker: string; heading: string; body: string; tileLabel: string; tileHeading: string; tileDetail: string }
 > = {
   fingering: {
@@ -292,6 +308,15 @@ const LEARN_STEP_BY_TIER: Record<
     tileLabel: "FINGERING CHART",
     tileHeading: "Learn",
     tileDetail: "Note-by-note",
+  },
+  vocal: {
+    title: "Sing a steady note and listen for the centre.",
+    kicker: "Vocal practice",
+    heading: "Find your pitch.",
+    body: "Use Tune for live pitch, then practise sustained vowels, gentle glides and clean note starts. Bocal does not grade vocal technique.",
+    tileLabel: "VOCAL PRACTICE",
+    tileHeading: "Sing",
+    tileDetail: "Pitch-first",
   },
   none: {
     title: "Tune each string, then follow colour-coded chords.",
@@ -361,6 +386,7 @@ export function OnboardingGuide({
           <>
             <InstrumentPanelDeck focusedId={focusedId} selectedId={selectedId} onFocus={setFocusedId} items={WOODWIND_GALLERY_INSTRUMENTS} ariaLabel="Woodwind instruments" />
             <InstrumentPanelDeck focusedId={focusedId} selectedId={selectedId} onFocus={setFocusedId} items={STRING_GALLERY_INSTRUMENTS} ariaLabel="String instruments" />
+            <InstrumentPanelDeck focusedId={focusedId} selectedId={selectedId} onFocus={setFocusedId} items={VOCAL_GALLERY_INSTRUMENTS} ariaLabel="Vocal instruments" />
           </>
         )}
         {step === 1 && (

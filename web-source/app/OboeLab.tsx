@@ -180,6 +180,9 @@ export function OboeLab({
           <a className="model-credit" href="https://sketchfab.com/3d-models/oboe-howarth-conservatoire-s20c-instrument-bfa1bb7fd7ef4f7c9d3c843f481a38c8" target="_blank" rel="noreferrer">
             <Wind size={15} /> “Oboe – Howarth Conservatoire S20C” by WarderiiK · CC BY 4.0 <ExternalLink size={13} />
           </a>
+          <a className="model-license-link" href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">
+            License text · CC BY 4.0 <ExternalLink size={13} />
+          </a>
         </aside>
       </div>
 

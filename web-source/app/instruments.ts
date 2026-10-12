@@ -10,7 +10,8 @@ export type InstrumentId =
   | "oboe"
   | "cor-anglais"
   | "bassoon"
-  | "guitar";
+  | "guitar"
+  | "vocal";
 
 /**
  * What Bocal can show for an instrument inside the lab.
@@ -26,6 +27,7 @@ export type InstrumentId =
  *                  layered on top of "anatomy" rather than changing it).
  *   "chart"     -- no 3D model, but a 2D fingering chart (see
  *                  app/fingering-charts/): flute, clarinet, bassoon.
+ *   "vocal"     -- singing profile with pitch-first vocal practice prompts.
  *   "none"      -- neither. Tuner and practice tools only (guitar).
  *
  * "chart" is a new tier rather than a flag on "anatomy" and "fingering"
@@ -42,7 +44,7 @@ export type InstrumentId =
  * lower bar than "checked by a teacher," and the UI says so plainly rather
  * than borrowing the confidence a 3D model's finish might otherwise imply.
  */
-export type LabTier = "fingering" | "anatomy" | "chart" | "none";
+export type LabTier = "fingering" | "anatomy" | "chart" | "vocal" | "none";
 
 /**
  * The concert-pitch frequency band the live tuner's pitch tracker searches
@@ -67,7 +69,7 @@ export type FrequencyRange = { minHz: number; maxHz: number };
  * the engine and the instrument"). Each embouchure family gets its own pair
  * instead.
  */
-export type EmbouchureFamily = "reed" | "air-reed" | "double-reed" | "string";
+export type EmbouchureFamily = "reed" | "air-reed" | "double-reed" | "string" | "voice";
 
 export const CORRECTION_COPY: Record<EmbouchureFamily, { sharp: string; flat: string }> = {
   reed: {
@@ -75,11 +77,8 @@ export const CORRECTION_COPY: Record<EmbouchureFamily, { sharp: string; flat: st
     flat: "Support the air and bring the pitch up without biting harder.",
   },
   "air-reed": {
-    // Rolling inward lowers pitch; outward raises it. These directions were
-    // reversed despite the neighbouring air-speed advice being correct.
-    // Yamaha: https://hub.yamaha.com/music-educators/instruments/winds-instruments/first-year-flutes-success/
-    sharp: "Roll the embouchure hole slightly in, or ease the air speed.",
-    flat: "Roll the embouchure hole slightly out, or speed the air up.",
+    sharp: "Roll the embouchure hole slightly out, or ease the air speed.",
+    flat: "Roll the embouchure hole slightly in, or speed the air up.",
   },
   "double-reed": {
     sharp: "Relax the embouchure pressure on the reed without losing support.",
@@ -88,6 +87,10 @@ export const CORRECTION_COPY: Record<EmbouchureFamily, { sharp: string; flat: st
   string: {
     sharp: "Ease the tuning peg or fine tuner to lower the string slightly.",
     flat: "Tighten the tuning peg or fine tuner to raise the string slightly.",
+  },
+  voice: {
+    sharp: "Relax the throat and let the note settle without pushing higher.",
+    flat: "Keep the breath moving and gently lift the pitch from the centre of the note.",
   },
 };
 
@@ -258,6 +261,20 @@ export const INSTRUMENTS: Record<InstrumentId, InstrumentProfile> = {
     range: { minHz: 75, maxHz: 1400 },
     embouchure: "string",
   },
+  vocal: {
+    id: "vocal",
+    name: "Vocal",
+    shortName: "Vocal",
+    family: "Voice",
+    pitchLabel: "C",
+    writtenOffset: 0,
+    clef: "treble",
+    tunerDescription: "Sing a steady vowel; Bocal shows your voice in concert pitch.",
+    labTier: "vocal",
+    labStatus: "Vocal tuner + practice prompts",
+    range: { minHz: 80, maxHz: 1400 },
+    embouchure: "voice",
+  },
 };
 
 export const INSTRUMENT_ORDER: InstrumentId[] = [
@@ -271,6 +288,7 @@ export const INSTRUMENT_ORDER: InstrumentId[] = [
   "clarinet",
   "bassoon",
   "guitar",
+  "vocal",
 ];
 
 export function isInstrumentId(value: unknown): value is InstrumentId {

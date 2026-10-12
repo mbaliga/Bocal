@@ -2,7 +2,7 @@ export const PRACTICE_ACTIVITY_STORAGE_KEY = "bocal-practice-activity-v1";
 export const SONG_WISHLIST_STORAGE_KEY = "bocal-song-wishlist-v1";
 export const COMPLETED_PRACTICE_STORAGE_KEY = "bocal-completed-practice-v1";
 
-export type PracticeActivityType = "tuning" | "fingering" | "rhythm" | "chords" | "analysis" | "repertoire" | "session";
+export type PracticeActivityType = "tuning" | "fingering" | "rhythm" | "chords" | "analysis" | "repertoire" | "session" | "vocal";
 
 export type PracticeActivity = {
   id: string;
@@ -24,7 +24,7 @@ export type SongWish = {
   updatedAt?: string;
 };
 
-const ACTIVITY_TYPES = new Set<PracticeActivityType>(["tuning", "fingering", "rhythm", "chords", "analysis", "repertoire", "session"]);
+const ACTIVITY_TYPES = new Set<PracticeActivityType>(["tuning", "fingering", "rhythm", "chords", "analysis", "repertoire", "session", "vocal"]);
 
 function isActivity(value: unknown): value is PracticeActivity {
   if (!value || typeof value !== "object") return false;
@@ -64,35 +64,6 @@ export function recordPracticeActivity(activity: Omit<PracticeActivity, "id" | "
     window.dispatchEvent(new Event("bocal-practice-activity"));
   } catch {
     // Local history is optional; the current practice interaction still completes.
-  }
-}
-
-/** Edits a logged activity's own label -- the one field a player would
- * plausibly want to correct after the fact (a mislabelled tool run) --
- * without touching its type, timestamp or duration, which are a record of
- * what actually happened. Silently a no-op for an unknown id. */
-export function updatePracticeActivity(id: string, patch: { label?: string }) {
-  if (typeof window === "undefined") return;
-  try {
-    const current = parsePracticeActivities(localStorage.getItem(PRACTICE_ACTIVITY_STORAGE_KEY));
-    const next = current.map((activity) => (activity.id === id
-      ? { ...activity, label: patch.label !== undefined ? (patch.label.trim().slice(0, 80) || undefined) : activity.label }
-      : activity));
-    localStorage.setItem(PRACTICE_ACTIVITY_STORAGE_KEY, JSON.stringify(next));
-    window.dispatchEvent(new Event("bocal-practice-activity"));
-  } catch {
-    // Optional local edit; the stored record is unchanged if this fails.
-  }
-}
-
-export function deletePracticeActivity(id: string) {
-  if (typeof window === "undefined") return;
-  try {
-    const current = parsePracticeActivities(localStorage.getItem(PRACTICE_ACTIVITY_STORAGE_KEY));
-    localStorage.setItem(PRACTICE_ACTIVITY_STORAGE_KEY, JSON.stringify(current.filter((activity) => activity.id !== id)));
-    window.dispatchEvent(new Event("bocal-practice-activity"));
-  } catch {
-    // Optional local delete; the stored record is unchanged if this fails.
   }
 }
 

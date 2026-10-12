@@ -13,8 +13,8 @@ android {
         applicationId = "com.bocal.music"
         minSdk = 26
         targetSdk = 37
-        versionCode = 8
-        versionName = "1.0.0-rc.1"
+        versionCode = 7
+        versionName = "0.6.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -50,6 +50,12 @@ android {
     }
 
     buildTypes {
+        create("beta") {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".beta"
+            versionNameSuffix = "-beta"
+            matchingFallbacks += listOf("debug")
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
@@ -68,6 +74,10 @@ android {
         buildConfig = true
     }
 
+    if (providers.gradleProperty("sharedLibrariesDir").isPresent) {
+        sourceSets.getByName("beta").java.srcDir("src/sharedSessionBeta/kotlin")
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -80,6 +90,9 @@ android {
 }
 
 dependencies {
+    if (providers.gradleProperty("sharedLibrariesDir").isPresent) {
+        add("betaImplementation", "dev.aarso:local-session-core:0.1.0")
+    }
     implementation("androidx.core:core-ktx:1.19.0")
     implementation("androidx.activity:activity-compose:1.13.0")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.11.0")
@@ -93,8 +106,6 @@ dependencies {
     implementation("androidx.webkit:webkit:1.17.0")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
-
-    testImplementation("junit:junit:4.13.2")
 
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test:runner:1.7.0")

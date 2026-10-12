@@ -6,7 +6,7 @@ This directory is the source of truth for the hosted web app, its licensed 3D as
 
 ## Current instrument support
 
-All ten instruments below are selectable today; see `docs/CURRENT_STATE.md` for the
+All eleven instruments below are selectable today; see `docs/CURRENT_STATE.md` for the
 full instrument × capability table. None of the fingering data has had a teacher
 review yet — every chart and the sax altissimo set are badged "not yet
 teacher-reviewed" in the app.
@@ -31,7 +31,7 @@ those cards are not selectable.
 - Local waveform/spectrum views with named multi-take recording, import, loop, tempo playback, rename, delete and download.
 - Practice distribution, weekly goals, gentle streak feedback, editable song progress and a local coach assignment/export board.
 - Detailed licensed alto GLB with 23 semantic touch targets, view presets and full-screen focus mode.
-- First-run expanding-panel instrument gallery (Woodwinds and Strings sections) and a replayable four-step onboarding whose "Learn" step and proof tile adapt to the chosen instrument's lab tier.
+- First-run expanding-panel instrument gallery (Woodwinds, Strings and Vocal sections) and a replayable four-step onboarding whose "Learn" step and proof tile adapt to the chosen instrument's lab tier.
 - Visual setup-part coverflow for finishes, necks, mouthpieces, reeds and ligatures.
 - A WebView shell under `android/` (`MainActivity` → `WebAppScreen`) serving this build's static output; no APK is claimed until built and tested with an Android SDK and physical devices.
 
@@ -46,7 +46,7 @@ those cards are not selectable.
 - `docs/` — supporting research and validation notes.
 - `public/downloads/BOCAL_HANDOFF.md` — the in-app "Download handoff" copy of `../docs/BOCAL_HANDOFF.md`, the consolidated product, persona, workflow, architecture and release handoff.
 
-The Android shell under `../android/` packages this exact standalone application, so browser and Android share the same maintained product code. Emulator CI verifies packaging/runtime compatibility; physical-device microphone accuracy, latency, interruption, Bluetooth, thermal and accessibility acceptance remain separate release gates.
+The native Android project remains a separate parity track. This branch improves the web experience and shared product contracts; it does not claim physical-device microphone accuracy, latency, interruption, Bluetooth or rotation results without hardware.
 
 ## Local development
 
@@ -62,19 +62,24 @@ Useful checks:
 ```bash
 npm run lint
 npm test
+npm run test:dist
+npm run test:e2e       # after npm run preview:standalone
+npm run test:theme     # builds the standalone preview first
 ```
 
-`npm test` performs the verified production build before running the Node test suite.
+`npm test` runs typecheck and the source-level Node test suite. The standalone build,
+distribution checks and browser gates are explicit so a fast local test cannot be
+mistaken for full release validation.
 
 ## Android status
 
-The checked-in project targets API 37 and wraps this app's static build in a WebView (`MainActivity` → `WebAppScreen`). The retired native product surface has been removed; the web app is the maintained product. Build it with JDK 21, Android SDK 37 and the matching Gradle/AGP toolchain:
+The checked-in project targets API 37 and wraps this app's static build in a WebView (`MainActivity` → `WebAppScreen`). The earlier Kotlin/Compose product surface was removed; build it only in an environment with JDK 21, Android SDK 37 and the matching Gradle/AGP toolchain:
 
 ```bash
 cd android
-./gradlew :app:assembleDebug
-./gradlew :app:testDebugUnitTest
-./gradlew :app:lintDebug
+gradle :app:assembleDebug
+gradle :app:testDebugUnitTest
+gradle :app:lintDebug
 ```
 
 No signing key belongs in this repository.

@@ -10,7 +10,7 @@ import { INSTRUMENTS, INSTRUMENT_ORDER, isInstrumentId } from "../app/instrument
 // range) rather than replacing this file.
 
 const CLEFS = new Set(["treble", "bass"]);
-const LAB_TIERS = new Set(["fingering", "anatomy", "chart", "none"]);
+const LAB_TIERS = new Set(["fingering", "anatomy", "chart", "vocal", "none"]);
 
 test("INSTRUMENT_ORDER lists every instrument in INSTRUMENTS exactly once", () => {
   const ids = Object.keys(INSTRUMENTS);
@@ -58,7 +58,7 @@ test("writtenOffset matches the known transposition for every transposing instru
 });
 
 test("concert-pitch instruments have a zero writtenOffset", () => {
-  for (const id of ["flute", "oboe", "bassoon", "guitar"]) {
+  for (const id of ["flute", "oboe", "bassoon", "guitar", "vocal"]) {
     assert.equal(INSTRUMENTS[id].writtenOffset, 0, `${id} is a concert-pitch instrument`);
   }
 });
@@ -77,4 +77,7 @@ test("lab tier reflects which asset each instrument actually ships", () => {
   for (const id of ["oboe", "cor-anglais"]) assert.equal(INSTRUMENTS[id].labTier, "anatomy");
   for (const id of ["flute", "clarinet", "bassoon"]) assert.equal(INSTRUMENTS[id].labTier, "chart");
   assert.equal(INSTRUMENTS.guitar.labTier, "none");
+  assert.equal(INSTRUMENTS.vocal.labTier, "vocal");
+  assert.equal(INSTRUMENTS.vocal.embouchure, "voice");
+  assert.deepEqual(INSTRUMENTS.vocal.range, { minHz: 80, maxHz: 1400 });
 });
