@@ -62,6 +62,19 @@ try {
         // Vocal warm-up: start, pause, finish and confirm it was logged.
         await page.keyboard.press("2");
         await page.getByRole("heading", { name: "Three easy steps" }).waitFor();
+        // V-A: the pitch graph's Hold freezes it for review and Live snaps back.
+        const graph = page.locator(".vocal-graph");
+        await graph.waitFor();
+        const canvasSize = await page.locator(".vocal-graph-canvas").boundingBox();
+        assert.ok(canvasSize && canvasSize.width > 200 && canvasSize.height > 150, "the pitch graph canvas has a real size");
+        assert.equal(await page.getByRole("button", { name: "Back to live graph" }).isDisabled(), true, "Live is idle until the graph is held");
+        await page.getByRole("button", { name: "Hold", exact: true }).click();
+        await page.locator(".vocal-graph.is-held").waitFor();
+        assert.equal(await page.getByRole("button", { name: "Hold", exact: true }).getAttribute("aria-pressed"), "true");
+        await page.getByRole("button", { name: "Show less time" }).click();
+        await page.getByRole("button", { name: "Back to live graph" }).click();
+        await page.waitForFunction(() => !document.querySelector(".vocal-graph.is-held"));
+        assert.equal(await page.getByRole("button", { name: "Hold", exact: true }).getAttribute("aria-pressed"), "false");
         await page.locator(".vocal-studio-card").first().click();
         await page.getByRole("button", { name: "Start warm-up" }).click();
         await page.waitForFunction(() => document.querySelector(".vocal-routine-clock strong")?.textContent !== "0:00");

@@ -20,7 +20,7 @@ or a `labTier` changes.
 | Clarinet | chart | Yes | 2 semitones | 2D fingering chart, 3D model not licensed | Chart verified against the source; considered the most reliable of the three chart-only instruments |
 | Bassoon | chart | Yes | 0 | 2D fingering chart, no 3D model | Missing LH pinky keys against the cited source |
 | Guitar | none | String tuner (no reed/embouchure model) | n/a | Chord fretboard chart + follow player | Follow-player advance is tempo-selectable and scheduled on the AudioContext clock |
-| Vocal | vocal | Yes | 0 | Three-step self-paced warm-up with pause/resume timer and local completion log | Pitch-first support only; no vocal-technique grading or healthy-range claim; voice-teacher and device review remain |
+| Vocal | vocal | Yes | 0 | Live singing pitch graph with hold, pan and zoom review; self-recorded vocal range; three-step self-paced warm-up whose cards draw on the graph, with pause/resume timer and local completion log | Pitch-first support only; no vocal-technique rating or healthy-range claim; the 80 Hz tracker floor sits above C2; voice-teacher and device review remain |
 
 ## Wave 2 (merged 18 September, PR #18) -- present in the code
 
@@ -35,6 +35,13 @@ or a `labTier` changes.
 ## After wave 2: October additions
 
 - Vocal instrument profile: `labTier: "vocal"`, `embouchure: "voice"`, 80-1400 Hz tracker band, `VocalStudio.tsx` three-step warm-up logged as a `vocal` practice activity; competitor scope in `docs/VOCAL_COMPETITOR_ANALYSIS.md`.
+- Vocal graph (package V-A): `VocalPitchGraph.tsx` draws the singer's pitch on a dark stage, painted from the tuner's own animation-frame loop. The maths is in `vocal-graph.ts`, the canvas painting in `vocal-graph-canvas.ts`, the range finder in `vocal-range.ts` and the warm-up feedback in `vocal-warmups.ts`; styles are in `styles/vocal.css`.
+  - Graph: pitch up the page (C2 to C6 by default, or the stored range with a margin), note names in the chosen notation system, semitone guides and heavier octave lines, 30 s window by default (10 s, 1 min and 2 min presets). The line breaks wherever the voice is silent, and is coloured by cents from the nearest semitone using the tuner's in-tune / near / off bands. A glowing head and a readout mark the current pitch; with reduced motion the glow does not pulse.
+  - Data: `useTuner` keeps a second 2-minute ring buffer (`vocalGraph.buffer`) of unsmoothed pitch from every reliable frame, so a slide is drawn as a slide. The Tune view's own 10 s history is unchanged. `StablePitchTracker.lastFrameReliable` is the one new flag read from the tracker.
+  - Hold: freezes the picture while the microphone keeps listening. Drag pans time, wheel or two-finger pinch zooms time (5 s to 120 s), a vertical pinch (or Shift and wheel) zooms pitch, and on-screen buttons do the same for keyboard and switch users. Live returns to the scrolling graph. Data older than two minutes is no longer available to pan back to.
+  - Range finder: sing a lowest then a highest comfortable note, each held for 2 s; each is the median of the locked readings. Stored under `bocal-vocal-range-v1` (sanitised on read), shown as a shaded band on the graph and a two-bar card with note names and the span in semitones. The copy says it is the range the singer chose to record; it does not label the voice. Clear and Record again are available.
+  - Warm-ups: each card keeps its text and manual Mark complete. A separate Show on graph control adds feedback: Sustain draws a target band (tap a note name on the graph, or choose it, or take the tuner's locked note) and fills a ring while the pitch stays in the band (the Precision setting, never narrower than 10 cents); Glide draws a sine-shaped siren path between two notes and the voice is drawn over it; Start cleanly ticks each attack that follows at least 300 ms of silence. These show what was sung. They do not mark it.
+  - Not built: saved takes, melody targets and play-along (reserved as the `V-B: takes`, `V-B: melody` and `V-C: play-along` slots in `VocalStudio.tsx`).
 - Flute coaching direction (`CORRECTION_COPY["air-reed"]`): rolling in covers more of the hole and lowers pitch, so a sharp flute rolls in and a flat flute rolls out.
 - Android `beta` flavour (the only variant with the INTERNET permission, for the optional local session bridge); the standard flavour stays offline-only.
 - Release workflow gates and `android/verify-aab.sh`; CC BY 4.0 licence-text links beside both model credits.

@@ -36,6 +36,8 @@ export const WEEKLY_GOAL_STORAGE_KEY = "bocal-weekly-goal-minutes";
 export const LESSON_NOTE_STORAGE_KEY = "bocal-lesson-note";
 export const METRONOME_PRESETS_STORAGE_KEY = "bocal-metronome-presets-v1";
 export const METRONOME_SEQUENCES_STORAGE_KEY = "bocal-metronome-sequences-v1";
+/** The lowest and highest note a singer chose to record in the Vocal range finder (JSON, sanitised by vocal-range.ts). */
+export const VOCAL_RANGE_KEY = "bocal-vocal-range-v1";
 
 /**
  * The three calibration keys AnalysisView reads (read-only -- it mirrors the

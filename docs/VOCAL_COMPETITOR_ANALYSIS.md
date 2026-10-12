@@ -14,16 +14,19 @@
 
 ## Bocal capability check
 
-The Vocal profile is first-class and concert-pitch. It uses the shared chromatic tuner and its configurable pitch range, 10-second history, reference tone, local Analyze recording/review, and Practice activity history. The Vocal workspace now adds three selectable warm-up steps, a pause/resume timer, completion tracking, and a local activity record that appears under Vocal in the practice map.
+The Vocal profile is first-class and concert-pitch. It uses the shared chromatic tuner and its configurable pitch range, 10-second history, reference tone, local Analyze recording/review, and Practice activity history. The Vocal workspace now adds a live singing pitch graph with hold, pan and zoom review, a self-recorded vocal range, three selectable warm-up steps that can draw on the graph, a pause/resume timer, completion tracking, and a local activity record that appears under Vocal in the practice map.
 
 The feature is complete for Bocal's stated pitch-first companion scope: a singer can select Vocal, tune, observe a short pitch trace, follow and mark a simple routine, and retain practice history on device. It is not feature-equivalent to dedicated singing lesson or vocal-pitch graph products.
 
 ## Explicit remaining work
 
+Shipped since the first review: a zoomable singing pitch graph (30 s default, up to 2 minutes, hold with pan and pinch zoom), a vocal range the singer records and the graph scales to, and Sustain, Glide and Start cleanly feedback drawn on the graph. This closes the gap with Vocal Pitch Monitor and Singscope on live graph and review. It does not add recording or playback.
+
 - A voice teacher should review the warm-up wording before Bocal presents it as pedagogy. Current copy is kept general and advises staying comfortable and stopping if strained.
-- A dedicated zoomable singing pitch graph and saved vocal takes would improve comparison with Vocal Pitch Monitor and Singscope. Bocal currently offers a short tuner trace and the shared Analyze recorder.
-- Target-note or score-following feedback, song catalog, timing grading, and a calibrated vocal-range profile are outside the current implementation. These require separately designed and reviewed musical content and evaluation rules.
-- Microphone behavior across actual singing voices, phones and room conditions still needs physical-device validation before the Vocal profile is represented as fully production-validated.
+- Saved vocal takes with playback of the graph alongside the sound are not built. Bocal still offers the shared Analyze recorder, and the graph keeps only the last two minutes in memory.
+- Target-melody and score-following feedback, a song catalog, timing marks and a play-along are not built. They need separately designed and reviewed musical content and evaluation rules. The Vocal workspace has empty slots reserved for them.
+- The vocal tracker band starts at 80 Hz (about E2), above the graph's C2 floor, so the lowest voices may read as silence below that. Widening it needs a physical-device check.
+- Microphone behaviour across actual singing voices, phones and room conditions still needs physical-device validation before the Vocal profile is represented as fully production-validated. The graph, range finder and warm-up feedback have only been exercised with a synthetic tone source.
 
 ## Sources
 

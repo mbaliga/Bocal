@@ -115,7 +115,30 @@ async function walkStates(page,theme,instrument,results){
   await select(2);await page.waitForTimeout(500);await record('lab/learn');
   // Vocal workspace: audit the guided warm-up routine as well as the step cards.
   const vocalCard=page.locator('.vocal-studio-card').first();
-  if(await vocalCard.isVisible()){await vocalCard.click();await page.locator('.vocal-routine').waitFor();await record('vocal/routine','.vocal-routine');}
+  if(await vocalCard.isVisible()){
+    await vocalCard.click();await page.locator('.vocal-routine').waitFor();await record('vocal/routine','.vocal-routine');
+    // V-A: the dark stage with the pitch graph (idle, then held), the range
+    // card (a stored range is seeded by the init script), the range finder's
+    // in-progress prompt and each warm-up card driving the graph.
+    await record('vocal/graph','.vocal-stage');
+    await page.getByRole('button',{name:'Hold',exact:true}).click();
+    await page.locator('.vocal-graph.is-held').waitFor();
+    await record('vocal/graph-held','.vocal-stage');
+    await page.getByRole('button',{name:'Back to live graph'}).click();
+    await page.locator('.vocal-range-card').waitFor();
+    await record('vocal/range-card','.vocal-range');
+    await page.getByRole('button',{name:'Record again'}).click();
+    await page.locator('.vocal-capture-hud').waitFor();
+    await record('vocal/range-capture','.vocal-stage');
+    await page.getByRole('button',{name:'Cancel'}).click();
+    const toggles=page.locator('.vocal-live-toggle');
+    for(const [index,state] of [[0,'vocal/sustain'],[1,'vocal/glide'],[2,'vocal/start-cleanly']]){
+      await toggles.nth(index).click();
+      await page.locator('.vocal-live-body').waitFor();
+      await record(state,'.vocal-routine');
+    }
+    await toggles.nth(2).click();
+  }
   const challenge=page.locator('.lab-mode-switch button').filter({hasText:'Challenge'});
   if(await challenge.isVisible()){await challenge.click();await record('lab/challenge','.fingering-panel');}
   await select(5);await record('practice');
@@ -147,6 +170,7 @@ try {
       // ignored, leaving the instrument undefined and testing alto twice.
       await page.addInitScript(({theme,instrument})=>{
         localStorage.setItem('bocal-onboarding-v2','complete');localStorage.setItem('bocal-theme',theme);localStorage.setItem('bocal-instrument',instrument);
+        if(instrument==='vocal')localStorage.setItem('bocal-vocal-range-v1',JSON.stringify({low:45,high:69,savedAt:1760000000000}));
       },{theme,instrument});
       await page.goto(preview.url);await page.locator('.app-shell').waitFor();await page.waitForTimeout(400);
       assert.equal(await page.locator('.onboarding-overlay').count(),0,'Completed onboarding must stay dismissed');
