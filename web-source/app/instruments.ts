@@ -10,6 +10,8 @@ export type InstrumentId =
   | "oboe"
   | "cor-anglais"
   | "bassoon"
+  | "diatonic-harmonica"
+  | "chromatic-harmonica"
   | "guitar"
   | "vocal";
 
@@ -28,6 +30,10 @@ export type InstrumentId =
  *   "chart"     -- no 3D model, but a 2D fingering chart (see
  *                  app/fingering-charts/): flute, clarinet, bassoon.
  *   "vocal"     -- singing profile with pitch-first vocal practice prompts.
+ *   "harmonica" -- a hole-and-breath chart (app/fingering-charts/harmonica.ts)
+ *                  generated from the standard layout rather than a key
+ *                  diagram: diatonic (Richter, any of twelve keys) and
+ *                  chromatic (12-hole, solo tuning, slide).
  *   "none"      -- neither. Tuner and practice tools only (guitar).
  *
  * "chart" is a new tier rather than a flag on "anatomy" and "fingering"
@@ -44,7 +50,7 @@ export type InstrumentId =
  * lower bar than "checked by a teacher," and the UI says so plainly rather
  * than borrowing the confidence a 3D model's finish might otherwise imply.
  */
-export type LabTier = "fingering" | "anatomy" | "chart" | "vocal" | "none";
+export type LabTier = "fingering" | "anatomy" | "chart" | "vocal" | "harmonica" | "none";
 
 /**
  * The concert-pitch frequency band the live tuner's pitch tracker searches
@@ -69,7 +75,7 @@ export type FrequencyRange = { minHz: number; maxHz: number };
  * the engine and the instrument"). Each embouchure family gets its own pair
  * instead.
  */
-export type EmbouchureFamily = "reed" | "air-reed" | "double-reed" | "string" | "voice";
+export type EmbouchureFamily = "reed" | "air-reed" | "double-reed" | "free-reed" | "string" | "voice";
 
 export const CORRECTION_COPY: Record<EmbouchureFamily, { sharp: string; flat: string }> = {
   reed: {
@@ -86,6 +92,14 @@ export const CORRECTION_COPY: Record<EmbouchureFamily, { sharp: string; flat: st
   "double-reed": {
     sharp: "Relax the embouchure pressure on the reed without losing support.",
     flat: "Firm the embouchure slightly and keep the air moving.",
+  },
+  // A harmonica has no reed to bite and no embouchure hole to roll: each reed
+  // is fixed in pitch and the player's mouth and throat shape bends it. A
+  // plain (unbent) hole that reads sharp or flat is therefore coached through
+  // breath pressure and mouth shape, never a jaw or a lip.
+  "free-reed": {
+    sharp: "Ease the breath pressure and keep the mouth open and relaxed; a gentler, steadier breath lets the reed settle.",
+    flat: "You may be bending the note by accident: open the mouth and throat, keep the tongue low, and breathe steadily.",
   },
   string: {
     sharp: "Ease the tuning peg or fine tuner to lower the string slightly.",
@@ -250,6 +264,41 @@ export const INSTRUMENTS: Record<InstrumentId, InstrumentProfile> = {
     range: { minHz: 55, maxHz: 1000 },
     embouchure: "double-reed",
   },
+  "diatonic-harmonica": {
+    id: "diatonic-harmonica",
+    name: "Diatonic harmonica",
+    shortName: "Diatonic",
+    family: "Free reed",
+    // The key is chosen inside the lab (twelve keys, default C), so there is
+    // no single key to print here.
+    pitchLabel: "Any key",
+    writtenOffset: 0,
+    clef: "treble",
+    tunerDescription: "The harmonica is a concert-pitch instrument, so written and sounding notes match. Pick your key in the Chart tab.",
+    labTier: "harmonica",
+    labStatus: "Hole chart for twelve keys, computed from the standard Richter layout · not teacher-reviewed",
+    // The union of every key's C4-C7 window shifted by the key (G3 up to
+    // F♯7): the tracker window belongs to the profile and the chosen key
+    // lives in the lab. harmonicaRangeHz (fingering-charts/harmonica.ts)
+    // gives the narrower per-key window.
+    range: { minHz: 185, maxHz: 3100 },
+    embouchure: "free-reed",
+  },
+  "chromatic-harmonica": {
+    id: "chromatic-harmonica",
+    name: "Chromatic harmonica",
+    shortName: "Chromatic",
+    family: "Free reed",
+    pitchLabel: "C",
+    writtenOffset: 0,
+    clef: "treble",
+    tunerDescription: "The harmonica is a concert-pitch instrument, so written and sounding notes match.",
+    labTier: "harmonica",
+    labStatus: "Hole chart with slide, computed from the standard 12-hole layout · not teacher-reviewed",
+    // C4 (262 Hz) up to D7 (2349 Hz), with a little room either side.
+    range: { minHz: 240, maxHz: 2500 },
+    embouchure: "free-reed",
+  },
   guitar: {
     id: "guitar",
     name: "Guitar",
@@ -290,6 +339,8 @@ export const INSTRUMENT_ORDER: InstrumentId[] = [
   "flute",
   "clarinet",
   "bassoon",
+  "diatonic-harmonica",
+  "chromatic-harmonica",
   "guitar",
   "vocal",
 ];

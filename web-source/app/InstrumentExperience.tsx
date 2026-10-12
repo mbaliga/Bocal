@@ -109,7 +109,31 @@ const VOCAL_GALLERY_INSTRUMENTS: GalleryInstrument[] = [
   },
 ];
 
-const ALL_GALLERY_INSTRUMENTS: GalleryInstrument[] = [...WOODWIND_GALLERY_INSTRUMENTS, ...STRING_GALLERY_INSTRUMENTS, ...VOCAL_GALLERY_INSTRUMENTS];
+// Free-reed wind instruments: blown or drawn through a comb of holes, no keys.
+// No photograph is bundled (no commercial-use licence has been confirmed for
+// one), so these cards use a gradient and the CSS-drawn ghost shape.
+const FREE_REED_GALLERY_INSTRUMENTS: GalleryInstrument[] = [
+  {
+    id: "diatonic-harmonica",
+    name: "Diatonic harmonica",
+    family: "Free reed",
+    pitch: "12 keys",
+    status: "Hole chart · computed, not teacher-reviewed",
+    gradient: "linear-gradient(160deg, #3d3a1a, #14130c 72%)",
+    availableId: "diatonic-harmonica",
+  },
+  {
+    id: "chromatic-harmonica",
+    name: "Chromatic harmonica",
+    family: "Free reed",
+    pitch: "C",
+    status: "Hole chart with slide · computed, not teacher-reviewed",
+    gradient: "linear-gradient(160deg, #2c3a40, #0e1417 72%)",
+    availableId: "chromatic-harmonica",
+  },
+];
+
+const ALL_GALLERY_INSTRUMENTS: GalleryInstrument[] = [...WOODWIND_GALLERY_INSTRUMENTS, ...FREE_REED_GALLERY_INSTRUMENTS, ...STRING_GALLERY_INSTRUMENTS, ...VOCAL_GALLERY_INSTRUMENTS];
 
 // Discovery only: these cards deliberately have no InstrumentId or action.
 // A beautiful gallery must not silently pretend that a string, keyboard, or
@@ -243,6 +267,10 @@ export function InstrumentPickerExperience({
           <div className="instrument-gallery-heading"><span id="woodwind-instruments-title">Woodwinds ({WOODWIND_GALLERY_INSTRUMENTS.filter((item) => item.availableId).length} ready)</span></div>
           <InstrumentPanelDeck focusedId={focusedId} selectedId={selectedId} onFocus={setFocusedId} items={WOODWIND_GALLERY_INSTRUMENTS} ariaLabel="Woodwind instruments" />
         </section>
+        <section className="instrument-gallery-section" aria-labelledby="free-reed-instruments-title">
+          <div className="instrument-gallery-heading"><span id="free-reed-instruments-title">Free reed ({FREE_REED_GALLERY_INSTRUMENTS.filter((item) => item.availableId).length} ready)</span></div>
+          <InstrumentPanelDeck focusedId={focusedId} selectedId={selectedId} onFocus={setFocusedId} items={FREE_REED_GALLERY_INSTRUMENTS} ariaLabel="Free reed instruments" />
+        </section>
         <section className="instrument-gallery-section" aria-labelledby="string-instruments-title">
           <div className="instrument-gallery-heading"><span id="string-instruments-title">Strings ({STRING_GALLERY_INSTRUMENTS.filter((item) => item.availableId).length} ready)</span></div>
           <InstrumentPanelDeck focusedId={focusedId} selectedId={selectedId} onFocus={setFocusedId} items={STRING_GALLERY_INSTRUMENTS} ariaLabel="String instruments" />
@@ -274,12 +302,12 @@ const ONBOARDING_STEPS = [
 
 // Step 2 and its proof tile depend on what the chosen instrument actually
 // has: a 3D fingering trainer (sax family), a 3D anatomy model (oboe / cor
-// anglais), a 2D chart (flute / clarinet / bassoon), a vocal practice surface,
+// anglais), a 2D chart (flute / clarinet / bassoon), a harmonica hole chart, a vocal practice surface,
 // or neither (guitar).
 // Showing the sax's "rotate the instrument" / "3D key map" copy to a flute
 // or guitar player promised a model that instrument doesn't have.
 const LEARN_STEP_BY_TIER: Record<
-  "fingering" | "anatomy" | "chart" | "vocal" | "none",
+  "fingering" | "anatomy" | "chart" | "vocal" | "harmonica" | "none",
   { title: string; kicker: string; heading: string; body: string; tileLabel: string; tileHeading: string; tileDetail: string }
 > = {
   fingering: {
@@ -308,6 +336,15 @@ const LEARN_STEP_BY_TIER: Record<
     tileLabel: "FINGERING CHART",
     tileHeading: "Learn",
     tileDetail: "Note-by-note",
+  },
+  harmonica: {
+    title: "See which hole to play, and whether to blow or draw.",
+    kicker: "Hole chart",
+    heading: "Read the comb.",
+    body: "Pick a note and Bocal shows the hole, the direction of breath and how far to bend it. The chart is computed from the standard layout and is not teacher-reviewed; bends vary by harp and player.",
+    tileLabel: "HOLE CHART",
+    tileHeading: "Learn",
+    tileDetail: "Hole by hole",
   },
   vocal: {
     title: "Sing a steady note and listen for the centre.",
@@ -385,6 +422,7 @@ export function OnboardingGuide({
         {step === 0 && (
           <>
             <InstrumentPanelDeck focusedId={focusedId} selectedId={selectedId} onFocus={setFocusedId} items={WOODWIND_GALLERY_INSTRUMENTS} ariaLabel="Woodwind instruments" />
+            <InstrumentPanelDeck focusedId={focusedId} selectedId={selectedId} onFocus={setFocusedId} items={FREE_REED_GALLERY_INSTRUMENTS} ariaLabel="Free reed instruments" />
             <InstrumentPanelDeck focusedId={focusedId} selectedId={selectedId} onFocus={setFocusedId} items={STRING_GALLERY_INSTRUMENTS} ariaLabel="String instruments" />
             <InstrumentPanelDeck focusedId={focusedId} selectedId={selectedId} onFocus={setFocusedId} items={VOCAL_GALLERY_INSTRUMENTS} ariaLabel="Vocal instruments" />
           </>

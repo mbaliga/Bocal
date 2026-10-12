@@ -144,6 +144,30 @@ async function walkStates(page,theme,instrument,results){
   await select(5);await record('practice');
 }
 
+// Harmonica hole chart: the comb, its controls and the side panel, with the
+// opt-in advanced rows and the chromatic slide-in shown, since each of those
+// adds text on its own surface.
+async function walkHarmonica(page,theme,instrument,results){
+  const record=async(state,scope)=>{
+    const text=await textAudit(page,scope);
+    assert.ok(Array.isArray(text),`${instrument}/${state}: missing required scope ${scope}`);
+    results.push({theme,instrument,state,text});
+    if(text.length){console.log(`${theme}/${instrument}/${state}: ${text.length} contrast failures`);for(const f of text)console.log(`  ${f.sel} "${f.text}" ${f.ratio}:1, need ${f.threshold}, ${f.fg} on ${f.bg}`);}
+  };
+  await page.locator('.mobile-nav button[aria-keyshortcuts="2"]').click();
+  await page.locator('.harmonica-lab .harmonica-comb').waitFor();
+  await page.waitForTimeout(300);
+  await record('harmonica/chart','.harmonica-lab');
+  const advanced=page.locator('.harmonica-toggle').filter({hasText:'Overblows'});
+  if(await advanced.count()){await advanced.click();await record('harmonica/advanced','.harmonica-lab');}
+  const slide=page.locator('.harmonica-toggle').filter({hasText:'Slide in'});
+  if(await slide.count()){await slide.click();await record('harmonica/slide-in','.harmonica-lab');}
+  await page.locator('.harmonica-comb .hc-cell').nth(3).click();await record('harmonica/selected','.harmonica-lab');
+  await page.getByRole('button',{name:'Choose instrument',exact:true}).click();
+  await page.waitForTimeout(200);
+  await record('harmonica/picker-free-reed','.experience-overlay');
+}
+
 // Tiny synthetic WAV so the A/B compare state below has two real takes to
 // pick from, the same fixture shape tests/production-smoke.mjs already uses
 // to exercise the take library without a real microphone.
@@ -176,6 +200,19 @@ try {
       assert.equal(await page.locator('.onboarding-overlay').count(),0,'Completed onboarding must stay dismissed');
       assert.equal(await page.evaluate(()=>document.documentElement.dataset.theme),theme);
       const results=[];await walkStates(page,theme,instrument,results);
+      for(const result of results){counts[`${theme}/${instrument}/${result.state}`]=result.text.length;for(const item of result.text)failures.push({theme,instrument,state:result.state,...item});}
+    } finally {await context.close();}
+  }
+  for(const theme of ['light','dark'])for(const instrument of ['diatonic-harmonica','chromatic-harmonica']){
+    const context=await browser.newContext({viewport:{width:412,height:915}});
+    try {
+      const page=await context.newPage();page.setDefaultTimeout(10000);
+      await page.addInitScript(({theme,instrument})=>{
+        localStorage.setItem('bocal-onboarding-v2','complete');localStorage.setItem('bocal-theme',theme);localStorage.setItem('bocal-instrument',instrument);
+      },{theme,instrument});
+      await page.goto(preview.url);await page.locator('.app-shell').waitFor();await page.waitForTimeout(400);
+      assert.equal(await page.evaluate(()=>document.documentElement.dataset.theme),theme);
+      const results=[];await walkHarmonica(page,theme,instrument,results);
       for(const result of results){counts[`${theme}/${instrument}/${result.state}`]=result.text.length;for(const item of result.text)failures.push({theme,instrument,state:result.state,...item});}
     } finally {await context.close();}
   }
