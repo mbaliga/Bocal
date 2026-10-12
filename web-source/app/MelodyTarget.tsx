@@ -440,8 +440,8 @@ export function MelodyTarget({ graph, listening, notation, saTonic, range, bandC
           </div>
           <div className="vocal-live-buttons vocal-melody-actions">
             {busy
-              ? <button type="button" className="button secondary" onClick={stopPass}><Square size={14} /> Stop pass</button>
-              : <button type="button" className="button primary" onClick={() => void startPass()}><Play size={14} /> Play pass</button>}
+              ? <button type="button" key="stop" className="button secondary" onClick={stopPass}><Square size={14} /> Stop pass</button>
+              : <button type="button" key="play" className="button primary" onClick={() => void startPass()}><Play size={14} /> Play pass</button>}
             {phase === "done" && <button type="button" className="button secondary" onClick={clearPass}><X size={14} /> Clear pass</button>}
             <button type="button" className="button secondary" disabled={busy} onClick={() => openEditor(null)}><Plus size={14} /> New melody</button>
             <button type="button" className="button secondary" disabled={busy} onClick={() => openEditor(selected)}>

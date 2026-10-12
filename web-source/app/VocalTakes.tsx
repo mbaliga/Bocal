@@ -349,7 +349,7 @@ export function VocalTakes({ listening, notation, saTonic, range, toleranceCents
           </p>
         </div>
         <div className="vocal-takes-record">
-          <button type="button" className={`button ${recording ? "secondary" : "primary"}`} onClick={toggleRecording} disabled={!libraryReady || finishing || (!recording && !requesting && full)}>
+          <button type="button" key={recording ? "finish" : "record"} className={`button ${recording ? "secondary" : "primary"}`} onClick={toggleRecording} disabled={!libraryReady || finishing || (!recording && !requesting && full)}>
             {recording || requesting ? <Square size={14} /> : <Mic size={14} />}
             {finishing ? "Finishing take…" : recording ? "Finish take" : requesting ? "Cancel" : "Record take"}
           </button>
