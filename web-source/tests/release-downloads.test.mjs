@@ -34,6 +34,7 @@ test("the release workflow cannot silently skip its production gates", async () 
 
 test("the shipping Android tree (/android) is a hardened, local-first WebView shell", async () => {
   const manifest = await readFile(new URL("../../android/app/src/main/AndroidManifest.xml", import.meta.url), "utf8");
+  const betaManifest = await readFile(new URL("../../android/app/src/beta/AndroidManifest.xml", import.meta.url), "utf8");
   const webAppScreen = await readFile(
     new URL("../../android/app/src/main/java/com/bocal/music/ui/WebAppScreen.kt", import.meta.url),
     "utf8",
@@ -48,6 +49,7 @@ test("the shipping Android tree (/android) is a hardened, local-first WebView sh
   );
   assert.match(manifest, /RECORD_AUDIO/);
   assert.doesNotMatch(manifest, /uses-permission[^>]+INTERNET/);
+  assert.match(betaManifest, /uses-permission[^>]+INTERNET/);
   assert.match(manifest, /android:allowBackup="false"/);
   assert.match(webAppScreen, /appassets\.androidplatform\.net/);
   assert.match(client, /APPASSETS_HOST/);

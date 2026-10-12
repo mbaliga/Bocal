@@ -48,6 +48,7 @@ const ACTIVITY_LABELS: Record<PracticeActivityType, string> = {
   analysis: "Analysis",
   repertoire: "Repertoire",
   session: "General",
+  vocal: "Vocal",
 };
 
 const ACTIVITY_COLORS: Record<PracticeActivityType, string> = {
@@ -58,6 +59,7 @@ const ACTIVITY_COLORS: Record<PracticeActivityType, string> = {
   analysis: "#82a8ff",
   repertoire: "#8fd48d",
   session: "#8f8f93",
+  vocal: "#c4a7ff",
 };
 
 type SessionRecord = { date: string; seconds: number; note?: string };

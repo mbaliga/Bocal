@@ -59,7 +59,7 @@ carries over to this import. `qa/VERIFICATION.md` is the original record.
 
 **Verified in the current source:** `models/validate_models.py` passes: 35 GLBs parse
 as glTF 2.0 and agree with the catalog, with 465 named interactive controls. In
-`android/`, `static-check.sh` passes — the XML parses, there is no `INTERNET`
+`android/`, `static-check.sh` passes — the XML parses, the standard build has no `INTERNET`
 permission, and the WebView shell and native bridge are wired. GitHub Actions has
 also produced the current debug APK and standalone web artifact from `main`.
 
@@ -97,7 +97,8 @@ native Compose UI, its five audio engines and the separate in-app 3D Lab
 (`assets/www/lab.html`, a vendored Three.js runtime and duplicate glTF model trees)
 described in earlier versions of this document have been deleted as dead code —
 nothing reachable from `MainActivity` ever loaded them, and removing them took the
-debug APK from ~34 MB to ~19 MB. `INTERNET` is still deliberately absent;
+debug APK from ~34 MB to ~19 MB. `INTERNET` is absent from standard builds; the
+unfinished optional shared-session beta has a separate beta build type that needs it;
 `RECORD_AUDIO` and `VIBRATE` remain the only permissions, and `allowBackup` is now
 `false`.
 

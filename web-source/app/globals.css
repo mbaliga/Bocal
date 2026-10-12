@@ -81,11 +81,27 @@ button:focus-visible, [role="button"]:focus-visible, a:focus-visible, input:focu
 .instrument-icon { width: 35px; height: 35px; background: var(--violet-deep); color: #b8adff; border-radius: 10px; display: grid; place-items: center; }
 .vocal-studio-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 28px; }
 .vocal-studio-card { min-height: 210px; padding: 22px; border: 1px solid var(--line); border-radius: 18px; background: var(--card); display: flex; flex-direction: column; align-items: flex-start; }
+.vocal-studio-card { width: 100%; color: var(--ink); text-align: left; cursor: pointer; transition: border-color .18s ease, transform .18s ease; }
+.vocal-studio-card:hover { border-color: var(--violet); transform: translateY(-2px); }
+.vocal-studio-card:focus-visible { outline: 2px solid var(--violet); outline-offset: 3px; }
+.vocal-studio-card.is-complete { border-color: var(--mint); }
 .vocal-studio-icon { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 12px; color: #d2c9ff; background: var(--violet-deep); margin-bottom: 24px; }
 .vocal-studio-card small { color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-size: 10px; }
-.vocal-studio-card h2 { margin: 8px 0; font-size: 19px; }
+.vocal-studio-card h3 { margin: 8px 0; font-size: 19px; }
 .vocal-studio-card p { margin: 0; color: var(--muted); line-height: 1.55; font-size: 13px; }
+.vocal-routine { margin-top: 26px; }
+.vocal-routine-head, .vocal-routine-actions { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.vocal-routine-head h2 { margin: 10px 0 4px; font-size: 23px; }
+.vocal-routine-head p, .vocal-routine-actions p { color: var(--muted); font-size: 13px; line-height: 1.5; margin: 0; }
+.vocal-routine-clock { min-width: 88px; text-align: center; border: 1px solid var(--line); border-radius: 14px; padding: 11px 14px; background: var(--card); }
+.vocal-routine-clock small { display: block; color: var(--muted); font-size: 9px; letter-spacing: .1em; }
+.vocal-routine-clock strong { font-variant-numeric: tabular-nums; font-size: 22px; }
+.vocal-step-state { margin-top: auto; padding-top: 15px; color: var(--muted); font-size: 11px; display: flex; align-items: center; gap: 6px; }
+.is-complete .vocal-step-state { color: var(--mint); }
+.vocal-routine-actions { margin-top: 16px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); }
+.vocal-routine-actions > div { display: flex; gap: 9px; flex-wrap: wrap; justify-content: flex-end; }
 @media (max-width: 760px) { .vocal-studio-grid { grid-template-columns: 1fr; } .vocal-studio-card { min-height: 0; } }
+@media (max-width: 520px) { .vocal-routine-head, .vocal-routine-actions { align-items: flex-start; } .vocal-routine-actions { flex-direction: column; } .vocal-routine-actions > div { width: 100%; justify-content: stretch; } .vocal-routine-actions button { flex: 1; } }
 .instrument-menu { position: absolute; top: calc(100% + 8px); left: 0; width: min(340px, calc(100vw - 32px)); padding: 7px; border: 1px solid #323238; border-radius: 15px; background: rgba(16,16,18,.98); box-shadow: 0 24px 70px rgba(0,0,0,.58); backdrop-filter: blur(18px); }
 .instrument-menu > button { width: 100%; min-height: 62px; padding: 9px 11px; border: 1px solid transparent; border-radius: 11px; background: transparent; color: #88888c; display: grid; grid-template-columns: 35px 1fr 18px; align-items: center; gap: 10px; text-align: left; cursor: pointer; }
 .instrument-menu > button:hover { background: #19191c; color: var(--ink); }

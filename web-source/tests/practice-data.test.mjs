@@ -53,7 +53,7 @@ test("parsePracticeActivities drops entries missing required fields or with an u
 });
 
 test("parsePracticeActivities accepts every known activity type", () => {
-  const types = ["tuning", "fingering", "rhythm", "chords", "analysis", "repertoire", "session"];
+  const types = ["tuning", "fingering", "rhythm", "chords", "analysis", "repertoire", "session", "vocal"];
   const entries = types.map((type, i) => ({ id: `id-${i}`, capturedAt: "2026-01-01T00:00:00.000Z", seconds: 1, type }));
   const result = parsePracticeActivities(JSON.stringify(entries));
   assert.equal(result.length, types.length);
@@ -73,6 +73,15 @@ test("recordPracticeActivity writes a rounded, clamped entry and dispatches an e
   assert.equal(saved[0].instrumentId, "alto-sax");
   assert.equal(typeof saved[0].id, "string");
   assert.ok(events.includes("bocal-practice-activity"));
+});
+
+test("Vocal warm-up activity is accepted and stored with its instrument and completed steps", () => {
+  const { store } = installStorageStub();
+  recordPracticeActivity({ type: "vocal", seconds: 94, instrumentId: "vocal", notes: ["Sustain", "Glide"], label: "Vocal warm-up" });
+  const [saved] = parsePracticeActivities(store.get(PRACTICE_ACTIVITY_STORAGE_KEY));
+  assert.equal(saved.type, "vocal");
+  assert.equal(saved.instrumentId, "vocal");
+  assert.deepEqual(saved.notes, ["Sustain", "Glide"]);
 });
 
 test("recordPracticeActivity clamps negative seconds to zero and prepends newest-first", () => {

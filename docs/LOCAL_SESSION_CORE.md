@@ -8,10 +8,12 @@ a six-digit pairing code to the shared handshake before accepting packets. The s
 rejects frames larger than 64 KiB. Bocal remains responsible for discovery, code display/entry,
 reconnect policy, encryption/platform identity and mapping instrument events.
 
-Build the beta bridge with:
+Build the separate beta variant with the optional shared library. This variant
+has Android's `INTERNET` permission for TCP peer connections; standard debug and
+release builds do not include the beta bridge or that permission.
 
 ```bash
-./gradlew -PsharedLibrariesDir=/absolute/path/to/Shared-Libraries-asoc assembleDebug
+./gradlew -PsharedLibrariesDir=/absolute/path/to/Shared-Libraries-asoc assembleBeta
 ```
 
 The bridge is intentionally not enabled in ordinary builds until a real transport and physical

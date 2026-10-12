@@ -16,7 +16,9 @@ should not be trusted.
 Bocal is a local-first practice companion for music learners, teachers and working
 musicians: a dependable tuner, rhythm and practice workspace with instrument-specific
 learning content, run entirely in the browser (or an Android WebView shell) with no
-account and no network calls beyond loading the app itself.
+account. Standard Android builds have no `INTERNET` permission. An opt-in beta
+  build adds it for the unfinished shared TCP session bridge; see
+  `docs/LOCAL_SESSION_CORE.md`.
 
 ## 2. Instrument support
 
@@ -36,7 +38,7 @@ instrument's second workspace tab shows.
 | Clarinet | B♭ | Yes | 2D fingering chart, 3D model not licensed |
 | Bassoon | C | Yes | 2D fingering chart, no 3D model |
 | Guitar | — | String tuner | Chord fretboard chart + a follow player that waits for the played root |
-| Vocal | C | Yes | Vocal practice prompts; pitch-first, no vocal-technique grading |
+| Vocal | C | Yes | Three-step self-paced warm-up and local practice log; pitch-first, no vocal-technique grading |
 
 **Every fingering chart and the saxophone altissimo set are badged "not yet
 teacher-reviewed"** — they are checked against two published references
@@ -65,7 +67,7 @@ instrument × capability matrix and known data gaps per instrument.
 - **Practice** — local practice-time logging, weekly goals, a streak indicator,
   lesson/setup notes, deterministic (non-random) skill-rating evidence, and a coach
   board covering pitch, rhythm, technique, repertoire and reflection with an
-  exportable brief.
+  exportable brief. Vocal warm-up sessions are logged as their own local activity.
 
 ## 4. Known gaps (do not ship copy that contradicts these)
 
@@ -125,9 +127,9 @@ closed when signing secrets are absent and verifies the resulting AAB signature.
   technique, repertoire and reflection, and exports a brief for a student; does not
   yet have a way to review or correct the shipped fingering data in-app (that stays a
   code change today — see §4).
-- **Casual/curious visitor** — opens the instrument gallery, browses the Woodwinds
-  Woodwinds, Strings and Vocal sections and the further-planned families, and may leave without an
-  account, which the app supports (no sign-in exists at all).
+- **Casual/curious visitor** — opens the instrument gallery, browses the Woodwinds,
+  Strings and Vocal sections and the further-planned families, and may leave without
+  an account, which the app supports (no sign-in exists at all).
 
 Each persona's workflow is a straight-line loop: pick an instrument once, then tune,
 learn, keep time and review, all inside one browser tab with no server round-trip
@@ -135,9 +137,10 @@ beyond the initial page load.
 
 ## 8. Capability requirements this handoff assumes
 
-- **Local-first**: every feature above must work with the microphone and the current
-  page's `localStorage`/IndexedDB only; no feature should require an account or a
-  network request to function.
+- **Local-first**: standard builds work with the microphone and the current page's
+  `localStorage`/IndexedDB and do not require an account or network access. The
+  unfinished optional shared-session beta uses local TCP networking and is not part
+  of standard or release builds.
 - **Instrument-honest**: an instrument's lab tier, tuner correction copy and
   onboarding copy must describe what that specific instrument actually has, not a
   generic "every instrument gets a 3D model" assumption. The instrument matrix and

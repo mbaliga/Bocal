@@ -73,6 +73,20 @@ async function run() {
         await page.waitForTimeout(150);
 
         try {
+          if (instrumentId === "vocal") {
+            await page.keyboard.press("2");
+            await page.getByRole("heading", { name: "Three easy steps" }).waitFor();
+            await page.locator(".vocal-studio-card").first().click();
+            await page.getByRole("button", { name: "Start warm-up" }).click();
+            await page.waitForFunction(() => document.querySelector(".vocal-routine-clock strong")?.textContent !== "0:00");
+            await page.getByRole("button", { name: "Pause" }).click();
+            await page.getByRole("button", { name: "Finish & save" }).click();
+            await page.waitForFunction(() => {
+              const entries = JSON.parse(localStorage.getItem("bocal-practice-activity-v1") || "[]");
+              return entries.some((entry) => entry.type === "vocal" && entry.instrumentId === "vocal");
+            });
+          }
+
           // Arc nav must survive every package's edits: exactly two paths.
           const dockPaths = await page.locator(".dock-pill svg path").count();
           assert.equal(dockPaths, 2, `${label}: expected 2 .dock-pill svg path elements, got ${dockPaths}`);

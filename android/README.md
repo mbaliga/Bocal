@@ -41,7 +41,7 @@ metronome/tone generator); nothing restarts automatically on resume.
   `https://appassets.androidplatform.net`, opens `http(s)` navigations in the
   system browser instead of loading them in-app, and recovers from renderer
   process death by destroying and recreating the WebView.
-- The manifest declares only `RECORD_AUDIO` and `VIBRATE` -- no `INTERNET` --
+- The standard manifest declares only `RECORD_AUDIO` and `VIBRATE` -- no `INTERNET` --
   and `android:allowBackup="false"` (practice history and takes are the app's
   own local data and should not go through Android Auto Backup).
 - The WebView is padded by `WindowInsets.systemBars` so the page draws below
