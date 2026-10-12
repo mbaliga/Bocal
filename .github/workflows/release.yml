@@ -9,6 +9,9 @@ on:
       - "v*"
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 concurrency:
   group: android-release-${{ github.ref }}
   cancel-in-progress: false
@@ -16,6 +19,7 @@ concurrency:
 jobs:
   release:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
@@ -57,14 +61,22 @@ jobs:
           BOCAL_SKIP_WEB_BUILD: "1"
         run: ./gradlew lintDebug assembleDebug --console=plain
 
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
       - name: Run connected Android smoke test
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
           target: google_apis
           arch: x86_64
-          profile: Pixel_2
+          # avdmanager device ids are lowercase; "Pixel_2" fails AVD creation.
+          profile: pixel_2
           disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save
           script: cd android && ./gradlew connectedDebugAndroidTest --console=plain
 
       - name: Check release secrets
@@ -104,3 +116,7 @@ jobs:
           name: bocal-release-aab
           path: android/app/build/outputs/bundle/release/app-release.aab
           if-no-files-found: error
+
+      - name: Remove decoded signing material
+        if: always()
+        run: rm -f android/app/build/release-upload-keystore.jks
