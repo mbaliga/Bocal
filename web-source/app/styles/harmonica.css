@@ -36,7 +36,7 @@
 }
 .hc-corner, .hc-hole, .hc-rowlabel, .hc-empty { min-height: 0; }
 .hc-corner, .hc-hole { display: flex; align-items: center; justify-content: center; min-height: 28px; color: var(--muted); font-size: 12px; font-weight: 700; }
-.hc-corner { justify-content: flex-start; font-weight: 400; }
+.hc-corner { justify-content: flex-start; font-weight: 400; position: sticky; left: 0; z-index: 1; background: var(--panel); }
 .hc-rowlabel {
   position: sticky; left: 0; z-index: 1; display: flex; align-items: center; padding-right: 6px;
   background: var(--panel); color: var(--muted); font-size: 11px; line-height: 1.2;
@@ -96,6 +96,13 @@ html[data-theme="light"] .hc-cell.is-selected i { color: #ffffff; }
 }
 .harmonica-tuner button svg { margin-right: 6px; }
 
+/* The comb is wider than a phone: keep that width inside its own scroller
+ * instead of letting the grid track grow past the viewport. */
+.harmonica-chart .chart-workspace > * { min-width: 0; }
+.harmonica-stage { min-width: 0; max-width: 100%; }
+.harmonica-comb { min-width: 0; max-width: 100%; }
+
 @media (max-width: 680px) {
+  .harmonica-chart .chart-workspace { grid-template-columns: minmax(0, 1fr); }
   .harmonica-where strong { font-size: 24px; }
 }
