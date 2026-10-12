@@ -113,6 +113,9 @@ async function walkStates(page,theme,instrument,results){
   await record('analyze/compare','.take-card');
   await select(3);await record('pulse');
   await select(2);await page.waitForTimeout(500);await record('lab/learn');
+  // Vocal workspace: audit the guided warm-up routine as well as the step cards.
+  const vocalCard=page.locator('.vocal-studio-card').first();
+  if(await vocalCard.isVisible()){await vocalCard.click();await page.locator('.vocal-routine').waitFor();await record('vocal/routine','.vocal-routine');}
   const challenge=page.locator('.lab-mode-switch button').filter({hasText:'Challenge'});
   if(await challenge.isVisible()){await challenge.click();await record('lab/challenge','.fingering-panel');}
   await select(5);await record('practice');
@@ -136,7 +139,7 @@ const preview=await servePreview(DIST);
 const browser=await launchChromium();
 const failures=[],counts={};
 try {
-  for(const theme of ['light','dark'])for(const instrument of ['alto-sax','guitar','clarinet','oboe']){
+  for(const theme of ['light','dark'])for(const instrument of ['alto-sax','guitar','clarinet','oboe','vocal']){
     const context=await browser.newContext({viewport:{width:412,height:915}});
     try {
       const page=await context.newPage();page.setDefaultTimeout(10000);
