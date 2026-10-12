@@ -154,6 +154,40 @@ async function walkStates(page,theme,instrument,results){
       await record(state,'.vocal-routine');
     }
     await toggles.nth(2).click();
+    // V-B: saved vocal takes (two are written straight into the take library,
+    // since there is no microphone here), the melody picker, the editor with
+    // notes in it, and a finished pass. Switching workspace and back remounts
+    // the Vocal stage so it reads the library again.
+    await page.evaluate(async(bytes)=>{
+      const db=await new Promise((resolve,reject)=>{const request=indexedDB.open('bocal-analysis-takes',1);request.onupgradeneeded=()=>{if(!request.result.objectStoreNames.contains('takes'))request.result.createObjectStore('takes',{keyPath:'id'});};request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);});
+      await new Promise((resolve,reject)=>{
+        const tx=db.transaction('takes','readwrite');const store=tx.objectStore('takes');
+        [['theme-vocal-a',0],['theme-vocal-b',60000]].forEach(([id,age],index)=>store.put({id,name:'Vocal take '+(index+1),createdAt:new Date(Date.now()-age).toISOString(),seconds:12+index,mime:'audio/wav',blob:new Blob([new Uint8Array(bytes)],{type:'audio/wav'}),kind:'vocal'}));
+        tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);
+      });
+      db.close();
+    },Array.from(wavFixture()));
+    await select(1);await select(2);
+    await page.locator('.vocal-take-list li').first().waitFor();
+    await page.waitForFunction(()=>!document.querySelector('.vocal-take-detail .take-pitch-progress'),undefined,{timeout:20000});
+    await record('vocal/takes','.vocal-takes');
+    await page.getByLabel('Compare with').selectOption({index:1});
+    await page.waitForFunction(()=>document.querySelector('.vocal-take-detail .take-compare-diff')||document.querySelector('.vocal-take-detail .take-pitch-compare-status'));
+    await record('vocal/takes-compare','.vocal-takes');
+    await record('vocal/melody','.vocal-melody');
+    await page.getByRole('button',{name:'New melody'}).click();
+    await page.getByRole('button',{name:'Add note'}).click();
+    await page.getByLabel('Next note').selectOption('62');
+    await page.getByRole('button',{name:'Add note'}).click();
+    await record('vocal/melody-editor','.vocal-melody');
+    await page.getByRole('button',{name:'Cancel'}).click();
+    await page.locator('.vocal-melody-choice').filter({hasText:'Five-note scale'}).click();
+    await page.getByRole('button',{name:'Play pass'}).click();
+    await page.getByText('Playing. Sing along to the bands on the graph.').waitFor();
+    await record('vocal/melody-playing','.vocal-melody');
+    await page.getByRole('button',{name:'Clear pass'}).waitFor({timeout:20000});
+    await record('vocal/melody-pass-done','.vocal-melody');
+    await page.getByRole('button',{name:'Clear pass'}).click();
   }
   const challenge=page.locator('.lab-mode-switch button').filter({hasText:'Challenge'});
   if(await challenge.isVisible()){await challenge.click();await record('lab/challenge','.fingering-panel');}

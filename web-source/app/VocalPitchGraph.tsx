@@ -59,6 +59,11 @@ type VocalPitchGraphProps = {
 
 const PITCH_PAN_STEP = 0.1;
 
+/** The pitch axis before any manual zoom: the range-based default, or the one a melody pass asked for. */
+function basePitchView(range: VocalRange | null, overlay: GraphOverlay): PitchView {
+  return (overlay.melody && overlay.melody.pitch) || defaultPitchView(range);
+}
+
 function windowLabel(ms: number) {
   return ms >= 60_000 ? `${ms / 60_000} min` : `${ms / 1000} s`;
 }
@@ -131,10 +136,12 @@ export function VocalPitchGraph({
       heldViewRef.current = time;
     } else if (glideRunning(overlay.glide, nowMs)) {
       time = overlay.glide.view;
+    } else if (overlay.melody && overlay.melody.view) {
+      time = overlay.melody.view;
     } else {
       time = { windowMs: windowRef.current, endMs: liveEndMs(anchorMs, windowRef.current) };
     }
-    const pitch = pitchOverrideRef.current || defaultPitchView(plot.range);
+    const pitch = pitchOverrideRef.current || basePitchView(plot.range, overlay);
 
     const samples = source.buffer.between(time.endMs - time.windowMs - 400, time.endMs + 400);
     let head: { pitch: number; tMs: number } | null = null;
@@ -234,7 +241,7 @@ export function VocalPitchGraph({
     };
   }, [paint]);
 
-  const currentPitchView = () => pitchOverrideRef.current || defaultPitchView(lastPlotRef.current.range);
+  const currentPitchView = () => pitchOverrideRef.current || basePitchView(lastPlotRef.current.range, overlayRef.current);
 
   const applyTime = useCallback((next: TimeView) => {
     heldViewRef.current = next;
@@ -248,7 +255,9 @@ export function VocalPitchGraph({
     const overlay = overlayRef.current;
     heldViewRef.current = glideRunning(overlay.glide, now)
       ? overlay.glide.view
-      : { windowMs: windowRef.current, endMs: liveEndMs(anchor, windowRef.current) };
+      : overlay.melody && overlay.melody.view
+        ? overlay.melody.view
+        : { windowMs: windowRef.current, endMs: liveEndMs(anchor, windowRef.current) };
     heldRef.current = true;
     setHeld(true);
   };
@@ -360,7 +369,7 @@ export function VocalPitchGraph({
       const factor = wheelZoomFactor(event.deltaY);
       if (event.shiftKey) {
         const anchor = 1 - (event.clientY - rect.top - box.top) / box.height;
-        pitchOverrideRef.current = zoomPitch(pitchOverrideRef.current || defaultPitchView(lastPlotRef.current.range), factor, anchor);
+        pitchOverrideRef.current = zoomPitch(pitchOverrideRef.current || basePitchView(lastPlotRef.current.range, overlayRef.current), factor, anchor);
       } else {
         const anchor = (event.clientX - rect.left - box.left) / box.width;
         const zoomed = zoomTime(heldViewRef.current, factor, anchor, boundsFor());
@@ -372,7 +381,7 @@ export function VocalPitchGraph({
     };
     canvas.addEventListener("wheel", onWheel, { passive: false });
     return () => canvas.removeEventListener("wheel", onWheel);
-  }, [boundsFor, paint]);
+  }, [boundsFor, overlayRef, paint]);
 
   const zoomPitchBy = (factor: number) => {
     if (!heldRef.current) return;

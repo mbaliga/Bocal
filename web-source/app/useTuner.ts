@@ -51,6 +51,24 @@ export const VOCAL_HISTORY_MS = 120_000;
 const VOCAL_HISTORY_CAPACITY = Math.ceil(VOCAL_HISTORY_MS / 30) + 200;
 export type { VocalFrameListener, VocalGraphSource } from "./vocal-graph";
 
+/** One note of a scheduled reference sequence (the Vocal melody player). */
+export type ReferenceToneSpec = {
+  midi: number;
+  /** Seconds after the sequence's start, on the AudioContext clock, at which this tone begins. */
+  startOffsetSeconds: number;
+  durationSeconds: number;
+};
+/** What a scheduled sequence hands back: when it began and how to cut it short. */
+export type ReferencePlayback = {
+  /** The sequence's offset zero expressed on the `performance.now()` clock the graph's frames use, allowing for output latency. */
+  startedAtMs: number;
+  stop: () => void;
+};
+/** The longest sequence one call may schedule. */
+export const MAX_REFERENCE_SEQUENCE_TONES = 64;
+/** Audio-clock seconds between the call and the sequence's offset zero, so every start lies in the future. */
+const SEQUENCE_SAFETY_SECONDS = 0.1;
+
 export const PRECISION_TOLERANCE: Record<"standard" | "fine" | "ultra", number> = {
   standard: 10,
   fine: 5,
@@ -173,6 +191,8 @@ export function useTuner(instrument: InstrumentProfile, options: UseTunerOptions
   // The play-along drill's scheduled phrase (see call-host.ts): the same
   // AudioContext as everything else here, every note queued on its clock.
   const phraseVoicesRef = useRef<{ oscillator: OscillatorNode; gain: GainNode }[]>([]);
+  // A scheduled reference sequence's cut-short function, if one is sounding.
+  const sequenceStopRef = useRef<(() => void) | null>(null);
 
   // Sensitivity (acquireFrames/switchFrames/minimumConfidence), Damping
   // (holdMs/smoothing) and the instrument's frequency range are reapplied to
@@ -377,6 +397,7 @@ export function useTuner(instrument: InstrumentProfile, options: UseTunerOptions
   const stopListening = useCallback(() => {
     stopPitchPipe();
     stopPhrase();
+    sequenceStopRef.current?.();
     tunerGateRef.current.cancel();
     tunerPendingRef.current = false;
     referenceEpochRef.current += 1;
@@ -598,13 +619,68 @@ export function useTuner(instrument: InstrumentProfile, options: UseTunerOptions
     }
   }, [instrument.range.minHz, instrument.writtenOffset, listening, stopListening, vocalChannel]);
 
-  const playReferenceTone = useCallback(async (midi: number = 69) => {
+  // Schedules a whole sequence of reference tones up front, every one on the
+  // AudioContext clock (`start(when)` / `stop(when)`), so no timer decides when
+  // a note sounds. Returns where the sequence sits on the graph's clock and a
+  // function that fades whatever has not finished.
+  const playReferenceSequence = useCallback(async (tones: readonly ReferenceToneSpec[]): Promise<ReferencePlayback | undefined> => {
     const epoch = referenceEpochRef.current;
     try {
       const audioContext = !audioContextRef.current || audioContextRef.current.state === "closed" ? new AudioContext() : audioContextRef.current;
       audioContextRef.current = audioContext;
       if (audioContext.state === "suspended") await audioContext.resume();
-      if (!tunerMountedRef.current || document.hidden || epoch !== referenceEpochRef.current) return;
+      if (!tunerMountedRef.current || document.hidden || epoch !== referenceEpochRef.current) return undefined;
+      sequenceStopRef.current?.();
+      const origin = audioContext.currentTime + SEQUENCE_SAFETY_SECONDS;
+      const latency = Math.max(0, audioContext.outputLatency || audioContext.baseLatency || 0);
+      const startedAtMs = performance.now() + (origin - audioContext.currentTime + latency) * 1000;
+      const sounding: { oscillator: OscillatorNode; gain: GainNode }[] = [];
+      for (const tone of tones.slice(0, MAX_REFERENCE_SEQUENCE_TONES)) {
+        const begin = origin + Math.max(0, tone.startOffsetSeconds);
+        const end = begin + Math.max(0.12, tone.durationSeconds);
+        const oscillator = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        oscillator.type = "sine";
+        oscillator.frequency.value = targetHzFor(tone.midi, tuningOptionsRef.current);
+        gain.gain.setValueAtTime(0.0001, begin);
+        gain.gain.exponentialRampToValueAtTime(0.14, begin + 0.04);
+        gain.gain.setValueAtTime(0.14, Math.max(begin + 0.04, end - 0.07));
+        gain.gain.exponentialRampToValueAtTime(0.0001, end - 0.01);
+        oscillator.connect(gain).connect(audioContext.destination);
+        oscillator.onended = () => { oscillator.disconnect(); gain.disconnect(); };
+        oscillator.start(begin);
+        oscillator.stop(end);
+        sounding.push({ oscillator, gain });
+      }
+      const stop = () => {
+        if (sequenceStopRef.current === stop) sequenceStopRef.current = null;
+        const now = audioContext.currentTime;
+        for (const { oscillator, gain } of sounding) {
+          try {
+            gain.gain.cancelScheduledValues(now);
+            gain.gain.setValueAtTime(Math.max(gain.gain.value, 0.0001), now);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.04);
+            oscillator.stop(now + 0.05);
+          } catch { /* that oscillator already finished */ }
+        }
+      };
+      sequenceStopRef.current = stop;
+      return { startedAtMs, stop };
+    } catch {
+      if (tunerMountedRef.current) setMicMessage("The notes could not play. Check the audio output and try again.");
+      return undefined;
+    }
+  }, []);
+
+  const playReferenceTone = useCallback(async (request: number | readonly ReferenceToneSpec[] = 69): Promise<ReferencePlayback | undefined> => {
+    if (typeof request !== "number") return playReferenceSequence(request);
+    const midi = request;
+    const epoch = referenceEpochRef.current;
+    try {
+      const audioContext = !audioContextRef.current || audioContextRef.current.state === "closed" ? new AudioContext() : audioContextRef.current;
+      audioContextRef.current = audioContext;
+      if (audioContext.state === "suspended") await audioContext.resume();
+      if (!tunerMountedRef.current || document.hidden || epoch !== referenceEpochRef.current) return undefined;
       const oscillator = audioContext.createOscillator();
       const gain = audioContext.createGain();
       oscillator.type = "sine";
@@ -619,7 +695,8 @@ export function useTuner(instrument: InstrumentProfile, options: UseTunerOptions
     } catch {
       if (tunerMountedRef.current) setMicMessage("Reference tone could not play. Check the audio output and try again.");
     }
-  }, []);
+    return undefined;
+  }, [playReferenceSequence]);
 
   // Play-along phrase: every note is queued on the AudioContext clock at its
   // own start time (never a timer), through the same calibrated frequency

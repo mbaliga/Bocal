@@ -137,6 +137,27 @@ export function defaultPitchView(range: { low: number; high: number } | null): P
   return fitPitchView(range.low - margin, range.high + margin);
 }
 
+/**
+ * The pitch axis for a recorded take's trace. With a stored range it is the
+ * same axis the live graph opens with for that range, widened only if the
+ * take went outside it. Without one it is the take's own lowest and highest
+ * heard notes with the graph's usual margin, so a short take is not squeezed
+ * into a corner of a four-octave axis. An empty take gets the graph's default.
+ */
+export function takePitchView(range: { low: number; high: number } | null, heardMidis: readonly number[]): PitchView {
+  if (heardMidis.length === 0) return defaultPitchView(range);
+  let lowest = Infinity;
+  let highest = -Infinity;
+  for (const midi of heardMidis) {
+    if (midi < lowest) lowest = midi;
+    if (midi > highest) highest = midi;
+  }
+  if (!range) return defaultPitchView({ low: Math.floor(lowest), high: Math.ceil(highest) });
+  const base = defaultPitchView(range);
+  if (lowest - 1 >= base.lo && highest + 1 <= base.hi) return base;
+  return fitPitchView(Math.min(base.lo, lowest - 2), Math.max(base.hi, highest + 2));
+}
+
 /** Pointer-distance ratio for a pinch; above 1 means the fingers spread (zoom in). */
 export function pinchFactor(previousDistance: number, nextDistance: number): number {
   if (!(previousDistance > 0) || !(nextDistance > 0)) return 1;

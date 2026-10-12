@@ -20,17 +20,16 @@
 //     written pitch; `transposePhrase` does that conversion both ways.
 //   * The outcome is "matched" or "not yet". It is never a mark.
 
+import type { Melody } from "./melody-line";
 import { median } from "./music-math";
 import { detectStableSegments, type PitchHistorySample } from "./pitch-history";
 
-// TODO(V-B): import from melody-line.ts once merged
-/** A phrase to repeat. `midi` is concert pitch (what sounds); `beats` is each note's length in beats. */
-export type CallPhrase = {
-  id: string;
-  name: string;
-  tempoBpm: number;
-  notes: { midi: number; beats: number }[];
-};
+/**
+ * A phrase to repeat: the melody line's shape (`melody-line.ts`) without its
+ * `source` tag, so a bundled or user melody is a phrase as it is. `midi` is
+ * concert pitch (what sounds); `beats` is each note's length in beats.
+ */
+export type CallPhrase = Pick<Melody, "id" | "name" | "tempoBpm" | "notes">;
 
 // -- Thresholds -------------------------------------------------------------------
 

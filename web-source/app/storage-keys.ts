@@ -38,6 +38,8 @@ export const METRONOME_PRESETS_STORAGE_KEY = "bocal-metronome-presets-v1";
 export const METRONOME_SEQUENCES_STORAGE_KEY = "bocal-metronome-sequences-v1";
 /** The lowest and highest note a singer chose to record in the Vocal range finder (JSON, sanitised by vocal-range.ts). */
 export const VOCAL_RANGE_KEY = "bocal-vocal-range-v1";
+/** The melodies a singer made in the Vocal melody editor (JSON array, sanitised on read by melody-line.ts). Bocal's own bundled melodies are never stored. */
+export const VOCAL_MELODIES_KEY = "bocal-vocal-melodies-v1";
 /** The diatonic harmonica's chosen key id (one of HARMONICA_KEYS in fingering-charts/harmonica.ts); read through sanitiseHarmonicaKey. */
 export const HARMONICA_KEY_STORAGE_KEY = "bocal-harmonica-key-v1";
 

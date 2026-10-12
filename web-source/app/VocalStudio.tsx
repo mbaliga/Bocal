@@ -10,7 +10,10 @@ import "./styles/vocal.css";
 import { VOCAL_RANGE_KEY } from "./storage-keys";
 import { usePersistedSetting } from "./usePersistedSetting";
 import { PRECISION_TOLERANCE } from "./useTuner";
+import { BUNDLED_MELODIES, type Melody } from "./melody-line";
+import { MelodyTarget, type PlayReference } from "./MelodyTarget";
 import { VocalPitchGraph } from "./VocalPitchGraph";
+import { VocalTakes } from "./VocalTakes";
 import { clamp } from "./music-math";
 import { defaultPitchView, formatSignedCents, samplePitch, splitPitch, type VocalGraphSource } from "./vocal-graph";
 import { EMPTY_OVERLAY, type GraphOverlay } from "./vocal-graph-canvas";
@@ -74,8 +77,8 @@ export type VocalStudioProps = {
   precision: "standard" | "fine" | "ultra";
   /** The note locked in the Tune view, if any. */
   lockedTargetMidi: number | null;
-  /** The tuner's existing reference-tone path. */
-  playReference?: (midi: number) => void;
+  /** The tuner's existing reference-tone path: one note, or a sequence scheduled on its AudioContext clock. */
+  playReference?: PlayReference;
 };
 
 export function VocalStudio({
@@ -95,6 +98,8 @@ export function VocalStudio({
   const [hasStarted, setHasStarted] = useState(false);
   const [completed, setCompleted] = useState<string[]>([]);
   const [saved, setSaved] = useState(false);
+  // Bundled melodies plus the singer's own, kept by the melody editor and offered to the play-along drill as phrases.
+  const [melodies, setMelodies] = useState<Melody[]>(() => BUNDLED_MELODIES.slice());
 
   useEffect(() => {
     if (!running) return;
@@ -212,6 +217,15 @@ export function VocalStudio({
     setSustainTarget(midi);
     setActiveStep("sustain");
   }, []);
+
+  // While the melody editor is open it takes the taps on the graph's note names.
+  const melodyPickRef = useRef<((midi: number) => boolean) | null>(null);
+  const pickNote = useCallback((midi: number) => {
+    const melodyPick = melodyPickRef.current;
+    if (melodyPick && melodyPick(midi)) return;
+    pickSustainNote(midi);
+  }, [pickSustainNote]);
+  const refreshGraph = useCallback(() => setRevision((value) => value + 1), []);
 
   // -- Range finder -------------------------------------------------------------
 
@@ -381,7 +395,7 @@ export function VocalStudio({
           overlayRef={overlayRef}
           overlayKey={overlayKey}
           onFrame={handleFrame}
-          onPickNote={pickSustainNote}
+          onPickNote={pickNote}
         >
           {rangeStep !== "idle" && (
             <div className="vocal-capture-hud" role="status">
@@ -391,11 +405,26 @@ export function VocalStudio({
             </div>
           )}
         </VocalPitchGraph>
-        <p className="vocal-stage-note">Tap a note name down the left edge to aim the Sustain band at it. Hold freezes the picture for review while the microphone keeps listening.</p>
+        <p className="vocal-stage-note">Tap a note name down the left edge to aim the Sustain band at it, or, while the melody editor is open, to add that note to your melody. Hold freezes the picture for review while the microphone keeps listening.</p>
       </section>
 
       {/* V-B: takes */}
+      <VocalTakes listening={listening} notation={notation} saTonic={saTonic} range={range} toleranceCents={toleranceCents} />
+
       {/* V-B: melody */}
+      <MelodyTarget
+        graph={graph}
+        listening={listening}
+        notation={notation}
+        saTonic={saTonic}
+        range={range}
+        bandCents={bandCents}
+        overlayRef={overlayRef}
+        onOverlayChange={refreshGraph}
+        pickNoteRef={melodyPickRef}
+        playReference={playReference}
+        onMelodiesChange={setMelodies}
+      />
 
       <section className="vocal-range" aria-labelledby="vocal-range-title">
         <header className="vocal-range-head">
@@ -527,7 +556,7 @@ export function VocalStudio({
       </section>
 
       {/* V-C: play-along */}
-      <CallAndResponse instrumentId="vocal" notation={notation} saTonic={saTonic} listening={listening} onListen={onListen} micMessage={micMessage} graph={graph} />
+      <CallAndResponse instrumentId="vocal" notation={notation} saTonic={saTonic} listening={listening} onListen={onListen} micMessage={micMessage} graph={graph} phrases={melodies} suppliedLabel="Melodies" />
 
       <p className="local-note"><Crosshair size={13} /> The practice log, recorded range and tuner history stay on this device. Pitch feedback supports listening; it is not a vocal-health measure.</p>
     </div>

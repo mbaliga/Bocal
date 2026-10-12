@@ -27,6 +27,7 @@ import {
   type PlotBox,
   type TimeView,
 } from "./vocal-graph";
+import type { MelodySegment } from "./melody-line";
 import { glidePath, glidePitchAt, type GlideAttempt, type Onset } from "./vocal-warmups";
 import type { VocalRange } from "./vocal-range";
 
@@ -83,6 +84,23 @@ function withAlpha(color: string, alpha: number): string {
   return `rgba(${parseInt(hex.slice(0, 2), 16)}, ${parseInt(hex.slice(2, 4), 16)}, ${parseInt(hex.slice(4, 6), 16)}, ${alpha})`;
 }
 
+/**
+ * A target melody on the graph. While a pass runs (and after it, until it is
+ * cleared) `segments` are drawn as bands and `view` pins the time window to the
+ * pass. While a melody is being edited `draft` lists the pitches typed so far.
+ */
+export type MelodyOverlay = {
+  segments: MelodySegment[];
+  /** Half-width of each band, in cents. */
+  bandCents: number;
+  /** The fixed time window for the pass, or null when none is running. */
+  view: TimeView | null;
+  /** The pitch axis the pass needs, or null to keep the graph's own. */
+  pitch: PitchView | null;
+  /** The note numbers of a melody being edited, drawn as numbered guide lines. */
+  draft: number[];
+};
+
 /** Everything the warm-ups and the range finder ask the graph to draw on top of the pitch line. */
 export type GraphOverlay = {
   sustain: { midi: number; bandCents: number; reached: boolean } | null;
@@ -90,9 +108,11 @@ export type GraphOverlay = {
   onsets: Onset[];
   /** The first note of the range finder, kept on screen while the second is recorded. */
   capturedLow: number | null;
+  /** The target melody, if one is being edited or played. */
+  melody?: MelodyOverlay | null;
 };
 
-export const EMPTY_OVERLAY: GraphOverlay = { sustain: null, glide: null, onsets: [], capturedLow: null };
+export const EMPTY_OVERLAY: GraphOverlay = { sustain: null, glide: null, onsets: [], capturedLow: null, melody: null };
 
 export type DrawVocalGraphInput = {
   samples: PitchHistorySample[];
@@ -257,6 +277,71 @@ export function drawVocalGraph(canvas: HTMLCanvasElement, input: DrawVocalGraphI
     ctx.lineTo(right, y + 0.5);
     ctx.stroke();
     ctx.setLineDash([]);
+  }
+
+  // Target melody: one band per note along the time axis, a numbered guide
+  // line per pitch while one is being edited, and a "now" line during a pass.
+  const melody = input.overlay.melody;
+  if (melody) {
+    const bandSemitones = melody.bandCents / 100;
+    ctx.font = `600 11px ${FONT}`;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    for (const segment of melody.segments) {
+      const x0 = xOf(segment.startMs);
+      const x1 = xOf(segment.endMs);
+      if (x1 < box.left || x0 > right) continue;
+      // Never thinner than 8 px, so a narrow band on a tall axis can still be seen.
+      const half = Math.max(4, (yOf(segment.midi - bandSemitones) - yOf(segment.midi + bandSemitones)) / 2);
+      const top = yOf(segment.midi) - half;
+      const bandHeight = half * 2;
+      ctx.fillStyle = withAlpha(theme.mark, 0.2);
+      ctx.fillRect(x0, top, Math.max(1, x1 - x0 - 1), bandHeight);
+      ctx.strokeStyle = withAlpha(theme.mark, 0.85);
+      ctx.lineWidth = 1;
+      ctx.setLineDash([]);
+      ctx.strokeRect(x0 + 0.5, top + 0.5, Math.max(1, x1 - x0 - 2), bandHeight);
+      ctx.strokeStyle = withAlpha(theme.mark, 0.6);
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(x0, yOf(segment.midi) + 0.5);
+      ctx.lineTo(x1, yOf(segment.midi) + 0.5);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      if (x1 - x0 > 26) {
+        ctx.fillStyle = theme.ink;
+        ctx.fillText(fullNoteLabel(segment.midi, input.notation, input.saTonic), Math.max(x0, box.left) + 4, Math.max(box.top + 2, top - 14));
+      }
+    }
+    if (melody.segments.length > 0 && melody.view) {
+      const first = melody.segments[0].startMs;
+      const last = melody.segments[melody.segments.length - 1].endMs;
+      if (input.nowMs >= first - 1500 && input.nowMs <= last + 600) {
+        const x = xOf(input.nowMs);
+        ctx.strokeStyle = withAlpha(theme.ink, 0.7);
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(x, box.top);
+        ctx.lineTo(x, bottom);
+        ctx.stroke();
+      }
+    }
+    ctx.font = `600 11px ${FONT}`;
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    melody.draft.forEach((midi, index) => {
+      const y = yOf(midi);
+      ctx.strokeStyle = withAlpha(theme.mark, 0.7);
+      ctx.lineWidth = 1;
+      ctx.setLineDash([2, 4]);
+      ctx.beginPath();
+      ctx.moveTo(box.left, y + 0.5);
+      ctx.lineTo(right, y + 0.5);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = theme.mark;
+      ctx.fillText(String(index + 1), right - 4 - (index % 6) * 16, y - 8);
+    });
   }
 
   // Glide siren path, drawn as a soft wide band with a dashed centre line.

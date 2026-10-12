@@ -57,6 +57,15 @@ export function sanitizeTakeNotes(value: unknown): string {
   return typeof value === "string" ? value.slice(0, MAX_TAKE_NOTES_LENGTH) : "";
 }
 
+/** Where a stored take came from. Takes recorded on the Vocal stage carry
+ *  `"vocal"`; every take without the field (all of those saved before the
+ *  Vocal stage could record) is an instrument take. Anything else a record
+ *  might carry reads back as no kind at all, i.e. an instrument take. */
+export type TakeKind = "vocal";
+export function sanitizeTakeKind(value: unknown): TakeKind | undefined {
+  return value === "vocal" ? "vocal" : undefined;
+}
+
 /** Invalidates delayed microphone promises after stop, navigation or backgrounding. */
 export class CaptureRequestGate {
   private generation = 0;

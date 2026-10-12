@@ -1,7 +1,7 @@
 import "./native-bridge";
 import { runStoreTransaction } from "./idb-transaction";
 import { reportRuntimeStatus } from "./runtime-status";
-import { sanitizeTags, sanitizeTakeNotes } from "./take-policy";
+import { sanitizeTags, sanitizeTakeKind, sanitizeTakeNotes, type TakeKind } from "./take-policy";
 
 const DB_NAME = "bocal-analysis-takes";
 const DB_VERSION = 1;
@@ -22,6 +22,10 @@ export type StoredTake = {
   tags?: string[];
   /** A short free-text note about the take. Same sanitise-on-read rule. */
   notes?: string;
+  /** `"vocal"` for a take recorded on the Vocal stage. Absent means an
+   *  instrument take, which is what every record saved before this field
+   *  existed is. Sanitised on write and on read like the fields above. */
+  kind?: TakeKind;
 };
 
 function openDb(): Promise<IDBDatabase> {
@@ -67,7 +71,9 @@ export function isStoredTake(value: unknown): value is StoredTake {
  *  edited outside the app still comes back within the same bounds the write
  *  path enforces, rather than trusting the disk copy as-is. */
 function normalizeStoredTake(take: StoredTake): StoredTake {
-  return { ...take, tags: sanitizeTags(take.tags), notes: sanitizeTakeNotes(take.notes) };
+  const { kind: storedKind, ...rest } = take;
+  const kind = sanitizeTakeKind(storedKind);
+  return { ...rest, tags: sanitizeTags(take.tags), notes: sanitizeTakeNotes(take.notes), ...(kind ? { kind } : {}) };
 }
 export async function listStoredTakes(): Promise<StoredTake[]> {
   try {
