@@ -5,6 +5,7 @@ import {
   Activity,
   ChevronDown,
   Clock3,
+  Columns4,
   Crosshair,
   Guitar,
   LockKeyhole,
@@ -29,7 +30,9 @@ import {
   OnboardingGuide,
 } from "./InstrumentExperience";
 import { GuitarStudio } from "./GuitarStudio";
+import { HarmonicaChart } from "./HarmonicaChart";
 import { VocalStudio } from "./VocalStudio";
+import { CallAndResponse } from "./CallAndResponse";
 import { DownloadCenter, type RailSide, type Theme } from "./DownloadCenter";
 import { TunerView } from "./TunerView";
 import { useTuner } from "./useTuner";
@@ -114,6 +117,7 @@ function navLabelFor(itemId: Mode, instrument: InstrumentProfile): string {
   if (itemId !== "sax") return navItems.find((item) => item.id === itemId)?.label ?? "";
   if (instrument.labTier === "fingering" || instrument.labTier === "anatomy") return "Lab";
   if (instrument.labTier === "chart") return "Chart";
+  if (instrument.labTier === "harmonica") return "Chart";
   if (instrument.labTier === "vocal") return "Vocal";
   return "Strings";
 }
@@ -517,7 +521,7 @@ export default function Home() {
         <header className="top-bar">
           <div className="instrument-picker-wrap">
             <button className="instrument-picker" aria-label="Choose instrument" aria-expanded={instrumentPickerOpen} onClick={() => setInstrumentPickerOpen((value) => !value)}>
-              <span className="instrument-icon">{instrument.id === "guitar" ? <Guitar size={18} /> : instrument.id === "vocal" ? <Mic2 size={18} /> : <Wind size={18} />}</span>
+              <span className="instrument-icon">{instrument.id === "guitar" ? <Guitar size={18} /> : instrument.id === "vocal" ? <Mic2 size={18} /> : instrument.labTier === "harmonica" ? <Columns4 size={18} /> : <Wind size={18} />}</span>
               <span><small>Instrument</small>{instrument.shortName} · {instrument.pitchLabel}</span>
               <ChevronDown size={16} />
             </button>
@@ -589,11 +593,27 @@ export default function Home() {
             onOpenKeyboardHelp={() => setKeyboardHelpOpen(true)}
           />
         )}
+        {mode === "tune" && <CallAndResponse variant="page" instrumentId={instrumentId} notation={notation} saTonic={saTonic} listening={tuner.listening} onListen={tuner.start} micMessage={tuner.micMessage} graph={tuner.vocalGraph} />}
         {mode === "sax" && (instrumentId === "guitar"
           ? <GuitarStudio reading={tuner.reading ? { hz: tuner.reading.hz, cents: tuner.reading.cents, midi: tuner.reading.concertMidi } : null} listening={tuner.listening} onListen={tuner.start} />
           : instrumentId === "vocal"
-            ? <VocalStudio onOpenTune={() => selectMode("tune")} />
-            : <SaxophoneLab onBack={() => selectMode("tune")} instrumentId={instrumentId} notation={notation} saTonic={saTonic} />)}
+            ? (
+              <VocalStudio
+                onOpenTune={() => selectMode("tune")}
+                listening={tuner.listening}
+                onListen={tuner.start}
+                micMessage={tuner.micMessage}
+                graph={tuner.vocalGraph}
+                notation={notation}
+                saTonic={saTonic}
+                precision={precision}
+                lockedTargetMidi={tuner.lockedTargetMidi}
+                playReference={tuner.playReference}
+              />
+            )
+            : instrument.labTier === "harmonica"
+              ? <HarmonicaChart instrument={instrument} notation={notation} tonic={saTonic} onBack={() => selectMode("tune")} reading={tuner.reading ? { midi: tuner.reading.concertMidi, cents: tuner.reading.cents } : null} listening={tuner.listening} onListen={tuner.start} />
+              : <SaxophoneLab onBack={() => selectMode("tune")} instrumentId={instrumentId} notation={notation} saTonic={saTonic} />)}
         {mode === "pulse" && <PulseView tuningOptions={tuningOptions} />}
         {mode === "analyze" && <AnalysisView instrument={instrument} notation={notation} saTonic={saTonic} />}
         {mode === "practice" && (

@@ -3,7 +3,7 @@
 **Version:** 2.1
 **Date:** 18 September 2026
 **Status:** Active release candidate for the web surface; Android release and teacher review are still pending
-**Current public instruments:** Eleven — see the table in §2. Nine woodwinds (alto/tenor/soprano/baritone saxophone, oboe, cor anglais, flute, clarinet, bassoon), guitar and Vocal.
+**Current public instruments:** Thirteen — see the table in §2. Nine woodwinds (alto/tenor/soprano/baritone saxophone, oboe, cor anglais, flute, clarinet, bassoon), two harmonicas (diatonic and chromatic), guitar and Vocal.
 **Product principle:** local-first, educationally honest, usable in one or two taps during real practice
 
 This is the single canonical handoff document. `web-source/public/downloads/BOCAL_HANDOFF.md`
@@ -22,7 +22,7 @@ account. Standard Android builds have no `INTERNET` permission. An opt-in beta
 
 ## 2. Instrument support
 
-All eleven rows below are selectable in the instrument picker today; none are
+All thirteen rows below are selectable in the instrument picker today; none are
 placeholders. `labTier` in `web-source/app/instruments.ts` drives what each
 instrument's second workspace tab shows.
 
@@ -37,8 +37,12 @@ instrument's second workspace tab shows.
 | Flute | C | Yes | 2D fingering chart, no 3D model |
 | Clarinet | B♭ | Yes | 2D fingering chart, 3D model not licensed |
 | Bassoon | C | Yes | 2D fingering chart, no 3D model |
+| Diatonic harmonica | Any key (default C) | Yes | Hole chart for twelve keys, computed from the standard Richter layout, not teacher-reviewed; overblows and overdraws are marked unverified |
+| Chromatic harmonica | C | Yes | Hole chart with a slide-in toggle, computed from the standard 12-hole layout, not teacher-reviewed; bends not charted |
 | Guitar | — | String tuner | Chord fretboard chart + a follow player that waits for the played root |
 | Vocal | C | Yes | Three-step self-paced warm-up and local practice log; pitch-first, no vocal-technique grading |
+
+"harmonica" is the standard English name, "mouth organ" is the informal name, and it is a free reed wind instrument. The harmonica hole charts are generated from the standard layouts and badged "computed, not teacher-reviewed"; how many bends you can play varies by harp and player.
 
 **Every fingering chart and the saxophone altissimo set are badged "not yet
 teacher-reviewed"** — they are checked against two published references
@@ -56,7 +60,8 @@ instrument × capability matrix and known data gaps per instrument.
 - **Lab** (label varies by instrument tier) — the sax family's interactive 3D
   fingering trainer on a licensed alto model with key-glow; the oboe's 3D anatomy
   preview; 2D fingering charts for flute, clarinet and bassoon (and as a second view
-  for oboe/cor anglais); the guitar's chord fretboard and follow player; Vocal's
+  for oboe/cor anglais); the harmonicas' hole-and-breath chart, which lights the hole
+  the tuner hears; the guitar's chord fretboard and follow player; Vocal's
   pitch-first singing prompts.
 - **Pulse** — metronome with tap tempo, count-in, click voice options, silent-bar
   drills, saved presets and multi-section sequences, plus a drone.

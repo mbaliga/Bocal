@@ -22,6 +22,17 @@ import { fullNoteLabel, type NotationSystem } from "./notation";
 import { DEFAULT_TUNING_OPTIONS, decodeToAnalysisBuffer, pitchTrackFrames, type PitchTrackFrame } from "./transcribe";
 import type { TuningOptions } from "./tuning";
 import { computeToneStats, overallToneSummary, type ToneSegmentStats } from "./tone-stats";
+import { centsClass, pitchTicks, takePitchView, type CentsClass } from "./vocal-graph";
+
+/** How the Vocal stage presents a take: the pitch axis comes from the singer's
+ *  stored range (or the take's own notes) through the live graph's scaling
+ *  maths, the colour bands use the stage's tolerance, and the instrument-only
+ *  held-note statistics are left out. Omit it for an instrument take. */
+export type TakeVocalView = {
+  range: { low: number; high: number } | null;
+  /** Half-width, in cents, of the "within" colour band. */
+  toleranceCents: number;
+};
 
 /** A/B alignment: "start" lines up both takes' own t=0; "first-voiced" shifts
  *  the compared take so its first sounding frame lands under the primary
@@ -66,6 +77,10 @@ function colorForCents(cents: number) {
   return "#e5615c";
 }
 
+function colorForBand(kind: CentsClass) {
+  return kind === "in" ? "#3ddc84" : kind === "near" ? "#e5b95c" : "#e5615c";
+}
+
 function readCssVar(canvas: HTMLCanvasElement, name: string, fallback: string) {
   const value = getComputedStyle(canvas).getPropertyValue(name).trim();
   return value || fallback;
@@ -87,6 +102,7 @@ export function TakePitchTrace({
   overlayAudioUrl,
   overlayLabel,
   overlayAlign = "start",
+  vocal,
 }: {
   takeId: string;
   audioUrl: string;
@@ -101,7 +117,13 @@ export function TakePitchTrace({
   overlayAudioUrl?: string;
   overlayLabel?: string;
   overlayAlign?: TakeOverlayAlign;
+  /** Present a Vocal-stage take (see TakeVocalView). */
+  vocal?: TakeVocalView;
 }) {
+  const isVocal = vocal !== undefined;
+  const vocalLow = vocal?.range ? vocal.range.low : null;
+  const vocalHigh = vocal?.range ? vocal.range.high : null;
+  const vocalTolerance = vocal ? vocal.toleranceCents : 0;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const staticCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const playheadFrameRef = useRef<number | null>(null);
@@ -258,12 +280,14 @@ export function TakePitchTrace({
 
       ctx.strokeStyle = lineColor;
       ctx.lineWidth = 1;
-      for (const fraction of [0.25, 0.5, 0.75]) {
-        const y = height * fraction;
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(width, y);
-        ctx.stroke();
+      if (!isVocal) {
+        for (const fraction of [0.25, 0.5, 0.75]) {
+          const y = height * fraction;
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(width, y);
+          ctx.stroke();
+        }
       }
 
       const frames = analysis.frames;
@@ -286,17 +310,38 @@ export function TakePitchTrace({
             ? overlayAnalysis.frames.filter((frame) => frame.midi !== null).map((frame) => (frame.midi as number) + instrument.writtenOffset)
             : [],
         );
-      const minMidi = writtenMidis.length ? Math.min(...writtenMidis) - 2 : 60;
-      const maxMidi = writtenMidis.length ? Math.max(...writtenMidis) + 2 : 84;
+      // A Vocal take takes its axis from the live graph's scaling maths, so a
+      // note sits at the same height here as on the stage graph; an instrument
+      // take keeps fitting itself to the notes it holds.
+      const vocalAxis = isVocal
+        ? takePitchView(vocalLow !== null && vocalHigh !== null ? { low: vocalLow, high: vocalHigh } : null, writtenMidis)
+        : null;
+      const minMidi = vocalAxis ? vocalAxis.lo : writtenMidis.length ? Math.min(...writtenMidis) - 2 : 60;
+      const maxMidi = vocalAxis ? vocalAxis.hi : writtenMidis.length ? Math.max(...writtenMidis) + 2 : 84;
       const midiSpan = Math.max(maxMidi - minMidi, 1);
       const yForMidi = (midi: number) => height - ((midi - minMidi) / midiSpan) * (height - 8) - 4;
 
       ctx.fillStyle = muted;
       ctx.font = "10px var(--font-geist-mono, monospace)";
-      ctx.textBaseline = "top";
-      ctx.fillText(fullNoteLabel(Math.round(maxMidi), notation, saTonic), 4, 3);
-      ctx.textBaseline = "bottom";
-      ctx.fillText(fullNoteLabel(Math.round(minMidi), notation, saTonic), 4, height - 3);
+      if (vocalAxis) {
+        ctx.textBaseline = "middle";
+        for (const tick of pitchTicks(vocalAxis, height - 8)) {
+          const y = Math.round(yForMidi(tick.midi)) + 0.5;
+          if (tick.guide) {
+            ctx.strokeStyle = lineColor;
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(width, y);
+            ctx.stroke();
+          }
+          if (tick.labelled && y > 8 && y < height - 8) ctx.fillText(fullNoteLabel(tick.midi, notation, saTonic), 4, y);
+        }
+      } else {
+        ctx.textBaseline = "top";
+        ctx.fillText(fullNoteLabel(Math.round(maxMidi), notation, saTonic), 4, 3);
+        ctx.textBaseline = "bottom";
+        ctx.fillText(fullNoteLabel(Math.round(minMidi), notation, saTonic), 4, height - 3);
+      }
 
       ctx.fillStyle = muted;
       const barWidth = Math.max(1, width / Math.max(frames.length, 1));
@@ -319,7 +364,7 @@ export function TakePitchTrace({
           continue;
         }
         const y = yForMidi(frame.midi + instrument.writtenOffset);
-        ctx.strokeStyle = colorForCents(frame.cents);
+        ctx.strokeStyle = isVocal ? colorForBand(centsClass(frame.cents, vocalTolerance)) : colorForCents(frame.cents);
         if (drawing) {
           ctx.beginPath();
           ctx.moveTo(previousX, previousY);
@@ -368,7 +413,7 @@ export function TakePitchTrace({
     const observer = new ResizeObserver(repaintAll);
     observer.observe(canvas);
     return () => observer.disconnect();
-  }, [analysis, overlayAnalysis, overlayAlign, instrument, notation, saTonic, audioRef]);
+  }, [analysis, overlayAnalysis, overlayAlign, instrument, notation, saTonic, audioRef, isVocal, vocalLow, vocalHigh, vocalTolerance]);
 
   // Playhead, driven by the audio element's own play/pause state rather than
   // a timer -- an animation frame only runs while something is actually
@@ -441,9 +486,9 @@ export function TakePitchTrace({
       {!busy && !error && analysis && (
         <>
           <p className="take-pitch-legend">
-            <span className="legend-swatch legend-true" /> in tune
-            <span className="legend-swatch legend-near" /> close
-            <span className="legend-swatch legend-off" /> off
+            <span className="legend-swatch legend-true" /> {isVocal ? `within ${vocalTolerance}¢` : "in tune"}
+            <span className="legend-swatch legend-near" /> {isVocal ? `up to ${vocalTolerance * 3}¢` : "close"}
+            <span className="legend-swatch legend-off" /> {isVocal ? "further out" : "off"}
             {hasOverlay && <span className="legend-swatch legend-overlay" />}
             {hasOverlay && (overlayLabel || "compared take")}
             <span className="legend-gap">gaps are unvoiced or too weak to read</span>
@@ -466,7 +511,7 @@ export function TakePitchTrace({
               </p>
             );
           })()}
-          {analysis.stats.length > 0 && (
+          {!isVocal && analysis.stats.length > 0 && (
             <ol className="take-tone-stats" aria-label="Sustained-tone statistics per held note">
               {analysis.stats.map((stat, index) => (
                 <li key={`${stat.startSec}-${index}`}>

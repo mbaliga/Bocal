@@ -1,0 +1,539 @@
+/* Vocal workspace: the live singing pitch graph, the range finder and the
+ * warm-up cards that draw on the graph.
+ *
+ * Two zones, two token sets.
+ *
+ *   1. The STAGE (.vocal-stage) is a dark stage in both app themes, like the
+ *      3D labs and the Analyze canvas. Its colours are light-on-dark tokens
+ *      scoped to the stage itself (--vg-*), so nothing in the page's
+ *      light/dark swap can turn its text dark-on-dark, and the canvas reads
+ *      the same tokens (vocal-graph-canvas.ts). The in-tune / near / off
+ *      colours are the dark-theme values the tuner's history line already
+ *      uses (pitch-history-canvas.ts).
+ *   2. Everything OUTSIDE the stage (range card, warm-up cards) uses the page
+ *      tokens from globals.css and follows the light/dark theme.
+ *
+ * Controls inside the stage use the keycap / crater recipes from the dock
+ * (globals.css, "Hyle tactile overlay"): raised keycaps for actions, a
+ * recessed well for a choice, a pressed crater for something switched on.
+ * Every keycap sets a solid background-color under its gradient so the
+ * contrast audit (tests/theme.test.mjs) reads the colour the text really sits
+ * on. This file does not touch globals.css.
+ */
+
+/* -- Stage ------------------------------------------------------------------ */
+
+.vocal-stage {
+  --vg-bg: #0b0c10;
+  --vg-well: #0d0e13;
+  --vg-ink: #f5f3eb;
+  --vg-muted: #bdb9ae;
+  --vg-line: #262932;
+  --vg-line-strong: #4b4f5c;
+  --vg-in: #08fed5;
+  --vg-near: #f2b84b;
+  --vg-off: #ff6e6e;
+  --vg-accent: #08fed5;
+  --vg-mark: #c9bfff;
+  --vg-key: #282d37;
+  --vg-key-hi: #323844;
+  --vg-key-lo: #16181f;
+  margin-top: 6px;
+  padding: 18px;
+  border-radius: 22px;
+  background-color: var(--vg-bg);
+  background-image: radial-gradient(120% 90% at 50% 0%, #14161d 0%, #0b0c10 70%);
+  color: var(--vg-ink);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 18px 40px rgba(0, 0, 0, 0.35);
+}
+.vocal-stage-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px 24px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.vocal-stage-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--vg-accent);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.vocal-stage h2 {
+  margin: 8px 0 0;
+  font-size: 22px;
+  letter-spacing: -0.02em;
+  color: var(--vg-ink);
+}
+.vocal-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--vg-muted);
+  font-size: 12px;
+}
+.vocal-legend li { display: inline-flex; align-items: center; gap: 7px; }
+.vocal-legend i { display: inline-block; width: 18px; height: 4px; border-radius: 3px; background-color: var(--vg-in); }
+.vocal-legend i[data-band="near"] { background-color: var(--vg-near); }
+.vocal-legend i[data-band="off"] { background-color: var(--vg-off); }
+.vocal-stage-note {
+  margin: 12px 2px 0;
+  color: var(--vg-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* -- Graph --------------------------------------------------------------------- */
+
+.vocal-graph { display: grid; gap: 10px; }
+.vocal-graph-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  flex-wrap: wrap;
+}
+.vocal-graph-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.vocal-graph-review { padding: 8px 10px; border-radius: 14px; background-color: #12141a; justify-content: flex-start; }
+.vocal-graph-help { margin: 0; flex: 1 1 240px; color: var(--vg-muted); font-size: 12px; line-height: 1.5; }
+
+.vocal-graph-plot {
+  position: relative;
+  height: clamp(260px, 48vh, 540px);
+  border-radius: 16px;
+  overflow: hidden;
+  background-color: var(--vg-well);
+  box-shadow: inset 0 3px 10px rgba(0, 0, 0, 0.7), inset 0 -1px 0 rgba(255, 255, 255, 0.05), 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+.vocal-graph-canvas { display: block; width: 100%; height: 100%; touch-action: pan-y; }
+.vocal-graph.is-held .vocal-graph-canvas { touch-action: none; cursor: grab; }
+.vocal-graph.is-held .vocal-graph-canvas:active { cursor: grabbing; }
+
+.vocal-readout {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  min-width: 96px;
+  padding: 6px 12px 7px;
+  border-radius: 12px;
+  background-color: rgba(10, 11, 15, 0.86);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 4px 12px rgba(0, 0, 0, 0.5);
+  text-align: right;
+  pointer-events: none;
+}
+.vocal-readout small { display: block; color: var(--vg-muted); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; }
+.vocal-readout div { color: var(--vg-ink); font-size: 20px; font-weight: 650; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.vocal-readout div[data-state="in"] { color: var(--vg-in); }
+.vocal-readout div[data-state="near"] { color: var(--vg-near); }
+.vocal-readout div[data-state="off"] { color: var(--vg-off); }
+
+.vocal-graph-empty {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  max-width: min(36ch, 80%);
+  margin: 0;
+  padding: 12px 16px;
+  border-radius: 14px;
+  background-color: rgba(10, 11, 15, 0.86);
+  color: var(--vg-ink);
+  font-size: 14px;
+  line-height: 1.5;
+  text-align: center;
+  pointer-events: none;
+}
+
+.vocal-capture-hud {
+  position: absolute;
+  left: 58px;
+  right: 14px;
+  bottom: 30px;
+  display: grid;
+  gap: 5px;
+  max-width: 460px;
+  padding: 10px 14px 12px;
+  border-radius: 14px;
+  background-color: rgba(10, 11, 15, 0.9);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 6px 16px rgba(0, 0, 0, 0.55);
+  color: var(--vg-ink);
+  font-size: 13px;
+}
+.vocal-capture-hud strong { color: var(--vg-mark); font-size: 12px; letter-spacing: 0.04em; }
+.vocal-capture-hud span { color: var(--vg-ink); }
+.vocal-capture-bar {
+  height: 7px;
+  border-radius: 99px;
+  background-color: #05060a;
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.8);
+  overflow: hidden;
+}
+.vocal-capture-bar div { width: 0; height: 100%; border-radius: 99px; background-color: var(--vg-accent); }
+
+/* -- Stage controls: keycaps and craters ------------------------------------------ */
+
+.vocal-key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 12px;
+  color: var(--vg-ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 620;
+  cursor: pointer;
+  background-color: var(--vg-key);
+  background-image: radial-gradient(circle at 40% 30%, var(--vg-key-hi), var(--vg-key) 55%, var(--vg-key-lo));
+  box-shadow: inset 0 2px 2px rgba(255, 255, 255, 0.09), inset 0 -4px 8px rgba(0, 0, 0, 0.4), 0 2px 5px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(0, 0, 0, 0.3);
+  transition: transform 0.1s ease, box-shadow 0.1s ease, filter 0.1s ease;
+}
+.vocal-key.is-icon { padding: 0; width: 40px; }
+.vocal-key:hover:not(:disabled) { filter: brightness(1.12); }
+.vocal-key:active:not(:disabled) { transform: translateY(2px); box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.5); }
+.vocal-key:focus-visible,
+.vocal-crater button:focus-visible,
+.vocal-graph-canvas:focus-visible { outline: 2px solid var(--vg-accent); outline-offset: 2px; }
+.vocal-key:disabled { opacity: 0.5; cursor: default; }
+/* The call to action: a cyan keycap with dark ink. */
+.vocal-key.is-primary {
+  color: #04120f;
+  background-color: #08fed5;
+  background-image: radial-gradient(circle at 40% 32%, #5fffe4 0%, #08fed5 55%, #06b89a 100%);
+  box-shadow: inset 0 2px 2px rgba(255, 255, 255, 0.45), inset 0 -4px 8px rgba(0, 0, 0, 0.3), 0 3px 7px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(0, 0, 0, 0.25);
+}
+/* Switched on / listening: a pressed crater lit in the accent colour. */
+.vocal-key.is-on,
+.vocal-key.is-live {
+  color: var(--vg-accent);
+  background-color: #0f1116;
+  background-image: linear-gradient(180deg, #0a0b0f, #14161c);
+  box-shadow: inset 0 6px 10px -3px rgba(0, 0, 0, 0.8), inset 0 -1px 1px rgba(255, 255, 255, 0.08), 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+.vocal-crater {
+  display: inline-flex;
+  gap: 3px;
+  padding: 4px;
+  border-radius: 999px;
+  background-color: #0b0b0d;
+  background-image: linear-gradient(180deg, #0b0b0d, #131316);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.72), inset 0 -1px 0 rgba(255, 255, 255, 0.05), 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+.vocal-crater button {
+  min-height: 32px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 999px;
+  background-color: transparent;
+  color: var(--vg-muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 620;
+  cursor: pointer;
+}
+.vocal-crater button.is-active {
+  color: #16171c;
+  background-color: #edebe2;
+  background-image: radial-gradient(circle at 40% 32%, #fffef9 0%, #edebe2 60%, #c9c6b9 100%);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.9), inset 0 -2px 4px rgba(0, 0, 0, 0.18), 0 2px 5px rgba(0, 0, 0, 0.55);
+}
+
+/* -- Range finder (page tokens) ----------------------------------------------------- */
+
+.vocal-range {
+  margin-top: 26px;
+  padding: 18px 20px 20px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background-color: var(--panel);
+}
+.vocal-range-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px 24px; flex-wrap: wrap; }
+.vocal-range-head > div:first-child { flex: 1 1 360px; min-width: 0; }
+.vocal-range-head h2 { margin: 10px 0 6px; font-size: 21px; }
+.vocal-range-head p { margin: 0; max-width: 68ch; color: var(--muted); font-size: 13px; line-height: 1.55; }
+.vocal-range-actions { display: flex; gap: 9px; flex-wrap: wrap; }
+.vocal-range-notice { min-height: 1.4em; margin: 10px 0 0; color: var(--ink); font-size: 13px; }
+.vocal-range-empty { margin: 6px 0 0; color: var(--muted); font-size: 13px; }
+.vocal-range-card {
+  display: grid;
+  gap: 12px;
+  margin-top: 8px;
+  padding: 16px;
+  border-radius: 14px;
+  background-color: var(--panel-2);
+}
+.vocal-range-row { display: grid; grid-template-columns: 70px 54px minmax(0, 1fr); align-items: center; gap: 12px; }
+.vocal-range-name { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+.vocal-range-row strong { font-size: 18px; font-variant-numeric: tabular-nums; }
+.vocal-range-track {
+  height: 12px;
+  border-radius: 99px;
+  background-color: var(--black);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+.vocal-range-track div { height: 100%; border-radius: 99px; background-color: var(--cyan); }
+.vocal-range-track div[data-bar="high"] { background-color: var(--violet); }
+.vocal-range-span { margin: 2px 0 0; color: var(--ink); font-size: 14px; }
+.vocal-range-span small { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; }
+
+/* -- Warm-up cards that draw on the graph (page tokens) ------------------------------- */
+
+.vocal-step { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.vocal-step .vocal-studio-card { flex: 1 1 auto; }
+.vocal-step.is-active .vocal-studio-card { border-color: var(--cyan); }
+.vocal-step-live { display: grid; gap: 10px; }
+.vocal-live-toggle {
+  min-height: 42px;
+  padding: 0 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 11px;
+  background-color: var(--panel-2);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.vocal-live-toggle:hover { border-color: var(--cyan); }
+.vocal-live-toggle:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+.vocal-live-toggle[aria-pressed="true"] { border-color: var(--cyan); background-color: var(--cyan-deep); }
+.vocal-live-body {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background-color: var(--panel);
+}
+.vocal-live-text { display: grid; gap: 3px; font-size: 14px; color: var(--ink); font-variant-numeric: tabular-nums; }
+.vocal-live-text small,
+.vocal-live-help { color: var(--muted); font-size: 12px; line-height: 1.5; }
+.vocal-live-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.vocal-live-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+.vocal-live-buttons .button { min-height: 38px; font-size: 12px; }
+.vocal-field { display: grid; gap: 5px; font-size: 12px; color: var(--muted); }
+.vocal-field select {
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+  background-color: var(--panel-2);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+}
+.vocal-ring { position: relative; width: 88px; height: 88px; }
+.vocal-ring svg { display: block; }
+.vocal-ring-track { fill: none; stroke: var(--line-strong); stroke-width: 7; }
+.vocal-ring-fill { fill: none; stroke: var(--cyan); stroke-width: 7; stroke-linecap: round; }
+.vocal-ring b { position: absolute; inset: 0; display: grid; place-items: center; font-size: 15px; color: var(--ink); }
+.vocal-step-live .vocal-ring { justify-self: start; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .vocal-ring-fill { transition: stroke-dashoffset 0.12s linear; }
+  .vocal-key { transition: transform 0.1s ease, box-shadow 0.1s ease, filter 0.1s ease; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vocal-key { transition: none; }
+}
+
+@media (max-width: 640px) {
+  .vocal-stage { padding: 12px; border-radius: 18px; }
+  .vocal-graph-plot { height: clamp(240px, 52vh, 420px); }
+  .vocal-key { padding: 0 11px; font-size: 12px; }
+  .vocal-key.is-icon { width: 38px; }
+  .vocal-readout div { font-size: 17px; }
+  .vocal-range-row { grid-template-columns: 62px 48px minmax(0, 1fr); gap: 8px; }
+}
+@media (orientation: landscape) and (max-height: 520px) {
+  .vocal-graph-plot { height: clamp(200px, 62vh, 340px); }
+}
+
+/* V-B: takes and melody targets */
+
+/* Both sections sit on the page tokens (they follow the light/dark theme),
+ * like the range card and the warm-up cards; only the graph above them is a
+ * fixed dark stage. The pitch trace canvas inside the takes section is the
+ * Analyze take trace, so it reads --ink, --line and --muted off its own
+ * element and works in both themes. */
+
+.vocal-takes,
+.vocal-melody {
+  margin-top: 26px;
+  padding: 18px 20px 20px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background-color: var(--panel);
+}
+.vocal-takes-head,
+.vocal-melody-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px 24px; flex-wrap: wrap; }
+.vocal-takes-head > div:first-child,
+.vocal-melody-head > div:first-child { flex: 1 1 360px; min-width: 0; }
+.vocal-takes-head h2,
+.vocal-melody-head h2 { margin: 10px 0 6px; font-size: 21px; }
+.vocal-takes-head p,
+.vocal-melody-head p { margin: 0; max-width: 72ch; color: var(--muted); font-size: 13px; line-height: 1.55; }
+.vocal-takes-record { display: grid; gap: 6px; justify-items: end; }
+.vocal-takes-clock { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.vocal-takes-note { margin: 12px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.vocal-takes-status,
+.vocal-melody-status { min-height: 1.4em; margin: 8px 0 0; color: var(--ink); font-size: 13px; line-height: 1.5; }
+.vocal-takes-empty,
+.vocal-melody-empty { margin: 6px 0 0; color: var(--muted); font-size: 13px; }
+
+.vocal-take-view { display: grid; grid-template-columns: minmax(180px, 240px) minmax(0, 1fr); gap: 16px; margin-top: 14px; align-items: start; }
+.vocal-take-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; max-height: 340px; overflow-y: auto; }
+.vocal-take-list button {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  min-height: 48px;
+  padding: 8px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 11px;
+  background-color: var(--panel-2);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.vocal-take-list button strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.vocal-take-list button small { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.vocal-take-list button:hover { border-color: var(--cyan); }
+.vocal-take-list button:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+.vocal-take-list button.is-active { border-color: var(--cyan); background-color: var(--cyan-deep); }
+.vocal-take-detail { display: grid; gap: 10px; min-width: 0; }
+.vocal-takes .button.primary,
+.vocal-melody .button.primary {
+  border: 0;
+  color: #04120f;
+  font-weight: 650;
+  background-color: #08fed5;
+  background-image: radial-gradient(circle at 40% 32%, #5fffe4 0%, #08fed5 55%, #06b89a 100%);
+  box-shadow: inset 0 2px 2px rgba(255, 255, 255, 0.45), inset 0 -4px 8px rgba(0, 0, 0, 0.3), 0 3px 7px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(0, 0, 0, 0.25);
+  transition: none;
+}
+.vocal-takes .button.primary:hover:not(:disabled),
+.vocal-melody .button.primary:hover:not(:disabled) { transform: none; filter: brightness(1.06); }
+.vocal-takes .button.primary:disabled,
+.vocal-melody .button.primary:disabled { opacity: 0.5; cursor: default; }
+.vocal-take-detail .take-pitch-trace canvas { height: 190px; }
+.vocal-take-detail .take-pitch-legend { font-size: 12px; }
+.vocal-take-detail .take-compare-diff { font-size: 13px; }
+.vocal-take-audio { display: block; width: 100%; }
+.vocal-take-tools { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 16px; }
+.vocal-take-tools .compare-align-toggle button { min-height: 36px; padding: 0 12px; font-size: 12px; }
+.vocal-takes .vocal-field input[type="text"],
+.vocal-melody .vocal-field input[type="text"],
+.vocal-melody .vocal-field input[type="number"] {
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+  background-color: var(--panel-2);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+}
+
+.vocal-melody-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; margin-top: 14px; }
+.vocal-melody-choice {
+  display: grid;
+  gap: 3px;
+  min-height: 64px;
+  padding: 9px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background-color: var(--panel-2);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.vocal-melody-choice strong { font-size: 14px; }
+.vocal-melody-choice small { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.vocal-melody-choice:hover:not(:disabled) { border-color: var(--cyan); }
+.vocal-melody-choice:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+.vocal-melody-choice:disabled { opacity: 0.55; cursor: default; }
+.vocal-melody-choice.is-active { border-color: var(--cyan); background-color: var(--cyan-deep); }
+.vocal-melody-tag { color: var(--muted); font-size: 11px; letter-spacing: 0.04em; }
+.vocal-melody-tag[data-source="user"] { color: var(--ink); }
+
+.vocal-melody-player,
+.vocal-melody-editor { display: grid; gap: 12px; margin-top: 14px; }
+.vocal-melody-controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 16px; }
+.vocal-melody-check { display: inline-flex; align-items: center; gap: 8px; color: var(--ink); font-size: 13px; }
+.vocal-melody-check input { width: 18px; height: 18px; accent-color: var(--cyan); }
+.vocal-melody-help { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; max-width: 76ch; }
+.vocal-melody-notes { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.vocal-melody-notes li {
+  position: relative;
+  display: grid;
+  min-width: 56px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background-color: var(--panel-2);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.vocal-melody-notes li b { font-size: 14px; }
+.vocal-melody-notes li small { color: var(--muted); font-size: 11px; }
+.vocal-melody-notes li.is-current { border-color: var(--violet); background-color: var(--violet-deep); }
+.vocal-melody-notes.is-editing li { padding-right: 30px; }
+.vocal-melody-remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 6px;
+  background-color: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.vocal-melody-remove:hover { color: var(--ink); }
+.vocal-melody-remove:focus-visible { outline: 2px solid var(--cyan); outline-offset: 1px; }
+.vocal-melody-actions .button.primary { min-height: 38px; font-size: 12px; }
+
+.vocal-melody-results { margin-top: 14px; padding: 14px 16px; border-radius: 14px; background-color: var(--panel-2); }
+.vocal-melody-results h3 { margin: 0 0 10px; font-size: 16px; }
+.vocal-melody-results ol { display: grid; gap: 8px; margin: 0 0 10px; padding: 0; list-style: none; }
+.vocal-melody-results li {
+  display: grid;
+  grid-template-columns: 22px 54px minmax(0, 1fr) minmax(0, 1.6fr);
+  align-items: center;
+  gap: 4px 12px;
+  color: var(--ink);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.vocal-melody-results li small { color: var(--muted); font-size: 11px; margin-right: 4px; }
+.vocal-melody-result-none { grid-column: 3 / -1; color: var(--muted); }
+.vocal-melody-meter { grid-column: 3 / -1; display: block; height: 6px; border-radius: 99px; background-color: var(--black); overflow: hidden; }
+.vocal-melody-meter em { display: block; height: 100%; border-radius: 99px; background-color: var(--violet); }
+
+@media (max-width: 720px) {
+  .vocal-take-view { grid-template-columns: minmax(0, 1fr); }
+  .vocal-take-list { max-height: 220px; }
+  .vocal-takes-record { justify-items: start; }
+  .vocal-takes,
+  .vocal-melody { padding: 14px 14px 16px; }
+  .vocal-melody-results li { grid-template-columns: 22px 48px minmax(0, 1fr); }
+  .vocal-melody-results li > span:nth-of-type(3) { grid-column: 3; }
+}
