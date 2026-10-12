@@ -30,6 +30,7 @@ import {
   X,
 } from "lucide-react";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { CallAndResponse } from "./CallAndResponse";
 import { FingeringChart } from "./FingeringChart";
 import { FINGERING_CHARTS } from "./fingering-charts";
 import { ImportedInstrumentCanvas, type InstrumentViewId } from "./ImportedInstrumentCanvas";
@@ -743,6 +744,8 @@ function SaxFingeringLab({
           <div className="lab-tip sax-review-tip"><ShieldAlert size={15} /><span><strong>Not checked yet.</strong> The altissimo notes (G6–C7) and the fingerings marked <ReviewBadge /> above are common fingerings drawn from published charts and method books, not fingerings a teacher has checked for Bocal — expect them to vary by horn, mouthpiece and player.</span></div>
         </aside>
       </div>
+
+      {trainerMode === "learn" && <CallAndResponse instrumentId={instrumentId} notation={notation} saTonic={saTonic} />}
 
       {chart2dChart && (
         <section className="oboe-chart-section">

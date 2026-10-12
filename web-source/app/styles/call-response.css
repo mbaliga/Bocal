@@ -1,0 +1,194 @@
+/* Play-along drill ("repeat after me"). Mounted on the Tune workspace, the
+ * Vocal stage and the sax lab's Learn mode, so it must look right on all three.
+ *
+ * Two zones, as in the Vocal workspace.
+ *
+ *   1. The panel, its controls and the notes list use the page tokens from
+ *      globals.css (--panel, --ink, --muted, --cyan ...) and follow the
+ *      light/dark theme.
+ *   2. The plot (.call-response-plot) is a dark well in both themes, like the
+ *      Vocal stage. Its colours are scoped --cr-* tokens that the canvas
+ *      (call-response-canvas.ts) reads, so the palette lives here only.
+ *
+ * Controls follow the tuner's and the Vocal workspace's recipes: a recessed
+ * well for a choice, a pressed crater for what is switched on, the shared
+ * .button keycaps for actions. This file does not touch globals.css.
+ */
+
+.call-response {
+  margin-top: 26px;
+  padding: 18px 20px 20px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background-color: var(--panel);
+  color: var(--ink);
+}
+/* Tune workspace: its own page-width column under the tuner, without the page's full top padding. */
+.content-wrap.call-response-wrap { padding-top: 0; padding-bottom: 28px; }
+.call-response-head h2 { margin: 10px 0 6px; font-size: 21px; }
+.call-response-head p { margin: 0; max-width: 68ch; color: var(--muted); font-size: 13px; line-height: 1.55; }
+
+/* -- Controls ------------------------------------------------------------------ */
+
+.call-response-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 14px 16px;
+  margin-top: 16px;
+  align-items: start;
+}
+.call-response-field { display: grid; gap: 6px; min-width: 0; font-size: 12px; color: var(--muted); }
+.call-response-field > span { letter-spacing: 0.04em; }
+.call-response-field small { color: var(--muted); font-size: 12px; line-height: 1.45; }
+.call-response-field select {
+  min-height: 42px;
+  min-width: 0;
+  padding: 0 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+  background-color: var(--panel-2);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+}
+.call-response-field select:focus-visible,
+.call-response-choice button:focus-visible,
+.call-response-check input:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+.call-response-field select:disabled,
+.call-response-choice button:disabled { opacity: 0.55; cursor: default; }
+
+/* A recessed well holding three choices; the chosen one is a raised keycap. */
+.call-response-choice {
+  display: flex;
+  gap: 3px;
+  padding: 4px;
+  border-radius: 999px;
+  background-color: var(--black);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.45), inset 0 -1px 0 rgba(255, 255, 255, 0.05);
+}
+.call-response-choice button {
+  flex: 1 1 0;
+  min-height: 34px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 999px;
+  background-color: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 620;
+  cursor: pointer;
+}
+.call-response-choice button[aria-pressed="true"] {
+  color: #16171c;
+  background-color: #edebe2;
+  background-image: radial-gradient(circle at 40% 32%, #fffef9 0%, #edebe2 60%, #c9c6b9 100%);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.9), inset 0 -2px 4px rgba(0, 0, 0, 0.18), 0 2px 5px rgba(0, 0, 0, 0.4);
+}
+
+.call-response-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 42px;
+  font-size: 14px;
+  color: var(--ink);
+  cursor: pointer;
+}
+.call-response-check input { width: 20px; height: 20px; margin: 1px 0 0; accent-color: var(--cyan); flex: none; }
+.call-response-check small { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; line-height: 1.45; }
+
+/* -- Stage ------------------------------------------------------------------------ */
+
+.call-response-stage { display: grid; gap: 12px; margin-top: 18px; }
+
+.call-response-plot {
+  --cr-bg: #0b0c10;
+  --cr-ink: #f5f3eb;
+  --cr-muted: #bdb9ae;
+  --cr-grid: #2c2e36;
+  --cr-band: #8e7bff;
+  --cr-hit: #08fed5;
+  --cr-miss: #f2b84b;
+  --cr-trace: #f5f3eb;
+  height: clamp(150px, 26vh, 230px);
+  border-radius: 16px;
+  overflow: hidden;
+  background-color: var(--cr-bg);
+  box-shadow: inset 0 3px 10px rgba(0, 0, 0, 0.7), inset 0 -1px 0 rgba(255, 255, 255, 0.05), 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+.call-response-canvas { display: block; width: 100%; height: 100%; }
+.call-response-plot-note { margin: -4px 2px 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+
+.call-response-status { display: grid; gap: 3px; min-height: 2.9em; }
+.call-response-status small { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+.call-response-status strong { font-size: 16px; font-weight: 640; line-height: 1.4; color: var(--ink); }
+.call-response-status strong[data-outcome="matched"] { color: var(--cyan); }
+.call-response-notice { margin: 0; color: var(--ink); font-size: 13px; line-height: 1.5; }
+
+/* The phrase as a row of chips: the written note, then what was heard. */
+.call-response-notes { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.call-response-notes li {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background-color: var(--panel-2);
+  color: var(--ink);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.call-response-notes li b { font-weight: 700; }
+.call-response-notes li span { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); font-size: 12px; }
+.call-response-notes li[data-verdict="matched"] { border-color: var(--cyan); }
+.call-response-notes li[data-verdict="matched"] span { color: var(--ink); }
+.call-response-notes li[data-verdict="matched"] svg { color: var(--cyan); }
+.call-response-notes li[data-verdict="missed"],
+.call-response-notes li[data-verdict="octave"] { border-style: dashed; }
+.call-response-notes li[data-verdict="missed"] span,
+.call-response-notes li[data-verdict="octave"] span { color: var(--ink); }
+
+.call-response-mic {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background-color: var(--panel-2);
+  color: var(--ink);
+  font-size: 13px;
+}
+.call-response-mic .button { min-height: 38px; font-size: 12px; }
+
+.call-response-actions { display: flex; flex-wrap: wrap; gap: 9px; }
+.call-response-actions .button { min-height: 42px; }
+/* The call to action: a cyan keycap with dark ink (the Vocal stage's primary recipe). */
+.call-response .button.primary {
+  border: 0;
+  color: #04120f;
+  font-weight: 650;
+  background-color: #08fed5;
+  background-image: radial-gradient(circle at 40% 32%, #5fffe4 0%, #08fed5 55%, #06b89a 100%);
+  box-shadow: inset 0 2px 2px rgba(255, 255, 255, 0.45), inset 0 -4px 8px rgba(0, 0, 0, 0.3), 0 3px 7px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(0, 0, 0, 0.25);
+}
+.call-response .button.primary:hover:not(:disabled) { filter: brightness(1.06); transform: none; }
+.call-response .button.primary:active:not(:disabled) { transform: translateY(2px); }
+.call-response .button:disabled { opacity: 0.5; cursor: default; }
+.call-response .button:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+
+.call-response-honesty { margin: 16px 0 0; max-width: 78ch; color: var(--muted); font-size: 12px; line-height: 1.55; }
+
+@media (max-width: 640px) {
+  .call-response { padding: 14px 14px 16px; border-radius: 16px; }
+  .call-response-controls { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .call-response-controls > :nth-child(3),
+  .call-response-controls > :nth-child(5) { grid-column: 1 / -1; }
+  .call-response-plot { height: clamp(140px, 24vh, 200px); }
+}
+@media (max-width: 360px) {
+  .call-response-controls { grid-template-columns: 1fr; }
+}

@@ -2,6 +2,7 @@
 
 import { Check, Circle, Crosshair, Eraser, Mic2, Music2, Pause, Play, RotateCcw, Square, Target, Volume2, Waves } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { CallAndResponse } from "./CallAndResponse";
 import { fullNoteLabel, type NotationSystem } from "./notation";
 import type { PitchHistorySample } from "./pitch-history";
 import { recordPracticeActivity } from "./practice-data";
@@ -526,6 +527,7 @@ export function VocalStudio({
       </section>
 
       {/* V-C: play-along */}
+      <CallAndResponse instrumentId="vocal" notation={notation} saTonic={saTonic} listening={listening} onListen={onListen} micMessage={micMessage} graph={graph} />
 
       <p className="local-note"><Crosshair size={13} /> The practice log, recorded range and tuner history stay on this device. Pitch feedback supports listening; it is not a vocal-health measure.</p>
     </div>

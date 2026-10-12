@@ -32,6 +32,7 @@ import {
 import { GuitarStudio } from "./GuitarStudio";
 import { HarmonicaChart } from "./HarmonicaChart";
 import { VocalStudio } from "./VocalStudio";
+import { CallAndResponse } from "./CallAndResponse";
 import { DownloadCenter, type RailSide, type Theme } from "./DownloadCenter";
 import { TunerView } from "./TunerView";
 import { useTuner } from "./useTuner";
@@ -592,6 +593,7 @@ export default function Home() {
             onOpenKeyboardHelp={() => setKeyboardHelpOpen(true)}
           />
         )}
+        {mode === "tune" && <CallAndResponse variant="page" instrumentId={instrumentId} notation={notation} saTonic={saTonic} listening={tuner.listening} onListen={tuner.start} micMessage={tuner.micMessage} graph={tuner.vocalGraph} />}
         {mode === "sax" && (instrumentId === "guitar"
           ? <GuitarStudio reading={tuner.reading ? { hz: tuner.reading.hz, cents: tuner.reading.cents, midi: tuner.reading.concertMidi } : null} listening={tuner.listening} onListen={tuner.start} />
           : instrumentId === "vocal"
