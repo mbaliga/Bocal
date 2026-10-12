@@ -360,3 +360,166 @@
 @media (orientation: landscape) and (max-height: 520px) {
   .vocal-graph-plot { height: clamp(200px, 62vh, 340px); }
 }
+
+/* V-B: takes and melody targets */
+
+/* Both sections sit on the page tokens (they follow the light/dark theme),
+ * like the range card and the warm-up cards; only the graph above them is a
+ * fixed dark stage. The pitch trace canvas inside the takes section is the
+ * Analyze take trace, so it reads --ink, --line and --muted off its own
+ * element and works in both themes. */
+
+.vocal-takes,
+.vocal-melody {
+  margin-top: 26px;
+  padding: 18px 20px 20px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background-color: var(--panel);
+}
+.vocal-takes-head,
+.vocal-melody-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px 24px; flex-wrap: wrap; }
+.vocal-takes-head > div:first-child,
+.vocal-melody-head > div:first-child { flex: 1 1 360px; min-width: 0; }
+.vocal-takes-head h2,
+.vocal-melody-head h2 { margin: 10px 0 6px; font-size: 21px; }
+.vocal-takes-head p,
+.vocal-melody-head p { margin: 0; max-width: 72ch; color: var(--muted); font-size: 13px; line-height: 1.55; }
+.vocal-takes-record { display: grid; gap: 6px; justify-items: end; }
+.vocal-takes-clock { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.vocal-takes-note { margin: 12px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.vocal-takes-status,
+.vocal-melody-status { min-height: 1.4em; margin: 8px 0 0; color: var(--ink); font-size: 13px; line-height: 1.5; }
+.vocal-takes-empty,
+.vocal-melody-empty { margin: 6px 0 0; color: var(--muted); font-size: 13px; }
+
+.vocal-take-view { display: grid; grid-template-columns: minmax(180px, 240px) minmax(0, 1fr); gap: 16px; margin-top: 14px; align-items: start; }
+.vocal-take-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; max-height: 340px; overflow-y: auto; }
+.vocal-take-list button {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  min-height: 48px;
+  padding: 8px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 11px;
+  background-color: var(--panel-2);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.vocal-take-list button strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.vocal-take-list button small { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.vocal-take-list button:hover { border-color: var(--cyan); }
+.vocal-take-list button:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+.vocal-take-list button.is-active { border-color: var(--cyan); background-color: var(--cyan-deep); }
+.vocal-take-detail { display: grid; gap: 10px; min-width: 0; }
+.vocal-take-detail .take-pitch-trace canvas { height: 190px; }
+.vocal-take-detail .take-pitch-legend { font-size: 12px; }
+.vocal-take-detail .take-compare-diff { font-size: 13px; }
+.vocal-take-audio { display: block; width: 100%; }
+.vocal-take-tools { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 16px; }
+.vocal-take-tools .compare-align-toggle button { min-height: 36px; padding: 0 12px; font-size: 12px; }
+.vocal-takes .vocal-field input[type="text"],
+.vocal-melody .vocal-field input[type="text"],
+.vocal-melody .vocal-field input[type="number"] {
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+  background-color: var(--panel-2);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+}
+
+.vocal-melody-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; margin-top: 14px; }
+.vocal-melody-choice {
+  display: grid;
+  gap: 3px;
+  min-height: 64px;
+  padding: 9px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background-color: var(--panel-2);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.vocal-melody-choice strong { font-size: 14px; }
+.vocal-melody-choice small { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.vocal-melody-choice:hover:not(:disabled) { border-color: var(--cyan); }
+.vocal-melody-choice:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+.vocal-melody-choice:disabled { opacity: 0.55; cursor: default; }
+.vocal-melody-choice.is-active { border-color: var(--cyan); background-color: var(--cyan-deep); }
+.vocal-melody-tag { color: var(--muted); font-size: 11px; letter-spacing: 0.04em; }
+.vocal-melody-tag[data-source="user"] { color: var(--ink); }
+
+.vocal-melody-player,
+.vocal-melody-editor { display: grid; gap: 12px; margin-top: 14px; }
+.vocal-melody-controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 16px; }
+.vocal-melody-check { display: inline-flex; align-items: center; gap: 8px; color: var(--ink); font-size: 13px; }
+.vocal-melody-check input { width: 18px; height: 18px; accent-color: var(--cyan); }
+.vocal-melody-help { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; max-width: 76ch; }
+.vocal-melody-notes { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.vocal-melody-notes li {
+  position: relative;
+  display: grid;
+  min-width: 56px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background-color: var(--panel-2);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.vocal-melody-notes li b { font-size: 14px; }
+.vocal-melody-notes li small { color: var(--muted); font-size: 11px; }
+.vocal-melody-notes li.is-current { border-color: var(--violet); background-color: var(--violet-deep); }
+.vocal-melody-notes.is-editing li { padding-right: 30px; }
+.vocal-melody-remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 6px;
+  background-color: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.vocal-melody-remove:hover { color: var(--ink); }
+.vocal-melody-remove:focus-visible { outline: 2px solid var(--cyan); outline-offset: 1px; }
+.vocal-melody-actions .button.primary { min-height: 38px; font-size: 12px; }
+
+.vocal-melody-results { margin-top: 14px; padding: 14px 16px; border-radius: 14px; background-color: var(--panel-2); }
+.vocal-melody-results h3 { margin: 0 0 10px; font-size: 16px; }
+.vocal-melody-results ol { display: grid; gap: 8px; margin: 0 0 10px; padding: 0; list-style: none; }
+.vocal-melody-results li {
+  display: grid;
+  grid-template-columns: 22px 54px minmax(0, 1fr) minmax(0, 1.6fr);
+  align-items: center;
+  gap: 4px 12px;
+  color: var(--ink);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.vocal-melody-results li small { color: var(--muted); font-size: 11px; margin-right: 4px; }
+.vocal-melody-result-none { grid-column: 3 / -1; color: var(--muted); }
+.vocal-melody-meter { grid-column: 3 / -1; display: block; height: 6px; border-radius: 99px; background-color: var(--black); overflow: hidden; }
+.vocal-melody-meter em { display: block; height: 100%; border-radius: 99px; background-color: var(--violet); }
+
+@media (max-width: 720px) {
+  .vocal-take-view { grid-template-columns: minmax(0, 1fr); }
+  .vocal-take-list { max-height: 220px; }
+  .vocal-takes-record { justify-items: start; }
+  .vocal-takes,
+  .vocal-melody { padding: 14px 14px 16px; }
+  .vocal-melody-results li { grid-template-columns: 22px 48px minmax(0, 1fr); }
+  .vocal-melody-results li > span:nth-of-type(3) { grid-column: 3; }
+}
