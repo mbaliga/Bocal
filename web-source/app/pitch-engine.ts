@@ -163,6 +163,14 @@ export class StablePitchTracker {
   private smoothedCents = 0;
   private lastReliableAt = Number.NEGATIVE_INFINITY;
   private lastConfidence = 0;
+  /**
+   * Whether the most recent `process()` frame carried a reliable pitch
+   * candidate of its own (confident, above the gate, past calibration) --
+   * as opposed to a "holding" frame that only repeats the previous lock. The
+   * vocal graph reads this, with `rawHz`, to plot unsmoothed singing pitch
+   * through slides; the tuner readout never needs it.
+   */
+  lastFrameReliable = false;
 
   constructor(options: StablePitchTrackerOptions = {}) {
     this.minHz = options.minHz ?? 120;
@@ -239,6 +247,7 @@ export class StablePitchTracker {
 
   process(buffer: Float32Array, sampleRate: number, nowMs: number): PitchTrackerReading {
     if (this.startedAt === null) this.startedAt = nowMs;
+    this.lastFrameReliable = false;
     const rms = frameRms(buffer);
     const gate = clamp(this.noiseFloor * 3.1, 0.009, 0.045);
     const candidate = rms >= 0.004
@@ -257,6 +266,7 @@ export class StablePitchTracker {
 
     if (!reliable || !candidate) return this.unreliableReading(nowMs, rms, gate, candidate);
 
+    this.lastFrameReliable = true;
     const rawMidi = hzToMidi(candidate.hz);
     const candidateMidi = Math.round(rawMidi);
     this.lastConfidence = candidate.confidence;

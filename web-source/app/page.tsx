@@ -592,7 +592,20 @@ export default function Home() {
         {mode === "sax" && (instrumentId === "guitar"
           ? <GuitarStudio reading={tuner.reading ? { hz: tuner.reading.hz, cents: tuner.reading.cents, midi: tuner.reading.concertMidi } : null} listening={tuner.listening} onListen={tuner.start} />
           : instrumentId === "vocal"
-            ? <VocalStudio onOpenTune={() => selectMode("tune")} />
+            ? (
+              <VocalStudio
+                onOpenTune={() => selectMode("tune")}
+                listening={tuner.listening}
+                onListen={tuner.start}
+                micMessage={tuner.micMessage}
+                graph={tuner.vocalGraph}
+                notation={notation}
+                saTonic={saTonic}
+                precision={precision}
+                lockedTargetMidi={tuner.lockedTargetMidi}
+                playReference={tuner.playReference}
+              />
+            )
             : <SaxophoneLab onBack={() => selectMode("tune")} instrumentId={instrumentId} notation={notation} saTonic={saTonic} />)}
         {mode === "pulse" && <PulseView tuningOptions={tuningOptions} />}
         {mode === "analyze" && <AnalysisView instrument={instrument} notation={notation} saTonic={saTonic} />}

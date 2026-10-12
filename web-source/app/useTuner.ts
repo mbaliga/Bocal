@@ -12,7 +12,8 @@ import {
   type StablePitchTrackerOptions,
 } from "./pitch-engine";
 import { drawPitchHistory, readPitchHistoryTheme, type PitchHistoryMode } from "./pitch-history-canvas";
-import { PitchHistoryBuffer } from "./pitch-history";
+import { PitchHistoryBuffer, type PitchHistorySample } from "./pitch-history";
+import { createVocalChannel } from "./vocal-graph";
 import type { InstrumentProfile } from "./instruments";
 import { fullNoteLabel } from "./notation";
 import { readingFor, targetHzFor, type TuningOptions } from "./tuning";
@@ -40,6 +41,14 @@ export type PitchReading = {
 // someone could drift out of sync with the loop.
 export const HISTORY_WINDOW_MS = 10_000;
 const HISTORY_CAPACITY = Math.ceil(HISTORY_WINDOW_MS / 30) + 30;
+
+// The Vocal workspace's singing graph reviews up to two minutes of pitch, far
+// more than the tuner's own 10 s history, so it keeps a second, longer ring
+// buffer rather than growing the one the Tune view paints from (that one is
+// copied whole on every frame). Same ~30 ms cadence, same headroom.
+export const VOCAL_HISTORY_MS = 120_000;
+const VOCAL_HISTORY_CAPACITY = Math.ceil(VOCAL_HISTORY_MS / 30) + 200;
+export type { VocalFrameListener, VocalGraphSource } from "./vocal-graph";
 
 export const PRECISION_TOLERANCE: Record<"standard" | "fine" | "ultra", number> = {
   standard: 10,
@@ -212,6 +221,9 @@ export function useTuner(instrument: InstrumentProfile, options: UseTunerOptions
   // from a timer of its own.
   const pitchHistoryRef = useRef(new PitchHistoryBuffer(HISTORY_CAPACITY));
   const historyCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  // Vocal singing graph: a second, longer buffer plus the listeners that paint
+  // from it. Refs only -- a frame every 30 ms never goes through React state.
+  const [vocalChannel] = useState(() => createVocalChannel(VOCAL_HISTORY_CAPACITY));
   const historyResizeObserverRef = useRef<ResizeObserver | null>(null);
   const paintHistory = useCallback(
     (fallbackNowMs: number) => {
@@ -428,6 +440,7 @@ export function useTuner(instrument: InstrumentProfile, options: UseTunerOptions
       setLevel(LEVEL_IDLE);
       trackerRef.current!.reset();
       pitchHistoryRef.current.clear();
+      vocalChannel.source.clear();
       tunerEvidenceRef.current = { startedAt: performance.now(), cents: [], midiNotes: [] };
       let lastAnalysisAt = Number.NEGATIVE_INFINITY;
       // Every accepted 30ms sample tick used to call setTrackerReading with a
@@ -449,6 +462,11 @@ export function useTuner(instrument: InstrumentProfile, options: UseTunerOptions
       let peakHoldDbfs = LEVEL_FLOOR_DBFS;
       let peakHoldAt = Number.NEGATIVE_INFINITY;
       let clipUntil = Number.NEGATIVE_INFINITY;
+      // The vocal graph plots every reliable frame's own pitch, not the
+      // tuner's smoothed, locked note: a sung slide would otherwise stall
+      // on one note and then jump 65 cents at a time. A median of the last
+      // three reliable frames takes out single-frame octave slips.
+      const recentHz: number[] = [];
 
       const sample = () => {
         const now = performance.now();
@@ -505,6 +523,24 @@ export function useTuner(instrument: InstrumentProfile, options: UseTunerOptions
             pitchHistoryRef.current.push({ tMs: now, cents: null, midi: null });
           }
           paintHistoryRef.current(now);
+
+          let vocalSample: PitchHistorySample;
+          if (trackerRef.current!.lastFrameReliable && nextTrackerReading.rawHz !== null) {
+            recentHz.push(nextTrackerReading.rawHz);
+            if (recentHz.length > 3) recentHz.shift();
+            const middleHz = [...recentHz].sort((left, right) => left - right)[recentHz.length >> 1];
+            const pitch = pitchFromFrequency(middleHz, instrument.writtenOffset, tuningOptionsRef.current);
+            vocalSample = {
+              tMs: now,
+              cents: pitch.cents,
+              midi: displayModeRef.current === "concert" ? pitch.concertMidi : pitch.writtenMidi,
+              locked: nextTrackerReading.accepted,
+            };
+          } else {
+            recentHz.length = 0;
+            vocalSample = { tMs: now, cents: null, midi: null };
+          }
+          vocalChannel.publish(vocalSample);
         }
         frameRef.current = requestAnimationFrame(sample);
       };
@@ -531,7 +567,7 @@ export function useTuner(instrument: InstrumentProfile, options: UseTunerOptions
     } finally {
       if (tunerGateRef.current.accepts(ticket)) tunerPendingRef.current = false;
     }
-  }, [instrument.range.minHz, instrument.writtenOffset, listening, stopListening]);
+  }, [instrument.range.minHz, instrument.writtenOffset, listening, stopListening, vocalChannel]);
 
   const playReferenceTone = useCallback(async (midi: number = 69) => {
     const epoch = referenceEpochRef.current;
@@ -621,6 +657,7 @@ export function useTuner(instrument: InstrumentProfile, options: UseTunerOptions
     playReference: playReferenceTone,
     startPitchPipe,
     stopPitchPipe,
+    vocalGraph: vocalChannel.source,
     history: {
       canvasRef: setHistoryCanvas,
       clear: clearHistory,

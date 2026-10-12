@@ -21,6 +21,13 @@ export type PitchHistorySample = {
    * `cents` for a gap.
    */
   midi: number | null;
+  /**
+   * True when the tracker had locked this frame onto a note (its `accepted`
+   * flag). Only the vocal graph's long buffer sets it: that buffer plots
+   * every reliable frame, locked or not, and the vocal range finder counts
+   * just the locked ones.
+   */
+  locked?: boolean;
 };
 
 /**
@@ -56,6 +63,40 @@ export class PitchHistoryBuffer {
 
   get length() {
     return this.samples.length;
+  }
+
+  /** Time of the oldest / newest sample held, or null when empty. */
+  get oldestMs(): number | null {
+    return this.samples.length ? this.samples[0].tMs : null;
+  }
+
+  get latestMs(): number | null {
+    return this.samples.length ? this.samples[this.samples.length - 1].tMs : null;
+  }
+
+  /**
+   * The samples with `fromMs <= tMs <= toMs`, oldest first. Samples arrive in
+   * time order, so both ends are found by binary search and only the slice
+   * is copied -- the vocal graph calls this every frame over a buffer that
+   * can hold two minutes of readings.
+   */
+  between(fromMs: number, toMs: number): PitchHistorySample[] {
+    const items = this.samples;
+    let low = 0;
+    let high = items.length;
+    while (low < high) {
+      const mid = (low + high) >> 1;
+      if (items[mid].tMs < fromMs) low = mid + 1;
+      else high = mid;
+    }
+    const start = low;
+    high = items.length;
+    while (low < high) {
+      const mid = (low + high) >> 1;
+      if (items[mid].tMs <= toMs) low = mid + 1;
+      else high = mid;
+    }
+    return items.slice(start, low);
   }
 
   getCapacity() {
