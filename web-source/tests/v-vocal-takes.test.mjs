@@ -27,12 +27,12 @@ test("the takes and melody copy makes no claim of health, correctness, marks, gr
   }
 });
 
-test("both V-B slots are filled and the V-C slot is still there, untouched", async () => {
+test("both V-B slots are filled and the V-C slot carries the play-along drill", async () => {
   const studio = await read("../app/VocalStudio.tsx");
   assert.match(studio, /\{\/\* V-B: takes \*\/\}\s*<VocalTakes\b/);
   assert.match(studio, /\{\/\* V-B: melody \*\/\}\s*<MelodyTarget\b/);
   assert.equal(studio.split("{/* V-C: play-along */}").length, 2, "the V-C slot appears exactly once, verbatim");
-  assert.match(studio, /\{\/\* V-C: play-along \*\/\}\s*<p className="local-note">/, "nothing has been put in the V-C slot");
+  assert.match(studio, /\{\/\* V-C: play-along \*\/\}\s*<CallAndResponse\b/, "the play-along drill fills the V-C slot");
   assert.match(studio, /import \{ VocalTakes \} from "\.\/VocalTakes";/);
   assert.match(studio, /import \{ MelodyTarget, type PlayReference \} from "\.\/MelodyTarget";/);
 });

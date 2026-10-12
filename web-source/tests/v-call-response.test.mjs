@@ -138,13 +138,17 @@ test("each session is logged as practice activity with the phrase name and the a
   assert.match(screen, /not yet matched/);
 });
 
-test("the phrase type is the one the melody line will supply, and phrases arrive through props", async () => {
+test("the phrase type is the melody line's, and the Vocal stage hands its melodies to the drill as phrases", async () => {
   const logic = await read("../app/call-response.ts");
-  assert.match(logic, /TODO\(V-B\): import from melody-line\.ts once merged/);
-  assert.match(logic, /export type CallPhrase = \{\s*id: string;\s*name: string;\s*tempoBpm: number;\s*notes: \{ midi: number; beats: number \}\[\];\s*\};/);
+  assert.doesNotMatch(logic, /TODO\(V-B\)/, "the placeholder is gone");
+  assert.match(logic, /import type \{ Melody \} from "\.\/melody-line";/);
+  assert.match(logic, /export type CallPhrase = Pick<Melody, "id" \| "name" \| "tempoBpm" \| "notes">;/);
   const screen = await read("../app/CallAndResponse.tsx");
   assert.match(screen, /phrases\?: CallPhrase\[\];/);
   assert.match(screen, /suppliedLabel\?: string;/);
+  const studio = await read("../app/VocalStudio.tsx");
+  assert.match(studio, /<MelodyTarget[\s\S]*?onMelodiesChange=\{setMelodies\}/, "the melody editor reports its list to the stage");
+  assert.match(studio, /<CallAndResponse[^>]*phrases=\{melodies\}[^>]*suppliedLabel="Melodies"/, "the stage passes the melodies to the drill");
 });
 
 test("styles: its own file, imported by the component, and globals.css is untouched", async () => {

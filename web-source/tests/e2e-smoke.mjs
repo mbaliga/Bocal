@@ -310,7 +310,7 @@ try {
       await page.getByRole("button", { name: "Delete", exact: true }).click();
       await page.waitForFunction(() => document.querySelectorAll(".vocal-take-list li").length === 1);
       // A melody pass with the microphone on reports a figure set per note.
-      await page.getByRole("button", { name: "Start microphone" }).click();
+      await page.getByRole("button", { name: "Start microphone" }).first().click();
       await page.getByRole("button", { name: "Stop microphone" }).waitFor();
       await page.locator(".vocal-melody-choice").filter({ hasText: "Octave leap" }).click();
       await page.getByRole("button", { name: "Play pass" }).click();
