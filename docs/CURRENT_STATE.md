@@ -64,6 +64,28 @@ Two profiles, both concert pitch (offset 0), both `labTier: "harmonica"`, family
 
 Naming: "harmonica" is the standard English name, "mouth organ" is the informal name, and it is a free reed wind instrument.
 
+## Navigation
+
+On a phone the dock has two curves. The lower arc moves between the five workspaces (Tune, Lab, Pulse, Analyze, Practice). The upper pill is a two-seat view switch for the workspace on screen, and each seat drives a control that workspace already has. The instrument picker at the top left is the only place to choose an instrument; the pill no longer lists instruments. The dock appears on screens up to 680 px wide; wider screens use the side rail with no pill, and the short phone-landscape layout hides the pill, so in both the in-view controls are the way to the same views.
+
+The left seat is the default. The pairs are defined in `web-source/app/context-seats.ts`, and the last seat chosen in each workspace is kept under `bocal-context-seats-v1`:
+
+| Workspace | Seats | What they do |
+|---|---|---|
+| Tune, transposing instruments | Written / Concert | The Readout setting in Calibration; the pill and that control are one setting (`bocal-tuner-display-mode`) |
+| Tune, instruments with no transposition | Tuner / Tone | Scroll to the tuner, or to the tone generator |
+| Pulse | Metronome / Sequences | Scroll to the metronome, or to the sequence builder |
+| Analyze | Waveform / Spectrum | The analysis view buttons; Harmonics and Spectrogram are still reached from the view, and then neither seat is lit |
+| Practice | Today / Log | Scroll to today's plan, or to the practice log |
+| Lab, saxophones | Learn / Challenge | The lab's own trainer switch |
+| Lab, oboe and cor anglais | Front / Left | The first two camera presets of the 3D view |
+| Lab, flute, clarinet, bassoon, diatonic harmonica | Chart / Tune | Scroll to the chart, or open the tuner |
+| Lab, chromatic harmonica | Slide out / Slide in | The chart's slide toggle |
+| Lab, vocal | Graph / Warm-ups | Scroll to the live pitch graph, or to the guided warm-up |
+| Lab, guitar | Tuner / Chords | Scroll to the string tuner, or to the chord player |
+
+A seat that scrolls moves focus to the section's heading. A stored seat is scrolled to again when its workspace opens, but the pill does not follow your scrolling afterwards, so it shows the last seat chosen, not where the page happens to be.
+
 ## Cross-cutting state
 
 | Area | State |

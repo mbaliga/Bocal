@@ -20,7 +20,7 @@ import { readingFor, REFERENCE_HZ_DEFAULT, REFERENCE_HZ_MAX, REFERENCE_HZ_MIN, T
 import { TUNING_KEYS } from "./storage-keys";
 import "./styles/analysis.css";
 
-type AnalysisMode = "waveform" | "spectrum" | "harmonics" | "spectrogram";
+export type AnalysisMode = "waveform" | "spectrum" | "harmonics" | "spectrogram";
 type RecordingTake = StoredTake & { url: string };
 function formatTime(seconds: number) {
   const rounded = Math.max(0, Math.floor(seconds));
@@ -53,7 +53,20 @@ function harmonicNoteLabel(hz: number, instrument: InstrumentProfile, notation: 
   return fullNoteLabel(reading.concertMidi + instrument.writtenOffset, notation, saTonic);
 }
 
-export function AnalysisView({ instrument, notation, saTonic }: { instrument: InstrumentProfile; notation: NotationSystem; saTonic: number }) {
+export function AnalysisView({
+  instrument,
+  notation,
+  saTonic,
+  mode: modeProp,
+  onModeChange,
+}: {
+  instrument: InstrumentProfile;
+  notation: NotationSystem;
+  saTonic: number;
+  /** Optional: the view the dock pill holds. Leave both out and the view keeps its own choice. */
+  mode?: AnalysisMode;
+  onModeChange?: (next: AnalysisMode) => void;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -73,7 +86,12 @@ export function AnalysisView({ instrument, notation, saTonic }: { instrument: In
   const persistedIdsRef = useRef(new Set<string>());
   const writesRef = useRef(new KeyedTaskQueue());
   const deletingRef = useRef(new Set<string>());
-  const [mode, setMode] = useState<AnalysisMode>("waveform");
+  const [ownMode, setOwnMode] = useState<AnalysisMode>("waveform");
+  const mode = modeProp ?? ownMode;
+  const setMode = useCallback((next: AnalysisMode) => {
+    setOwnMode(next);
+    onModeChange?.(next);
+  }, [onModeChange]);
   const [active, setActive] = useState(false);
   const [requesting, setRequesting] = useState(false);
   const [recording, setRecording] = useState(false);
@@ -115,6 +133,7 @@ export function AnalysisView({ instrument, notation, saTonic }: { instrument: In
   const spectrumDataRef = useRef<Uint8Array<ArrayBuffer> | null>(null);
   const spectrogramPainterRef = useRef<SpectrogramPainter | null>(null);
   const spectrogramResetRef = useRef(true);
+  useEffect(() => { if (mode === "spectrogram") spectrogramResetRef.current = true; }, [mode]);
   const reducedMotionRef = useRef(false);
 
   const draw = useCallback(function renderAnalysisFrame() {

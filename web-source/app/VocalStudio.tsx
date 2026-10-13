@@ -371,7 +371,7 @@ export function VocalStudio({
         <button className="button primary" onClick={onOpenTune}><Crosshair size={16} /> Open live tuner</button>
       </header>
 
-      <section className="vocal-stage" aria-labelledby="vocal-stage-title">
+      <section className="vocal-stage" id="ctx-vocal-graph" aria-labelledby="vocal-stage-title">
         <header className="vocal-stage-head">
           <div>
             <span className="vocal-stage-kicker"><Mic2 size={14} /> Live pitch</span>
@@ -463,7 +463,7 @@ export function VocalStudio({
         )}
       </section>
 
-      <section className="vocal-routine" aria-labelledby="vocal-routine-title">
+      <section className="vocal-routine" id="ctx-vocal-warmups" aria-labelledby="vocal-routine-title">
         <header className="vocal-routine-head">
           <div><span className="card-kicker"><Mic2 size={15} /> Guided warm-up · self-paced</span><h2 id="vocal-routine-title">Three easy steps</h2><p>Pause between steps whenever you need. Keep every sound in a comfortable range.</p></div>
           <div className="vocal-routine-clock" aria-live="off"><small>SESSION</small><strong>{elapsedLabel}</strong></div>

@@ -1,5 +1,6 @@
 "use client";
 import "./native-bridge";
+import "./styles/context-pill.css";
 
 import {
   Activity,
@@ -22,8 +23,19 @@ import {
   X,
 } from "lucide-react";
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { AnalysisView } from "./AnalysisView";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AnalysisView, type AnalysisMode } from "./AnalysisView";
+import { revealSection } from "./context-scroll";
+import {
+  contextKeyFor,
+  contextSeatsFor,
+  defaultContextSeat,
+  parseContextSeats,
+  resolveContextSeat,
+  serialiseContextSeats,
+  type Seat,
+  type WorkspaceMode,
+} from "./context-seats";
 import {
   BOCAL_ONBOARDING_KEY,
   InstrumentPickerExperience,
@@ -60,6 +72,7 @@ import {
   type TuningOptions,
 } from "./tuning";
 import {
+  CONTEXT_SEATS_KEY,
   CUSTOM_TEMPERAMENT_STORAGE_KEY,
   DAMPING_STORAGE_KEY,
   DISPLAY_MODE_STORAGE_KEY,
@@ -68,7 +81,6 @@ import {
   KEY_CENTRE_MODE_STORAGE_KEY,
   NAVIGATION_SIDE_STORAGE_KEY,
   NOTATION_STORAGE_KEY,
-  PARTNER_INSTRUMENT_STORAGE_KEY,
   PRECISION_STORAGE_KEY,
   REFERENCE_HZ_STORAGE_KEY,
   SENSITIVITY_STORAGE_KEY,
@@ -88,7 +100,7 @@ const SaxophoneLab = dynamic(
   { ssr: false },
 );
 
-type Mode = "tune" | "sax" | "pulse" | "analyze" | "practice";
+type Mode = WorkspaceMode;
 
 function formatTime(seconds: number) {
   const minutes = Math.floor(seconds / 60).toString().padStart(2, "0");
@@ -137,10 +149,10 @@ const ARC_SEATS = [
 ];
 const ARC_TILTS = ["-9.6deg", "-4.83deg", "0deg", "4.83deg", "9.6deg"];
 
-// The instrument switch rides its own shallower arc so the dock reads as two
-// stacked curves, as in the reference. Seats are computed at runtime rather
-// than baked in like ARC_SEATS, because the instrument list grows as models
-// clear licensing and expert review.
+// The workspace view switch rides its own shallower arc so the dock reads as
+// two stacked curves, as in the reference. Seats are computed at runtime
+// rather than baked in like ARC_SEATS; context-seats.ts decides which two a
+// workspace gets.
 const PILL_VIEWBOX = { w: 200, h: 48 };
 const PILL_PATH = "M16 32 Q100 16 184 32";
 const PILL_POINTS: [number, number][] = [[16, 32], [100, 16], [184, 32]];
@@ -158,11 +170,11 @@ function pillSeat(index: number, count: number) {
 }
 
 const CUSTOM_TEMPERAMENT_FALLBACK = loadCustomTemperamentCents(null);
+const EMPTY_SEATS: Record<string, string> = {};
 
 export default function Home() {
   const [mode, setMode] = useState<Mode>("tune");
   const [instrumentId, setInstrumentId] = useState<InstrumentId>("alto-sax");
-  const [partnerInstrumentId, setPartnerInstrumentId] = useState<InstrumentId>("oboe");
   const [instrumentPickerOpen, setInstrumentPickerOpen] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [downloadCenterOpen, setDownloadCenterOpen] = useState(false);
@@ -264,11 +276,31 @@ export default function Home() {
     precision,
     displayMode,
   });
-  // Seated left to right along the pill arc, current instrument first.
-  const pillInstruments = useMemo<InstrumentId[]>(
-    () => (partnerInstrumentId === instrumentId ? [instrumentId] : [instrumentId, partnerInstrumentId]),
-    [instrumentId, partnerInstrumentId],
+  // The dock pill: two seats for the workspace on screen. The last seat per
+  // workspace is remembered; the tuner's Written / Concert seats are the
+  // existing readout setting, so they are not stored a second time.
+  const [storedSeats, setStoredSeats] = usePersistedSetting<Record<string, string>>(
+    CONTEXT_SEATS_KEY,
+    parseContextSeats,
+    EMPTY_SEATS,
+    serialiseContextSeats,
   );
+  const seatKey = contextKeyFor(mode, instrument);
+  const seats = contextSeatsFor(mode, instrument);
+  const seatValue = seatKey === "tune:pitch" ? displayMode : resolveContextSeat(seatKey, storedSeats);
+  const setSeatValue = useCallback(
+    (key: string, value: string) => {
+      if (key === "tune:pitch") {
+        if (value === "written" || value === "concert") setDisplayMode(value);
+        return;
+      }
+      setStoredSeats((current) => (current[key] === value ? current : { ...current, [key]: value }));
+    },
+    [setDisplayMode, setStoredSeats],
+  );
+  // The section the last pill tap already scrolled to, so the effect below
+  // (which brings a restored seat into view) does not scroll a second time.
+  const revealedRef = useRef<string | null>(null);
 
   useEffect(() => {
     let shouldOpen = true;
@@ -318,9 +350,6 @@ export default function Home() {
       try {
         const saved = localStorage.getItem(INSTRUMENT_STORAGE_KEY);
         if (isInstrumentId(saved)) setInstrumentId(saved);
-        const savedPartner = localStorage.getItem(PARTNER_INSTRUMENT_STORAGE_KEY);
-        if (isInstrumentId(savedPartner) && savedPartner !== saved) setPartnerInstrumentId(savedPartner);
-        else if (saved === "oboe") setPartnerInstrumentId("alto-sax");
       } catch {
         // Bocal opens on the alto when device storage is unavailable.
       }
@@ -362,11 +391,8 @@ export default function Home() {
     setMode(nextMode);
   }, [tuner]);
 
-  // The dock pill is a doubling toggle, not a library. Bocal now carries seven
-  // instruments, and seven seats will not fit on an arc at phone width -- nor
-  // would a player want them there. The pill holds the instrument in your hands
-  // and the one you put down; the header picker reaches the whole library, and
-  // choosing from it demotes the outgoing instrument into the second seat.
+  // The header picker is the only instrument chooser; the dock pill switches
+  // the view inside the workspace instead.
   const chooseInstrument = useCallback(
     (nextId: InstrumentId) => {
       if (nextId === instrumentId) {
@@ -374,18 +400,44 @@ export default function Home() {
         return;
       }
       if (tuner.isBusy()) tuner.stop();
-      setPartnerInstrumentId(instrumentId);
       setInstrumentId(nextId);
       setInstrumentPickerOpen(false);
       try {
         localStorage.setItem(INSTRUMENT_STORAGE_KEY, nextId);
-        localStorage.setItem(PARTNER_INSTRUMENT_STORAGE_KEY, instrumentId);
       } catch {
         // The choice still applies for this visit.
       }
     },
     [instrumentId, tuner],
   );
+
+  const chooseSeat = (seat: Seat) => {
+    if (seat.opens) {
+      selectMode(seat.opens);
+      return;
+    }
+    setSeatValue(seatKey, seat.id);
+    if (seat.section) {
+      revealedRef.current = `${seatKey}:${seat.id}`;
+      revealSection(seat.section, { focus: true });
+    }
+  };
+
+  // A scroll seat that was stored for this workspace (a reload, or coming back
+  // to it) is brought into view once the workspace is on screen. The left seat
+  // is where the page already opens, so it is left alone.
+  useEffect(() => {
+    const seat = seats.find((candidate) => candidate.id === seatValue);
+    if (!seat || !seat.section || seat.id === defaultContextSeat(seatKey)) return;
+    const token = `${seatKey}:${seat.id}`;
+    if (revealedRef.current === token) {
+      revealedRef.current = null;
+      return;
+    }
+    return revealSection(seat.section, { focus: false });
+    // `seats` is derived from the same inputs as seatKey.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seatKey, seatValue]);
 
   const completeOnboarding = () => {
     try { localStorage.setItem(BOCAL_ONBOARDING_KEY, "complete"); } catch { /* The guide can close without storage. */ }
@@ -612,10 +664,10 @@ export default function Home() {
               />
             )
             : instrument.labTier === "harmonica"
-              ? <HarmonicaChart instrument={instrument} notation={notation} tonic={saTonic} onBack={() => selectMode("tune")} reading={tuner.reading ? { midi: tuner.reading.concertMidi, cents: tuner.reading.cents } : null} listening={tuner.listening} onListen={tuner.start} />
-              : <SaxophoneLab onBack={() => selectMode("tune")} instrumentId={instrumentId} notation={notation} saTonic={saTonic} />)}
+              ? <HarmonicaChart instrument={instrument} notation={notation} tonic={saTonic} onBack={() => selectMode("tune")} reading={tuner.reading ? { midi: tuner.reading.concertMidi, cents: tuner.reading.cents } : null} listening={tuner.listening} onListen={tuner.start} seat={seatValue} onSeatChange={(next) => setSeatValue(seatKey, next)} />
+              : <SaxophoneLab onBack={() => selectMode("tune")} instrumentId={instrumentId} notation={notation} saTonic={saTonic} seat={seatValue} onSeatChange={(next) => setSeatValue(seatKey, next)} />)}
         {mode === "pulse" && <PulseView tuningOptions={tuningOptions} />}
-        {mode === "analyze" && <AnalysisView instrument={instrument} notation={notation} saTonic={saTonic} />}
+        {mode === "analyze" && <AnalysisView instrument={instrument} notation={notation} saTonic={saTonic} mode={seatValue as AnalysisMode} onModeChange={(next) => setSeatValue("analyze", next)} />}
         {mode === "practice" && (
           <PracticeView
             onOpenTuner={() => selectMode("tune")}
@@ -635,7 +687,7 @@ export default function Home() {
           {/* Left circle is a privacy BADGE (mirrors the rail's "Local only"
               dot), deliberately styled flat so it doesn't read as a button. */}
           <div className="dock-side-button is-badge" aria-hidden="true"><LockKeyhole size={16} /></div>
-          <div className="dock-pill" role="group" aria-label="Instrument">
+          <div className="dock-pill" role="group" aria-label="Workspace view">
             <svg className="pill-track" viewBox={`0 0 ${PILL_VIEWBOX.w} ${PILL_VIEWBOX.h}`} aria-hidden="true" focusable="false">
               <defs>
                 <linearGradient id="pillFill" x1="0" y1="6" x2="0" y2="44" gradientUnits="userSpaceOnUse">
@@ -648,18 +700,19 @@ export default function Home() {
               <path d={PILL_PATH} fill="none" stroke="#0a0b0f" strokeWidth="36" strokeLinecap="round" />
               <path d={PILL_PATH} fill="none" stroke="url(#pillFill)" strokeWidth="32" strokeLinecap="round" />
             </svg>
-            {pillInstruments.map((id, index) => {
-              const seat = pillSeat(index, pillInstruments.length);
+            {seats.map((seat, index) => {
+              const place = pillSeat(index, seats.length);
+              const pressed = !seat.opens && seatValue === seat.id;
               return (
                 <button
-                  key={id}
-                  className={instrumentId === id ? "is-active" : ""}
-                  aria-pressed={instrumentId === id}
-                  title={INSTRUMENTS[id].name}
-                  style={{ left: seat.left, top: seat.top, "--tilt": seat.tilt } as React.CSSProperties}
-                  onClick={() => chooseInstrument(id)}
+                  key={`${seatKey}:${seat.id}`}
+                  className={pressed ? "is-active" : ""}
+                  aria-pressed={pressed}
+                  title={seat.title}
+                  style={{ left: place.left, top: place.top, "--tilt": place.tilt } as React.CSSProperties}
+                  onClick={() => chooseSeat(seat)}
                 >
-                  {INSTRUMENTS[id].shortName}
+                  {seat.label}
                 </button>
               );
             })}
