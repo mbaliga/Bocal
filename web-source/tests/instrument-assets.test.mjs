@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile, stat } from "node:fs/promises";
 import test from "node:test";
 
-test("v1 ships optimized commercial-use saxophone and oboe references", async () => {
+test("the current product ships optimized saxophone and oboe references", async () => {
   const sax = await stat(new URL("../public/models/saxophone-alto.glb", import.meta.url));
   const oboe = await stat(new URL("../public/models/oboe-howarth-s20c.glb", import.meta.url));
   assert.ok(sax.size > 1_000_000 && sax.size < 2_500_000);
@@ -12,12 +12,15 @@ test("v1 ships optimized commercial-use saxophone and oboe references", async ()
 test("instrument scope, learning readiness, and licenses stay explicit", async () => {
   const profiles = await readFile(new URL("../app/instruments.ts", import.meta.url), "utf8");
   const attribution = await readFile(new URL("../public/models/ATTRIBUTION.md", import.meta.url), "utf8");
+  const saxLab = await readFile(new URL("../app/SaxophoneLab.tsx", import.meta.url), "utf8");
   const oboeLab = await readFile(new URL("../app/OboeLab.tsx", import.meta.url), "utf8");
   assert.match(profiles, /Fingering trainer \+ 3D reference/);
   assert.match(profiles, /3D anatomy preview/);
   assert.match(attribution, /ANDRIANIAINAToky/);
   assert.match(attribution, /WarderiiK/);
   assert.match(attribution, /CC BY 4\.0/g);
+  assert.match(saxLab, /creativecommons\.org\/licenses\/by\/4\.0/);
+  assert.match(oboeLab, /creativecommons\.org\/licenses\/by\/4\.0/);
   assert.match(oboeLab, /not yet reviewed by an oboe specialist/);
 });
 

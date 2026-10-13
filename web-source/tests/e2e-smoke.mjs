@@ -21,7 +21,7 @@ const sizes = [
   { name: "tablet", width: 1280, height: 800 },
 ];
 try {
-  for (const theme of ["dark", "light"]) for (const instrumentId of ["alto-sax", "clarinet", "oboe"]) for (const size of sizes) {
+  for (const theme of ["dark", "light"]) for (const instrumentId of ["alto-sax", "clarinet", "oboe", "vocal"]) for (const size of sizes) {
     const label = `${instrumentId}-${theme}-${size.name}`;
     const context = await browser.newContext({ viewport: { width: size.width, height: size.height } });
     const page = await context.newPage();
@@ -57,6 +57,67 @@ try {
           // per-mode switch, so check it on every workspace, not just Tune.
           assert.equal(await page.locator(".dock-pill .pill-track > path").count(), 2, "The Tune instrument-switch arc is missing");
         }
+      }
+      if (instrumentId === "vocal" && size.name === "tall-phone") {
+        // Vocal warm-up: start, pause, finish and confirm it was logged.
+        await page.keyboard.press("2");
+        await page.getByRole("heading", { name: "Three easy steps" }).waitFor();
+        // V-A: the pitch graph's Hold freezes it for review and Live snaps back.
+        const graph = page.locator(".vocal-graph");
+        await graph.waitFor();
+        const canvasSize = await page.locator(".vocal-graph-canvas").boundingBox();
+        assert.ok(canvasSize && canvasSize.width > 200 && canvasSize.height > 150, "the pitch graph canvas has a real size");
+        assert.equal(await page.getByRole("button", { name: "Back to live graph" }).isDisabled(), true, "Live is idle until the graph is held");
+        await page.getByRole("button", { name: "Hold", exact: true }).click();
+        await page.locator(".vocal-graph.is-held").waitFor();
+        assert.equal(await page.getByRole("button", { name: "Hold", exact: true }).getAttribute("aria-pressed"), "true");
+        await page.getByRole("button", { name: "Show less time" }).click();
+        await page.getByRole("button", { name: "Back to live graph" }).click();
+        await page.waitForFunction(() => !document.querySelector(".vocal-graph.is-held"));
+        assert.equal(await page.getByRole("button", { name: "Hold", exact: true }).getAttribute("aria-pressed"), "false");
+        await page.locator(".vocal-studio-card").first().click();
+        await page.getByRole("button", { name: "Start warm-up" }).click();
+        await page.waitForFunction(() => document.querySelector(".vocal-routine-clock strong")?.textContent !== "0:00");
+        await page.getByRole("button", { name: "Pause" }).click();
+        await page.getByRole("button", { name: "Finish & save" }).click();
+        await page.waitForFunction(() => {
+          const entries = JSON.parse(localStorage.getItem("bocal-practice-activity-v1") || "[]");
+          return entries.some((entry) => entry.type === "vocal" && entry.instrumentId === "vocal");
+        });
+        // V-B: the melody editor. Audio is muted in headless Chromium, so this
+        // asserts on the screen. Notes come from the picker and from a tap on
+        // the graph's note names, and the melody is kept under its own key.
+        await page.getByRole("heading", { name: "Sing along to a melody" }).waitFor();
+        assert.equal(await page.locator(".vocal-melody-choice").count(), 6, "Bocal's six own melodies are listed");
+        assert.equal(await page.locator('.vocal-melody-tag[data-source="bundled"]').count(), 6);
+        await page.getByRole("button", { name: "New melody" }).click();
+        await page.getByRole("group", { name: "Melody editor" }).waitFor();
+        await page.getByRole("button", { name: "Add note" }).click();
+        await page.getByLabel("Next note").selectOption("62");
+        await page.getByRole("button", { name: "Add note" }).click();
+        await page.locator(".vocal-graph-canvas").click({ position: { x: 20, y: 120 } });
+        await page.waitForFunction(() => document.querySelectorAll(".vocal-melody-notes.is-editing li").length === 3);
+        await page.getByRole("button", { name: "Remove note 3" }).click();
+        assert.equal(await page.locator(".vocal-melody-notes.is-editing li").count(), 2);
+        await page.getByLabel("Name", { exact: true }).fill("Two notes");
+        await page.getByRole("button", { name: "Save melody" }).click();
+        await page.locator('.vocal-melody-tag[data-source="user"]').waitFor();
+        const stored = await page.evaluate(() => JSON.parse(localStorage.getItem("bocal-vocal-melodies-v1") || "[]"));
+        assert.equal(stored.length, 1, "the melody is stored on this device");
+        assert.equal(stored[0].name, "Two notes");
+        assert.equal(stored[0].notes.length, 2);
+        assert.equal(stored[0].source, undefined, "only the singer's own melody is written, in the stored shape");
+        // A bundled melody plays a pass: the notes are scheduled, the bands go up, and the pass ends by itself.
+        await page.locator(".vocal-melody-choice").filter({ hasText: "Five-note scale" }).click();
+        await page.getByRole("button", { name: "Play pass" }).click();
+        await page.getByText("Playing. Sing along to the bands on the graph.").waitFor();
+        await page.getByRole("button", { name: "Stop pass" }).waitFor();
+        await page.waitForFunction(() => document.querySelectorAll(".vocal-melody-notes li.is-current").length === 1);
+        await page.getByRole("button", { name: "Clear pass" }).waitFor({ timeout: 20000 });
+        assert.match(await page.locator(".vocal-melody-status").innerText(), /microphone was off/);
+        assert.equal(await page.locator(".vocal-melody-results").count(), 0, "with the microphone off there is nothing to report per note");
+        await page.getByRole("button", { name: "Clear pass" }).click();
+        await page.getByRole("button", { name: "Play pass" }).waitFor();
       }
       assert.deepEqual(pageErrors, [], `${label}: browser errors`);
       if (instrumentId === "alto-sax") await page.screenshot({ path: path.join(evidence, `${label}.png`) });
@@ -140,6 +201,129 @@ try {
     } catch (error) { errors.push(`${label}: ${error.message}`); }
     finally { await context.close(); }
   }
+  // Play-along drill: open the Tune workspace, find the drill under the tone
+  // generator and see its phrase controls and the honesty line. No microphone
+  // is needed to see them; pressing Start without one must say so rather than
+  // do nothing. Both themes.
+  for (const theme of ["dark", "light"]) {
+    const label = `play-along-tune-${theme}`;
+    const context = await browser.newContext({ viewport: { width: 412, height: 915 } });
+    try {
+      const page = await context.newPage();
+      page.setDefaultTimeout(10000);
+      const pageErrors = [];
+      page.on("pageerror", (error) => pageErrors.push(String(error)));
+      await page.addInitScript((t) => {
+        localStorage.setItem("bocal-onboarding-v2", "complete");
+        localStorage.setItem("bocal-theme", t);
+        localStorage.setItem("bocal-instrument", "alto-sax");
+      }, theme);
+      await page.goto(preview.url);
+      await page.locator(".app-shell").waitFor();
+      const drill = page.locator(".call-response");
+      await drill.waitFor();
+      await drill.scrollIntoViewIfNeeded();
+      // It sits below the tone generator in the Tune workspace.
+      const toneBox = await page.locator(".tone-generator-card").boundingBox();
+      const drillBox = await drill.boundingBox();
+      assert.ok(toneBox && drillBox && drillBox.y > toneBox.y + toneBox.height - 1, `${label}: the drill is below the tone generator`);
+      await page.getByRole("heading", { name: "Hear a phrase, then answer it" }).waitFor();
+      const phraseSelect = drill.getByLabel("Phrase");
+      assert.deepEqual((await phraseSelect.locator("option").allInnerTexts()).slice(0, 3), ["Five-note scale", "Arpeggio", "Descending fifth"], `${label}: the bundled phrases come first`);
+      assert.equal(await drill.getByRole("group", { name: "How close the notes must be" }).getByRole("button").count(), 3, `${label}: lenient, standard, strict`);
+      await drill.getByLabel("Tries per phrase").waitFor();
+      await drill.getByLabel("Move on by itself").waitFor();
+      const box = await drill.locator(".call-response-canvas").boundingBox();
+      assert.ok(box && box.width > 200 && box.height > 100, `${label}: the phrase plot has a real size`);
+      // An alto sax reads the concert phrase nine semitones up, so the chips are written pitch.
+      assert.ok((await drill.locator(".call-response-notes li").count()) >= 4, `${label}: the phrase is listed note by note`);
+      assert.match(await drill.locator(".call-response-honesty").innerText(), /pitch and order only[\s\S]*Timing is not judged[\s\S]*Bocal.s own settings/, `${label}: the honesty line is visible`);
+      // A choice is kept.
+      await drill.getByRole("button", { name: "Strict", exact: true }).click();
+      assert.equal(await drill.getByRole("button", { name: "Strict", exact: true }).getAttribute("aria-pressed"), "true");
+      await page.waitForFunction(() => /"threshold":"strict"/.test(localStorage.getItem("bocal-call-response-v1") || ""));
+      // Without a microphone, Start says why.
+      await drill.getByRole("button", { name: "Start", exact: true }).click();
+      await drill.locator(".call-response-notice").waitFor();
+      assert.equal(await drill.getAttribute("data-state"), "idle", `${label}: no round starts without a microphone`);
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth <= 1), `${label}: no horizontal overflow`);
+      assert.deepEqual(pageErrors, [], `${label}: browser errors`);
+      results.push({ label, passed: true });
+    } catch (error) { errors.push(`${label}: ${error.message}`); }
+    finally { await context.close(); }
+  }
+  // V-B with a fake microphone (Chromium's own test device): record vocal
+  // takes, see them listed with a pitch trace, lay one over the other, rename,
+  // keep them in the shared library, delete one, then sing a melody pass with
+  // the microphone on and read the per-note figures.
+  const fakeMicBrowser = await launchChromium({ args: ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream"] });
+  try {
+    const label = "vocal-takes-and-melody-fake-microphone";
+    const context = await fakeMicBrowser.newContext({ viewport: { width: 412, height: 915 }, permissions: ["microphone"] });
+    const page = await context.newPage();
+    page.setDefaultTimeout(15000);
+    const pageErrors = [];
+    page.on("pageerror", (error) => pageErrors.push(String(error)));
+    try {
+      await page.addInitScript(() => {
+        localStorage.setItem("bocal-onboarding-v2", "complete");
+        localStorage.setItem("bocal-theme", "dark");
+        localStorage.setItem("bocal-instrument", "vocal");
+      });
+      await page.goto(preview.url);
+      await page.locator(".app-shell").waitFor();
+      await page.keyboard.press("2");
+      await page.getByRole("heading", { name: "Record a take and listen back" }).waitFor();
+      await page.waitForFunction(() => !/Restoring/.test(document.querySelector(".vocal-takes-status")?.textContent || ""));
+      const record = page.getByRole("button", { name: "Record take" });
+      for (const _take of [1, 2]) {
+        await record.click();
+        await page.locator(".vocal-takes-clock", { hasText: "Recording" }).waitFor();
+        await page.waitForTimeout(1800);
+        await page.getByRole("button", { name: "Finish take" }).click();
+        await page.getByText("Take saved on this device").waitFor();
+      }
+      assert.equal(await page.locator(".vocal-take-list li").count(), 2, "both takes are listed");
+      const kinds = await page.evaluate(() => new Promise((resolve, reject) => {
+        const open = indexedDB.open("bocal-analysis-takes", 1);
+        open.onerror = () => reject(open.error);
+        open.onsuccess = () => {
+          const request = open.result.transaction("takes", "readonly").objectStore("takes").getAll();
+          request.onsuccess = () => resolve(request.result.map((take) => take.kind));
+        };
+      }));
+      assert.deepEqual(kinds, ["vocal", "vocal"], "vocal takes are stored with kind vocal");
+      await page.waitForFunction(() => !document.querySelector(".vocal-take-detail .take-pitch-progress"), undefined, { timeout: 30000 });
+      assert.ok(await page.locator(".vocal-take-detail .take-pitch-trace canvas").isVisible(), "the take's pitch trace is drawn");
+      await page.getByLabel("Name", { exact: true }).fill("Morning take");
+      await page.getByLabel("Compare with").selectOption({ index: 1 });
+      await page.getByRole("button", { name: "By first note" }).waitFor();
+      // Reloading keeps the takes and the rename: they were committed.
+      await page.waitForTimeout(400);
+      await page.reload();
+      await page.locator(".app-shell").waitFor();
+      await page.keyboard.press("2");
+      await page.locator(".vocal-take-list li").first().waitFor();
+      assert.equal(await page.locator(".vocal-take-list li").count(), 2, "takes survive a reload");
+      assert.ok((await page.locator(".vocal-take-list").innerText()).includes("Morning take"), "the rename survives a reload");
+      page.once("dialog", (dialog) => void dialog.accept());
+      await page.getByRole("button", { name: "Delete", exact: true }).click();
+      await page.waitForFunction(() => document.querySelectorAll(".vocal-take-list li").length === 1);
+      // A melody pass with the microphone on reports a figure set per note.
+      await page.getByRole("button", { name: "Start microphone" }).first().click();
+      await page.getByRole("button", { name: "Stop microphone" }).waitFor();
+      await page.locator(".vocal-melody-choice").filter({ hasText: "Octave leap" }).click();
+      await page.getByRole("button", { name: "Play pass" }).click();
+      await page.getByRole("button", { name: "Clear pass" }).waitFor({ timeout: 25000 });
+      assert.equal(await page.locator(".vocal-melody-results li").count(), 3, "one row per note");
+      assert.match(await page.locator(".vocal-melody-results").innerText(), /say nothing about timing, technique or tone/);
+      assert.deepEqual(pageErrors, [], `${label}: browser errors`);
+      results.push({ label, passed: true });
+    } catch (error) {
+      errors.push(`${label}: ${error.message}`);
+      await page.screenshot({ path: path.join(evidence, `${label}-failure.png`) }).catch(() => undefined);
+    } finally { await context.close(); }
+  } finally { await fakeMicBrowser.close(); }
 } finally {
   await browser.close();
   await preview.close();

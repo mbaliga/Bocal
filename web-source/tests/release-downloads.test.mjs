@@ -3,9 +3,6 @@ import { readFile, readdir, stat } from "node:fs/promises";
 import test from "node:test";
 
 test("the public handoff and Android release gate point to repository-owned source and assets", async () => {
-  // The settings/downloads overlay moved out of page.tsx into its own
-  // module -- see DownloadCenter.tsx -- so the copy this test checks now
-  // lives there.
   const page = await readFile(new URL("../app/DownloadCenter.tsx", import.meta.url), "utf8");
   const publicDownloads = await readdir(new URL("../public/downloads/", import.meta.url));
   assert.ok(publicDownloads.includes("BOCAL_HANDOFF.md"));
@@ -24,8 +21,20 @@ test("the public handoff and Android release gate point to repository-owned sour
   assert.match(page, /Only models with usable rights and player-checked keywork/i);
 });
 
+test("the release workflow cannot silently skip its production gates", async () => {
+  const workflow = await readFile(new URL("../../.github/workflows/release.yml", import.meta.url), "utf8");
+  const verifier = await stat(new URL("../../android/verify-aab.sh", import.meta.url));
+  assert.ok((verifier.mode & 0o111) !== 0, "AAB verifier must remain executable");
+  assert.match(workflow, /npm run test:e2e/);
+  assert.match(workflow, /npm run test:theme/);
+  assert.match(workflow, /Missing release signing secrets/);
+  assert.match(workflow, /connectedDebugAndroidTest/);
+  assert.match(workflow, /\.\/verify-aab\.sh app\/build\/outputs\/bundle\/release\/app-release\.aab/);
+});
+
 test("the shipping Android tree (/android) is a hardened, local-first WebView shell", async () => {
   const manifest = await readFile(new URL("../../android/app/src/main/AndroidManifest.xml", import.meta.url), "utf8");
+  const betaManifest = await readFile(new URL("../../android/app/src/beta/AndroidManifest.xml", import.meta.url), "utf8");
   const webAppScreen = await readFile(
     new URL("../../android/app/src/main/java/com/bocal/music/ui/WebAppScreen.kt", import.meta.url),
     "utf8",
@@ -40,6 +49,7 @@ test("the shipping Android tree (/android) is a hardened, local-first WebView sh
   );
   assert.match(manifest, /RECORD_AUDIO/);
   assert.doesNotMatch(manifest, /uses-permission[^>]+INTERNET/);
+  assert.match(betaManifest, /uses-permission[^>]+INTERNET/);
   assert.match(manifest, /android:allowBackup="false"/);
   assert.match(webAppScreen, /appassets\.androidplatform\.net/);
   assert.match(client, /APPASSETS_HOST/);

@@ -50,6 +50,12 @@ android {
     }
 
     buildTypes {
+        create("beta") {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".beta"
+            versionNameSuffix = "-beta"
+            matchingFallbacks += listOf("debug")
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
@@ -68,6 +74,10 @@ android {
         buildConfig = true
     }
 
+    if (providers.gradleProperty("sharedLibrariesDir").isPresent) {
+        sourceSets.getByName("beta").java.srcDir("src/sharedSessionBeta/kotlin")
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -80,6 +90,9 @@ android {
 }
 
 dependencies {
+    if (providers.gradleProperty("sharedLibrariesDir").isPresent) {
+        add("betaImplementation", "dev.aarso:local-session-core:0.1.0")
+    }
     implementation("androidx.core:core-ktx:1.19.0")
     implementation("androidx.activity:activity-compose:1.13.0")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.11.0")

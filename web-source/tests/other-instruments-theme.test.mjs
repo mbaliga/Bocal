@@ -8,19 +8,18 @@ test("the wider instrument gallery is rich discovery, not an unsafe instrument s
 
   assert.ok(otherCollection, "other instrument collection is declared");
   assert.match(experience, /Woodwinds/);
+  assert.match(experience, /Vocal \(.*ready\)/);
   assert.match(experience, /Other Instruments/);
   assert.doesNotMatch(otherCollection[0], /availableId/);
-  for (const family of ["Bowed strings", "Fretted & plucked", "Brass", "Keyboards", "Percussion", "Voice", "Electronic & MIDI"]) {
+  for (const family of ["Bowed strings", "Fretted & plucked", "Brass", "Keyboards", "Percussion", "Electronic & MIDI"]) {
     assert.match(otherCollection[0], new RegExp(family.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
   assert.match(experience, /InstrumentId until each profile has a validated musical contract/);
 });
 
 test("appearance is persisted before paint and has semantic material tokens", async () => {
-  // DownloadCenter (the settings/appearance panel) moved out of page.tsx
-  // into its own module -- see DownloadCenter.tsx -- so the "Appearance"
-  // panel heading is read from there now; THEME_STORAGE_KEY's single
-  // declaration lives in storage-keys.ts, imported everywhere it's used.
+  // DownloadCenter (the settings/appearance panel) lives in its own module
+  // and THEME_STORAGE_KEY's single declaration lives in storage-keys.ts.
   const [page, downloadCenter, storageKeys, layout, styles] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/DownloadCenter.tsx", import.meta.url), "utf8"),

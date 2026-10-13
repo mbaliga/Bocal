@@ -2,7 +2,7 @@ export const PRACTICE_ACTIVITY_STORAGE_KEY = "bocal-practice-activity-v1";
 export const SONG_WISHLIST_STORAGE_KEY = "bocal-song-wishlist-v1";
 export const COMPLETED_PRACTICE_STORAGE_KEY = "bocal-completed-practice-v1";
 
-export type PracticeActivityType = "tuning" | "fingering" | "rhythm" | "chords" | "analysis" | "repertoire" | "session";
+export type PracticeActivityType = "tuning" | "fingering" | "rhythm" | "chords" | "analysis" | "repertoire" | "session" | "vocal";
 
 export type PracticeActivity = {
   id: string;
@@ -24,7 +24,7 @@ export type SongWish = {
   updatedAt?: string;
 };
 
-const ACTIVITY_TYPES = new Set<PracticeActivityType>(["tuning", "fingering", "rhythm", "chords", "analysis", "repertoire", "session"]);
+const ACTIVITY_TYPES = new Set<PracticeActivityType>(["tuning", "fingering", "rhythm", "chords", "analysis", "repertoire", "session", "vocal"]);
 
 function isActivity(value: unknown): value is PracticeActivity {
   if (!value || typeof value !== "object") return false;
