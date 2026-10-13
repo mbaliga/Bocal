@@ -199,7 +199,7 @@ export function GuitarStudio({ reading, listening, onListen }: { reading: Guitar
       </section>
 
       <div className="guitar-primary-grid">
-        <section className="guitar-tuner-card">
+        <section className="guitar-tuner-card" id="ctx-guitar-tuner">
           <div className="guitar-card-head"><span className="card-kicker"><Guitar size={15} /> String tuner</span><select value={tuningId} onChange={(event) => setTuningId(event.target.value)} aria-label="Guitar tuning">{GUITAR_TUNINGS.map((item) => <option value={item.id} key={item.id}>{item.label} · {item.detail}</option>)}</select></div>
           <div className="guitar-tuner-readout"><span>Target</span><strong>{activeString.label}</strong><small>{stringCents === null ? "Waiting for a clear pitch" : `${stringCents > 0 ? "+" : ""}${stringCents}¢ · ${instruction}`}</small></div>
           <div className={`guitar-string-meter ${stringInTune ? "is-centered" : ""}`}><i /><b style={{ left: `${Math.max(5, Math.min(95, 50 + (stringCents ?? 0) * 0.85))}%` }} /></div>
@@ -217,7 +217,7 @@ export function GuitarStudio({ reading, listening, onListen }: { reading: Guitar
         </aside>
       </div>
 
-      <section className="chord-player-card">
+      <section className="chord-player-card" id="ctx-guitar-chords">
         <div className="chord-player-intro"><span className="card-kicker"><Ear size={15} /> Follow player</span><h2>Four-chord flow.</h2><p>Use the coloured fingering chart, play a clear root note, and Bocal can wait before revealing the next shape.</p></div>
         <div className="chord-flow" aria-label="Four chord flow">{progression.map((chord, index) => <button key={`${chord.id}-${index}`} className={playerStep === index ? "is-current" : ""} onClick={() => { setPlayerStep(index); setSelectedChordId(chord.id); }}><span>{String(index + 1).padStart(2, "0")}</span><strong>{chord.name}</strong><small>{chord.root} root</small></button>)}</div>
         <div className="chord-player-controls">

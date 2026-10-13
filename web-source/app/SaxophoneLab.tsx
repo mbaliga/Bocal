@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { CallAndResponse } from "./CallAndResponse";
+import { OBOE_VIEW_IDS } from "./context-seats";
 import { FingeringChart } from "./FingeringChart";
 import { FINGERING_CHARTS } from "./fingering-charts";
 import { ImportedInstrumentCanvas, type InstrumentViewId } from "./ImportedInstrumentCanvas";
@@ -150,17 +151,26 @@ export function SaxophoneLab({
   instrumentId = "alto-sax",
   notation = "western",
   saTonic = 0,
+  seat,
+  onSeatChange,
 }: {
   onBack: () => void;
   instrumentId?: InstrumentId;
   notation?: NotationSystem;
   saTonic?: number;
+  /** The view the dock pill holds for this lab, and how the lab reports its own change of view. Both optional. */
+  seat?: string;
+  onSeatChange?: (next: string) => void;
 }) {
   const tier = INSTRUMENTS[instrumentId].labTier;
-  if (tier === "anatomy") return <OboeLab onBack={onBack} instrumentId={instrumentId} notation={notation} saTonic={saTonic} />;
+  if (tier === "anatomy") return <OboeLab onBack={onBack} instrumentId={instrumentId} notation={notation} saTonic={saTonic} viewPreset={seat === undefined ? undefined : sanitiseOboeView(seat)} onViewPresetChange={onSeatChange} />;
   if (tier === "chart") return <FingeringChartLab onBack={onBack} instrumentId={instrumentId} notation={notation} saTonic={saTonic} />;
   if (tier === "none") return <LabUnavailable onBack={onBack} instrumentId={instrumentId} />;
-  return <SaxFingeringLab onBack={onBack} instrumentId={instrumentId} notation={notation} saTonic={saTonic} />;
+  return <SaxFingeringLab onBack={onBack} instrumentId={instrumentId} notation={notation} saTonic={saTonic} seat={seat} onSeatChange={onSeatChange} />;
+}
+
+function sanitiseOboeView(seat: string): InstrumentViewId | undefined {
+  return (OBOE_VIEW_IDS as readonly string[]).indexOf(seat) >= 0 ? (seat as InstrumentViewId) : undefined;
 }
 
 /**
@@ -239,11 +249,15 @@ function SaxFingeringLab({
   instrumentId,
   notation,
   saTonic,
+  seat,
+  onSeatChange,
 }: {
   onBack: () => void;
   instrumentId: InstrumentId;
   notation: NotationSystem;
   saTonic: number;
+  seat?: string;
+  onSeatChange?: (next: string) => void;
 }) {
   const instrument = INSTRUMENTS[instrumentId];
   const isAlto = instrumentId === "alto-sax";
@@ -482,6 +496,9 @@ function SaxFingeringLab({
     // those are exactly what a beginner needs to drill.
     const pool = fingerings
       .filter((fingering) => includeAltissimoInChallenge || fingering.level !== "Altissimo");
+    // Only ever called from a button or the pill's timer, never during render;
+    // the purity rule cannot see that now that the pill can also call it.
+    // eslint-disable-next-line react-hooks/purity
     const next = pool[Math.floor(Math.random() * pool.length)];
     setTrainerMode("challenge");
     setChallenge(next);
@@ -533,6 +550,30 @@ function SaxFingeringLab({
     setFeedback("idle");
     setActiveKeys(new Set(selectedChoice.keys));
   };
+
+  // The dock pill's Learn / Challenge seats and this lab's own two buttons are
+  // the same switch: the pill drives the same handlers the buttons call, and a
+  // change made with the buttons is reported back to the pill.
+  const seatTrainerMode = seat === "learn" || seat === "challenge" ? seat : undefined;
+  const trainerModeRef = useRef(trainerMode);
+  const reportedModeRef = useRef(trainerMode);
+  useEffect(() => { trainerModeRef.current = trainerMode; });
+  useEffect(() => {
+    if (seatTrainerMode === undefined || seatTrainerMode === trainerModeRef.current) return;
+    // Run from a zero-delay timer like the app's other deferred loads, so a
+    // seat restored from storage does not set state inside the effect itself.
+    const timer = window.setTimeout(() => {
+      if (seatTrainerMode === "challenge") startChallenge(); else switchToLearn();
+    }, 0);
+    return () => window.clearTimeout(timer);
+    // Only a new seat from the pill should run this, not every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seatTrainerMode]);
+  useEffect(() => {
+    if (reportedModeRef.current === trainerMode) return;
+    reportedModeRef.current = trainerMode;
+    onSeatChange?.(trainerMode);
+  }, [trainerMode, onSeatChange]);
 
   const selectSetupPart = (partId: SetupPartId) => {
     setSetupPartId(partId);

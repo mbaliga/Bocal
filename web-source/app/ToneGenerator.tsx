@@ -668,7 +668,7 @@ export function ToneGenerator({
   const temperamentLabel = TEMPERAMENT_PROFILES[temperament]?.label ?? temperament;
 
   return (
-    <section className="tone-generator-card" aria-labelledby="tone-generator-title">
+    <section className="tone-generator-card" id="ctx-tone-generator" aria-labelledby="tone-generator-title">
       <header className="tone-generator-head">
         <div><span className="card-kicker"><Volume2 size={14} /> Tone generator</span><h2 id="tone-generator-title">Hear any target.</h2><p>Use a clean reference tone for a note, interval or chord shape. The synth voice follows your calibration.</p></div>
         <button className="tone-stop" onClick={stopAllVoices} disabled={!isAnythingSounding}><Pause size={14} /> {sustain ? "Release all" : "Stop"}</button>

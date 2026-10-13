@@ -44,16 +44,26 @@ export function OboeLab({
   instrumentId = "oboe",
   notation = "western",
   saTonic = 0,
+  viewPreset: viewPresetProp,
+  onViewPresetChange,
 }: {
   onBack: () => void;
   instrumentId?: InstrumentId;
   notation?: NotationSystem;
   saTonic?: number;
+  /** Optional: the camera preset the dock pill holds. Leave both out and the lab keeps its own choice. */
+  viewPreset?: InstrumentViewId;
+  onViewPresetChange?: (next: InstrumentViewId) => void;
 }) {
   const instrument = INSTRUMENTS[instrumentId];
   const isOboe = instrumentId === "oboe";
   const chart = FINGERING_CHARTS[instrumentId];
-  const [viewPreset, setViewPreset] = useState<InstrumentViewId>("front");
+  const [ownViewPreset, setOwnViewPreset] = useState<InstrumentViewId>("front");
+  const viewPreset = viewPresetProp ?? ownViewPreset;
+  const setViewPreset = useCallback((next: InstrumentViewId) => {
+    setOwnViewPreset(next);
+    onViewPresetChange?.(next);
+  }, [onViewPresetChange]);
   const [resetView, setResetView] = useState(0);
   const [immersive, setImmersive] = useState(false);
   const [selectedPart, setSelectedPart] = useState<{ name: string; category: string } | null>(null);

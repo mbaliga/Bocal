@@ -1,0 +1,5 @@
+/* Sections the dock pill scrolls to. The top bar floats over the page on
+   phones and the dock covers the bottom edge, so a section scrolled to the top
+   of the screen would land under the bar. This only offsets where the scroll
+   stops; the pill itself is styled in globals.css and is not touched here. */
+[id^="ctx-"] { scroll-margin-top: 88px; }
