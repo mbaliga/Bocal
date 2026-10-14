@@ -97,6 +97,10 @@ A seat that scrolls moves focus to the section's heading. A stored seat is scrol
 | Android shell | WebView wrapper over this web build; two third-party glTF models ship (alto sax, oboe); no signed release build exists |
 | Tests | Source tests cover product truth, chart invariants, model scale, and local persistence; `test:e2e` and `test:theme` are explicit browser gates |
 
+## Platform targets
+
+Android is the only shell today. Ubuntu Touch, Linux, iOS/iPadOS, macOS and Windows hosts are planned, not built: see `docs/PORTING_PLAN.md` (PLAN, 2026-10-06; nothing in it is built or device-verified).
+
 ## Where the fuller detail lives
 
 - Instrument and lab-tier source of truth: `web-source/app/instruments.ts`.
