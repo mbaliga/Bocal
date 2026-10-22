@@ -77,3 +77,7 @@ This document records the 0.5 design update requested for the next packaged sour
 ### Practice
 - Upgrade timer, focus cards and sessions list to the new image/card system.
 - Keep export and note capture obvious.
+
+## 6) Shared Hyle arc navigation
+
+The arc navigation is now governed by [`../../docs/HYLE_ARC_NAVIGATION_DIRECTIVE.md`](../../docs/HYLE_ARC_NAVIGATION_DIRECTIVE.md). Bocal should adopt that single-stage Hyle geometry instead of evolving a product-local variation.
