@@ -86,6 +86,11 @@ The left seat is the default. The pairs are defined in `web-source/app/context-s
 
 A seat that scrolls moves focus to the section's heading. A stored seat is scrolled to again when its workspace opens, but the pill does not follow your scrolling afterwards, so it shows the last seat chosen, not where the page happens to be.
 
+
+### Touch targets
+
+On touch screens (`pointer: coarse` or `hover: none`, which covers the Android WebView) every control has a hit area of at least 44 by 44 CSS px, in both themes, on every workspace, at 412 and 360 px wide. `web-source/app/styles/touch-targets.css` does this: chips, segmented buttons, selects, text inputs and buttons grow to 44 px; controls that would look wrong enlarged (beat dots, switch toggles, the Reset and status text buttons, model credit links, the context pill and arc seats, the exercise-chip edit and delete discs) keep their look and extend the hit area with an invisible `::after`. `web-source/tests/tap-targets.mjs` (part of `npm run test:e2e`) hit-tests every interactive element and fails below 44 px. Exempt, with reasons listed in the test: the visually hidden skip link (it grows on focus), anything inside a canvas, native range sliders (the thumb is the target; the input must be at least 32 px tall and, with padding, 44 px for the hit area) and inline text links inside paragraphs (24 px, WCAG 2.5.8). On phones the invisible 14 px "Keyboard" shortcut button is hidden; keyboard help stays in Settings.
+
 ## Cross-cutting state
 
 | Area | State |
