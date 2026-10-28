@@ -536,8 +536,8 @@ export default function Home() {
       <a className="skip-to-content" href="#bocal-main">Skip to content</a>
       <aside className="side-rail" aria-label="Primary navigation">
         <button className="brand-mark" onClick={() => selectMode("tune")} aria-label="Bocal home">
-          <span className="brand-glyph"><Wind size={20} strokeWidth={2.4} /></span>
-          <span>bocal</span>
+          <span className="brand-glyph" aria-hidden="true" />
+          <span className="brand-logotype" aria-hidden="true" />
         </button>
 
         <nav className="rail-nav">

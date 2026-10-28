@@ -27,7 +27,7 @@ const themeBootstrap = `(() => {
 export const metadata: Metadata = {
   title: "Bocal — The clearer way to practise",
   description: "A private, instrument-first practice studio for woodwind players, with a cinematic path into other instrument families.",
-  icons: { icon: "/favicon.svg", shortcut: "/favicon.svg" },
+  icons: { icon: [{ url: "/favicon.png", type: "image/png", sizes: "64x64" }, { url: "/favicon.svg", type: "image/svg+xml" }], shortcut: "/favicon.png", apple: "/images/bocal-logo.png" },
 };
 export const viewport = {
   width: "device-width", initialScale: 1, viewportFit: "cover" as const,

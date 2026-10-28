@@ -51,8 +51,8 @@ button:focus-visible, [role="button"]:focus-visible, a:focus-visible, input:focu
 .side-rail { position: sticky; top: 0; height: 100dvh; overflow: hidden; border-right: 1px solid var(--line-soft); padding: 28px 18px 22px; display: flex; flex-direction: column; background: radial-gradient(circle at 118% 48%, rgba(8,254,213,.055), transparent 40%), #09090a; z-index: 20; }
 .side-rail::after { content: ""; position: absolute; z-index: -1; width: 270px; height: 76%; right: -211px; top: 12%; border: 1px solid rgba(142,123,255,.15); border-radius: 50%; box-shadow: 0 0 70px rgba(8,254,213,.035); pointer-events: none; }
 .brand-mark { appearance: none; border: 0; background: transparent; color: var(--ink); padding: 0 10px 30px; display: flex; gap: 11px; align-items: center; font-size: 22px; letter-spacing: -0.04em; font-weight: 650; cursor: pointer; }
-.brand-glyph { width: 31px; height: 31px; display: grid; place-items: center; color: #071815; background: var(--cyan); border-radius: 10px 10px 10px 4px; transform: rotate(-3deg); }
-.brand-glyph svg { transform: rotate(3deg); }
+.brand-glyph { width: 34px; height: 34px; display: block; background: url(/images/bocal-logo.png) center / contain no-repeat; }
+.brand-logotype { width: 73px; height: 26px; display: block; background: url(/images/bocal-logotype.png) center / contain no-repeat; }
 .rail-nav { margin-top: clamp(14px, 4vh, 44px); display: grid; gap: 8px; }
 .rail-button { height: 48px; padding: 0 15px; border: 1px solid transparent; border-radius: 999px; background: transparent; color: #858584; display: flex; align-items: center; gap: 12px; cursor: pointer; font-size: 14px; transition: transform 220ms ease, color 180ms ease, background 180ms ease, border-color 180ms ease; }
 .rail-button:nth-child(2), .rail-button:nth-child(4) { transform: translateX(9px); }
