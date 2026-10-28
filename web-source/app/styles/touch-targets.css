@@ -73,8 +73,9 @@
   .app-shell .metronome-top { position: relative; z-index: 2; }
   .app-shell .metronome-top button { position: relative; }
   .app-shell .metronome-top button::after { content: ""; position: absolute; z-index: 3; top: -16px; bottom: -16px; left: -0px; right: -0px; }
-  .app-shell .sax-model-credit { position: relative; }
-  .app-shell .sax-model-credit::after { content: ""; position: absolute; z-index: 3; top: -17px; bottom: -17px; left: -0px; right: -0px; }
+  /* The two credit links can wrap onto adjacent lines at 360 px, so expanded
+     hit areas would overlap. They get a real 44 px row instead. */
+  .app-shell .sax-model-credit { min-height: 44px; }
   .app-shell .reference-model-strip a { position: relative; }
   .app-shell .reference-model-strip a::after { content: ""; position: absolute; z-index: 3; top: -10px; bottom: -10px; left: -0px; right: -0px; }
 
