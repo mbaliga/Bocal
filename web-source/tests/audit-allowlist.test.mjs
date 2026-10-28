@@ -3,13 +3,13 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { evaluateAudit, checkAllowlist } from "../../scripts/audit-dependencies.mjs";
 
-const ID = "GHSA-vfj7-8cjw-p6xm";
-const advisory = { source: 1, name: "braces", severity: "high", url: `https://github.com/advisories/${ID}`, range: "<=3.0.3" };
+const ID = "GHSA-wx4j-mvgx-mqwp";
+const advisory = { source: 1, name: "satori", severity: "high", url: `https://github.com/advisories/${ID}`, range: "<0.33.5" };
 const report = () => ({
   vulnerabilities: {
-    braces: { name: "braces", severity: "high", via: [advisory] },
-    micromatch: { name: "micromatch", severity: "high", via: ["braces"] },
-    vinext: { name: "vinext", severity: "high", via: ["micromatch"] },
+    satori: { name: "satori", severity: "high", via: [advisory] },
+    "@vercel/og": { name: "@vercel/og", severity: "high", via: ["satori"] },
+    vinext: { name: "vinext", severity: "high", via: ["@vercel/og"] },
   },
 });
 const entry = (over = {}) => ({
@@ -27,7 +27,7 @@ test("allowlisted advisory covers the finding and its transitive parents", () =>
 test("a finding with no allowlist entry is not accepted", () => {
   const r = evaluateAudit(report(), { entries: [] }, now);
   assert.equal(r.ok, false);
-  assert.deepEqual(r.unaccepted.sort(), ["braces", "micromatch", "vinext"]);
+  assert.deepEqual(r.unaccepted.sort(), ["@vercel/og", "satori", "vinext"]);
 });
 
 test("an expired entry fails the gate", () => {
@@ -50,8 +50,8 @@ test("an unrelated new advisory under an allowlisted parent still fails", () => 
 
 test("critical findings can never be allowlisted", () => {
   const rep = report();
-  rep.vulnerabilities.braces.severity = "critical";
-  rep.vulnerabilities.braces.via = [{ ...advisory, severity: "critical" }];
+  rep.vulnerabilities.satori.severity = "critical";
+  rep.vulnerabilities.satori.via = [{ ...advisory, severity: "critical" }];
   assert.equal(evaluateAudit(rep, { entries: [entry()] }, now).ok, false);
 });
 
