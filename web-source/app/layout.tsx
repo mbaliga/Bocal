@@ -4,6 +4,7 @@ import { RuntimeSafety } from "./RuntimeSafety";
 import "./globals.css";
 import "./styles/contrast.css";
 import "./styles/compact-layout.css";
+import "./styles/touch-targets.css";
 import { THEME_STORAGE_KEY } from "./storage-keys";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });

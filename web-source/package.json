@@ -14,7 +14,7 @@
     "typecheck": "tsc --noEmit",
     "test": "npm run typecheck && node --import tsx --test tests/*.test.mjs",
     "test:dist": "npm run build && node --test tests/*.dist-test.mjs",
-    "test:e2e": "node --import tsx tests/e2e-smoke.mjs && node tests/nav-picker-geometry.mjs",
+    "test:e2e": "node --import tsx tests/e2e-smoke.mjs && node tests/nav-picker-geometry.mjs && node tests/tap-targets.mjs",
     "test:theme": "npm run preview:standalone && node tests/theme.test.mjs",
     "validate:artifact": "bash scripts/validate-artifact.sh",
     "lint": "bash scripts/sites-env.sh -- eslint . --ignore-pattern dist --ignore-pattern .next --ignore-pattern preview-dist",
