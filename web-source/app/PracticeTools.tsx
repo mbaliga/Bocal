@@ -31,6 +31,7 @@ import {
   COMPLETED_PRACTICE_STORAGE_KEY,
   deletePracticeActivity,
   parsePracticeActivities,
+  parseSessions,
   parseSongWishlist,
   PRACTICE_ACTIVITY_STORAGE_KEY,
   SONG_WISHLIST_STORAGE_KEY,
@@ -38,6 +39,7 @@ import {
   updateSongWish,
   type PracticeActivity,
   type PracticeActivityType,
+  type SessionRecord,
   type SongWish,
 } from "./practice-data";
 import { saveOrShareFile } from "./takes-store";
@@ -51,6 +53,7 @@ import {
 // Imported (not redeclared) from storage-keys.ts, per the wave-2 plan's
 // "PulseView.tsx/PracticeTools.tsx (import only)" note.
 import { LESSON_NOTE_STORAGE_KEY, SESSIONS_STORAGE_KEY, WEEKLY_GOAL_STORAGE_KEY } from "./storage-keys";
+import { WEEKLY_GOAL_EVENT } from "./widget-snapshot";
 import "./styles/practice.css";
 
 // PulseView used to live in this file; it moved to its own module (see
@@ -81,20 +84,6 @@ const ACTIVITY_COLORS: Record<PracticeActivityType, string> = {
   session: "#8f8f93",
   vocal: "#c4a7ff",
 };
-
-type SessionRecord = { date: string; seconds: number; note?: string };
-
-/** `bocal-sessions`: hand-edited or corrupt data must never reach `.reduce` in weekFromSessions, so anything short of a plain array of {date, seconds} is dropped rather than trusted. */
-function parseSessions(raw: string | null): SessionRecord[] {
-  try {
-    const parsed = JSON.parse(raw ?? "[]");
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((item): item is SessionRecord =>
-      Boolean(item) && typeof item === "object" && typeof item.date === "string" && typeof item.seconds === "number" && Number.isFinite(item.seconds));
-  } catch {
-    return [];
-  }
-}
 
 /** `bocal-completed-practice-v1`: same shape guard as parseSessions, so a bad value can't crash `completed.includes(...)` in render. */
 function parseCompleted(raw: string | null): string[] {
@@ -294,6 +283,8 @@ export function PracticeView({
   const changeWeeklyGoal = (next: number) => {
     setWeeklyGoal(next);
     try { localStorage.setItem(WEEKLY_GOAL_STORAGE_KEY, String(next)); } catch { /* Optional local goal persistence. */ }
+    // The Android home-screen widgets show minutes against this goal.
+    window.dispatchEvent(new Event(WEEKLY_GOAL_EVENT));
   };
 
   return (
@@ -352,7 +343,7 @@ export function PracticeView({
       <CoachBoard />
 
       <div className="practice-lower-grid">
-        <section className="repertoire-card">
+        <section className="repertoire-card" id="ctx-practice-songs">
           <div className="list-card-head"><div><span className="card-kicker"><Music2 size={14} /> Repertoire</span><h2>In the shed</h2></div><span className="local-chip"><Archive size={12} /> Local</span></div>
           <RepertoireRow title="Four-chord flow" meta="Original Bocal practice pattern · guitar" progress={chordFlowProgress} status="Playable" />
           {songWishes.slice(0, 3).map((wish) => <RepertoireRow key={wish.id} title={wish.title} meta="Local title only · add your own licensed chart or audio" progress={wish.progress ?? 0} status={wish.status === "studying" ? "Studying" : "Wishlist"} onProgress={(progress) => updateSongWish(wish.id, { progress, status: progress > 0 ? "studying" : wish.status })} onStatus={() => updateSongWish(wish.id, { status: wish.status === "studying" ? "wishlist" : "studying" })} />)}

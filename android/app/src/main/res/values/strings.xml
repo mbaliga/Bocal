@@ -1,3 +1,145 @@
 <resources>
     <string name="app_name">Bocal</string>
+
+    <!-- Home-screen widgets (docs/widgets.md). Every number on a widget comes from
+         the summary the web app publishes; nothing here is sample data except the
+         *_preview strings, which only the widget picker's preview shows. -->
+    <string name="widget_week_name">This week</string>
+    <string name="widget_week_description">Practice minutes over the last seven days, against your weekly goal.</string>
+    <string name="widget_tune_name">Tune</string>
+    <string name="widget_tune_description">Your instrument and A4 reference, one tap from the tuner.</string>
+    <string name="widget_studying_name">Now studying</string>
+    <string name="widget_studying_description">The song you are working on and how far along you have marked it.</string>
+    <string name="widget_log_name">Practice log</string>
+    <string name="widget_log_description">Your newest practice sessions on this phone.</string>
+    <string name="widget_pulse_name">Pulse</string>
+    <string name="widget_pulse_description">The metronome, sequences and drone, one tap away, with this week\'s Pulse minutes.</string>
+    <string name="widget_instrument_name">Instrument</string>
+    <string name="widget_instrument_description">Your instrument, what its lab offers, and how far its chart has been checked.</string>
+
+    <!-- States every widget can reach. -->
+    <string name="widget_loading">Loading…</string>
+    <string name="widget_first_run_title">Open Bocal once</string>
+    <string name="widget_first_run_body">Your practice shows here after Bocal has been opened on this phone.</string>
+    <string name="widget_error_title">△ Can\'t read practice data</string>
+    <string name="widget_error_body">Bocal couldn\'t read its practice summary. Open Bocal to refresh it.</string>
+    <string name="widget_as_of">As of %1$s</string>
+    <string name="widget_stale">◷ Last updated %1$s · open Bocal to refresh</string>
+    <string name="widget_join">%1$s · %2$s</string>
+
+    <!-- Lengths, worded like the Practice screen. -->
+    <string name="widget_duration_none">—</string>
+    <string name="widget_duration_under_minute">&lt;1 min</string>
+    <string name="widget_duration_minutes">%1$d min</string>
+    <string name="widget_duration_hours_minutes">%1$dh %2$02dm</string>
+
+    <!-- The practice log's activity types (ACTIVITY_LABELS in PracticeTools.tsx). -->
+    <string name="widget_activity_tuning">Tune</string>
+    <string name="widget_activity_fingering">Fingering</string>
+    <string name="widget_activity_rhythm">Pulse</string>
+    <string name="widget_activity_chords">Chords</string>
+    <string name="widget_activity_analysis">Analysis</string>
+    <string name="widget_activity_repertoire">Repertoire</string>
+    <string name="widget_activity_session">General</string>
+    <string name="widget_activity_vocal">Vocal</string>
+
+    <!-- This week -->
+    <string name="widget_week_small">%1$d / %2$d min</string>
+    <string name="widget_week_of_goal">of %1$d min</string>
+    <string name="widget_week_percent">%1$d%% of your goal</string>
+    <string name="widget_week_goal_met">✓ Goal met</string>
+    <plurals name="widget_week_active_days">
+        <item quantity="one">%d active day</item>
+        <item quantity="other">%d active days</item>
+    </plurals>
+    <string name="widget_week_timer">Session timer: %1$s</string>
+    <string name="widget_week_day">%1$s: %2$s</string>
+    <plurals name="widget_week_value_description">
+        <item quantity="one">%1$d of %2$d minute</item>
+        <item quantity="other">%1$d of %2$d minutes</item>
+    </plurals>
+
+    <!-- Tune -->
+    <string name="widget_tune_reference">A4 = %1$s Hz</string>
+    <string name="widget_tune_reference_short">A4 %1$s Hz</string>
+    <string name="widget_tune_temperament">%1$s temperament</string>
+    <string name="widget_tune_concert">Concert pitch</string>
+    <plurals name="widget_tune_written_above">
+        <item quantity="one">%1$s instrument · written %2$d semitone above concert</item>
+        <item quantity="other">%1$s instrument · written %2$d semitones above concert</item>
+    </plurals>
+    <plurals name="widget_tune_written_below">
+        <item quantity="one">%1$s instrument · written %2$d semitone below concert</item>
+        <item quantity="other">%1$s instrument · written %2$d semitones below concert</item>
+    </plurals>
+    <string name="widget_tune_mic">Opens the tuner. The microphone starts only when you press Start live tuner.</string>
+    <string name="widget_pad_tuner">Tuner</string>
+    <string name="widget_pad_tone">Tone</string>
+    <string name="widget_pad_tuner_description">Open the tuner</string>
+    <string name="widget_pad_tone_description">Open the tone generator</string>
+    <string name="widget_pad_lab_description">Open %1$s</string>
+
+    <!-- Now studying -->
+    <string name="widget_studying_percent">%1$d%%</string>
+    <string name="widget_studying_marked">%1$d%% marked</string>
+    <string name="widget_studying_hidden">Song title hidden</string>
+    <plurals name="widget_studying_more">
+        <item quantity="one">+%d more studying</item>
+        <item quantity="other">+%d more studying</item>
+    </plurals>
+    <plurals name="widget_studying_wishlist">
+        <item quantity="one">%d on your wishlist</item>
+        <item quantity="other">%d on your wishlist</item>
+    </plurals>
+    <string name="widget_studying_empty_title">No song in the shed</string>
+    <string name="widget_studying_empty_body">Add a song in Practice and mark it Studying.</string>
+    <string name="widget_studying_none_title">Nothing marked Studying</string>
+    <string name="widget_studying_hide">Hide song titles on this widget</string>
+    <string name="widget_studying_show">Show song titles on this widget</string>
+    <string name="widget_studying_row">%1$s, %2$d%% marked</string>
+
+    <!-- Practice log -->
+    <string name="widget_log_empty">Nothing logged yet. Finish a tuner, metronome, tone generator or analysis session to start this log.</string>
+    <string name="widget_log_empty_short">Nothing logged yet</string>
+    <string name="widget_log_footer">On this phone · %1$s</string>
+    <string name="widget_log_row">%1$s, %2$s, %3$s</string>
+
+    <!-- Pulse -->
+    <string name="widget_pulse_week">Last 7 days: %1$s</string>
+    <!-- lastPulseAt is the newest Pulse activity of any kind (metronome, a sequence, the 16-tap check), so it is worded as the app's own "Pulse" type. -->
+    <string name="widget_pulse_last">Last Pulse session: %1$s</string>
+    <string name="widget_pulse_none">No Pulse session logged yet</string>
+    <string name="widget_pad_metronome">Metronome</string>
+    <string name="widget_pad_sequences">Sequences</string>
+    <string name="widget_pad_drone">Drone</string>
+    <string name="widget_pad_metronome_description">Open the metronome</string>
+    <string name="widget_pad_sequences_description">Open the metronome sequences</string>
+    <string name="widget_pad_drone_description">Open the harmony drone</string>
+
+    <!-- Instrument -->
+    <string name="widget_instrument_review">◇ %1$s</string>
+    <string name="widget_instrument_review_short">◇ Not teacher-reviewed</string>
+    <string name="widget_instrument_lab">%1$s: %2$s</string>
+
+    <!-- Sample content for the widget picker's previews only (previewLayout). -->
+    <string name="widget_preview_week_value">42</string>
+    <string name="widget_preview_week_goal">of 60 min</string>
+    <string name="widget_preview_week_caption" formatted="false">70% of your goal · 4 active days</string>
+    <string name="widget_preview_instrument">Alto saxophone</string>
+    <string name="widget_preview_reference">A4 = 440 Hz · Equal temperament</string>
+    <string name="widget_preview_transposition">E♭ instrument · written 9 semitones above concert</string>
+    <string name="widget_preview_song_meta" formatted="false">40% marked</string>
+    <string name="widget_preview_log_type_1">Tune</string>
+    <string name="widget_preview_log_type_2">Pulse</string>
+    <string name="widget_preview_log_type_3">Analysis</string>
+    <string name="widget_preview_log_length_1">12 min</string>
+    <string name="widget_preview_log_length_2">8 min</string>
+    <string name="widget_preview_log_length_3">3 min</string>
+    <string name="widget_preview_log_time_1">9:40 AM</string>
+    <string name="widget_preview_log_time_2">Yesterday</string>
+    <string name="widget_preview_log_time_3">Nov 2</string>
+    <string name="widget_preview_pulse_week">Last 7 days: 24 min</string>
+    <string name="widget_preview_family">Saxophone</string>
+    <string name="widget_preview_lab">Fingering trainer + 3D reference</string>
+    <string name="widget_preview_review">◇ Method-book consensus, not yet teacher-reviewed</string>
 </resources>

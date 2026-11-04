@@ -27,6 +27,11 @@ defensively as `window.bocalHost?.…`:
   (i.e. in a regular browser).
 - `openExternal(url)` -- opens `http(s)` URLs in the system browser (model
   credit links, reference sources).
+- `publishWidgetSnapshot(json)` -- the home-screen widgets' practice summary
+  (`web-source/app/widget-snapshot.ts`), validated and kept under
+  `noBackupFilesDir`; see `docs/widgets.md`.
+- `takeOpenRequest()` -- the workspace a widget tap asked to open, handed over
+  once (the page also listens for a `bocal:host-open` event).
 
 `WebAppScreen` also forwards `ON_PAUSE`/`ON_RESUME` lifecycle events: on pause
 it calls `webView.onPause()` and dispatches a `bocal:host-pause` DOM event so
