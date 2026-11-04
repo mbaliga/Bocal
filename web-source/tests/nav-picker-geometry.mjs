@@ -36,6 +36,7 @@ try {
       await page.goto(preview.url);
       await page.locator(".app-shell").waitFor();
       await page.waitForTimeout(300);
+      const pairs = {};
       for (let digit = 1; digit <= 5; digit++) {
         await page.locator(`.mobile-nav button[aria-keyshortcuts="${digit}"]`).click();
         await page.waitForTimeout(digit === 2 ? 500 : 200);
@@ -54,11 +55,31 @@ try {
           assert.ok(r.left >= geo.nav.left - slack && r.right <= geo.nav.right + slack && r.top >= geo.nav.top - slack && r.bottom <= geo.nav.bottom + slack,
             `${label} ws${digit}: nav button ${i + 1} is outside .mobile-nav (${JSON.stringify(r)} vs ${JSON.stringify(geo.nav)})`);
         }
+        // The upper pill is a two-seat view switch for this workspace: both
+        // seats sit inside the pill box, and the pair is contextual.
+        const pillGeo = await page.evaluate(() => {
+          const pill = document.querySelector(".dock-pill").getBoundingClientRect();
+          const seats = [...document.querySelectorAll(".dock-pill button")];
+          return { pill: pill.toJSON(), labels: seats.map((b) => b.textContent.trim()), rects: seats.map((b) => b.getBoundingClientRect().toJSON()), pressed: seats.map((b) => b.getAttribute("aria-pressed")) };
+        });
+        assert.equal(pillGeo.labels.length, 2, `${label} ws${digit}: the pill has exactly 2 buttons, got ${pillGeo.labels.length}`);
+        for (const [i, r] of pillGeo.rects.entries()) {
+          assert.ok(r.width > 0 && r.height > 0, `${label} ws${digit}: pill seat ${i + 1} has no size`);
+          assert.ok(r.left >= pillGeo.pill.left - 2 && r.right <= pillGeo.pill.right + 2 && r.top >= pillGeo.pill.top - 4 && r.bottom <= pillGeo.pill.bottom + 4,
+            `${label} ws${digit}: pill seat ${i + 1} (${pillGeo.labels[i]}) is outside the pill (${JSON.stringify(r)} vs ${JSON.stringify(pillGeo.pill)})`);
+        }
+        assert.ok(pillGeo.pressed.every((value) => value === "true" || value === "false"), `${label} ws${digit}: pill seats are toggle buttons`);
+        pairs[digit] = pillGeo.labels.join(" / ");
         assert.equal(await page.locator(".mobile-nav .arc-shape > path").count(), 4, `${label} ws${digit}: arc path count`);
         assert.equal(await page.locator(".dock-pill .pill-track > path").count(), 2, `${label} ws${digit}: pill path count`);
         checks++;
         if (digit === 5) await page.screenshot({ path: path.join(shots, `nav-practice-${label}.png`) });
       }
+      // Contextual: Analyze (4) and Lab (2) do not repeat the Tune (1) pair.
+      assert.notEqual(pairs[4], pairs[1], `${label}: Analyze pair repeats the Tune pair (${pairs[4]})`);
+      assert.notEqual(pairs[2], pairs[1], `${label}: Lab pair repeats the Tune pair (${pairs[2]})`);
+      assert.equal(new Set(Object.values(pairs)).size, 5, `${label}: every workspace has its own pair (${JSON.stringify(pairs)})`);
+      checks++;
       await page.getByRole("button", { name: "Choose instrument", exact: true }).click();
       await page.locator(".experience-overlay").waitFor();
       await page.waitForTimeout(300);

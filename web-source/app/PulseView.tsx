@@ -702,7 +702,7 @@ export function PulseView({ tuningOptions = EQUAL_A440 }: { tuningOptions?: Tuni
 
   return (
     <div className="content-wrap pulse-view">
-      <section className="section-heading">
+      <section className="section-heading" id="ctx-pulse-metronome">
         <div><p className="eyebrow">Pulse · Metronome</p><h1>Set the pulse.</h1><p>Adjust the tempo, meter and subdivision, ramp the tempo, accent or silence a beat, or chain presets into a routine.</p></div>
         <div className={`live-badge ${playing ? "metronome-live" : ""}`}><span className={playing ? "pulse-dot" : "quiet-dot"} /> {playing ? "In motion" : "Ready"}</div>
       </section>
@@ -838,7 +838,7 @@ export function PulseView({ tuningOptions = EQUAL_A440 }: { tuningOptions?: Tuni
         <form className="preset-save" onSubmit={(event) => { event.preventDefault(); savePreset(); }}><input value={presetName} onChange={(event) => setPresetName(event.target.value)} placeholder="Name this preset" maxLength={36} aria-label="Preset name" /><button type="submit" disabled={!presetName.trim()}><Plus size={14} /> Save</button></form>
       </section>
 
-      <section className="metronome-sequences" aria-labelledby="metronome-sequences-title">
+      <section className="metronome-sequences" id="ctx-pulse-sequences" aria-labelledby="metronome-sequences-title">
         <div className="sequence-head"><span className="card-kicker"><ListMusic size={14} /> Sequences</span><h2 id="metronome-sequences-title">Chain presets into a routine.</h2><p>Bocal steps to the next preset at the bar boundary, still on the audio clock -- no stutter between steps. Pick one below, then press Start.</p></div>
 
         {sequences.length > 0 && (

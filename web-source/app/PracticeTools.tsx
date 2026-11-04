@@ -316,7 +316,7 @@ export function PracticeView({
       />
 
       <div className="practice-overview">
-        <section className="focus-plan">
+        <section className="focus-plan" id="ctx-practice-today">
           <div className="practice-card-head"><div><span className="card-kicker"><Sparkles size={14} /> Today · 15 minutes</span><h2>Your next focused set</h2></div><span className="plan-progress">{completed.length}/3</span></div>
           <PracticeItem id="tone" title="Long-tone center" detail="A4 · 60 seconds × 3" time="4 min" active done={completed.includes("tone")} onToggle={toggleComplete} />
           <PracticeItem id="scale" title="G major, full range" detail="Tongued → slurred · 72 BPM" time="5 min" done={completed.includes("scale")} onToggle={toggleComplete} />
@@ -502,7 +502,7 @@ function PracticeLog({ activities }: { activities: PracticeActivity[] }) {
   const visible = activities.slice(0, visibleCount);
 
   return (
-    <section className="practice-log-card" aria-labelledby="practice-log-title">
+    <section className="practice-log-card" id="ctx-practice-log" aria-labelledby="practice-log-title">
       <header className="list-card-head">
         <div><span className="card-kicker"><ListChecks size={14} /> Practice log</span><h2 id="practice-log-title">Every session, on this device.</h2></div>
         <span className="local-chip"><Archive size={12} /> Local</span>

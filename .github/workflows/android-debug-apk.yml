@@ -16,7 +16,7 @@ jobs:
     uses: ./.github/workflows/web-quality.yml
   apk:
     needs: web
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04 # pinned: ubuntu-latest is 26.04, which Playwright 1.56 cannot install Chromium on
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
@@ -60,7 +60,7 @@ jobs:
       matrix:
         api: [26, 35]
     name: emulator / API ${{ matrix.api }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04 # pinned: ubuntu-latest is 26.04, which Playwright 1.56 cannot install Chromium on
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4

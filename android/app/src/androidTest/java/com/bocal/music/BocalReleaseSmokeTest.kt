@@ -103,7 +103,12 @@ class BocalReleaseSmokeTest {
         ready()
         requireJavascriptTrue("localStorage.setItem('bocal-onboarding-v2','complete'); true")
         for (index in 0 until 5) {
-            requireJavascriptTrue("document.querySelectorAll('.mobile-nav button')[$index].click(); true")
+            // The click is queued rather than run inline: a workspace such as the
+            // 3D lab renders synchronously on the click and, under the emulator's
+            // software GL, can hold the main thread past the callback window, so
+            // an inline click reports a dropped callback instead of a slow mount.
+            // The poll below is what waits for the workspace to be on screen.
+            requireJavascriptTrue("setTimeout(function () { document.querySelectorAll('.mobile-nav button')[$index].click(); }, 0); true")
             awaitTrue("document.querySelectorAll('.mobile-nav button')[$index].getAttribute('aria-current') === 'page' && document.querySelector('main').innerText.trim().length > 80")
         }
     }

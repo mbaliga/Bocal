@@ -25,7 +25,7 @@ From the root: `python3 -m unittest discover -s scripts -p 'test_*.py'`.
 - Renewing an entry means re-checking whether a fixed version now exists (`npm view <pkg> versions`, `npm audit --json` `via[].url`), taking it if so, and otherwise rewriting the justification and dates.
 - `web-source/tests/audit-allowlist.test.mjs` covers the matching, expiry and validation logic.
 
-Current entry (added 2026-10-12, expires 2026-12-11): GHSA-vfj7-8cjw-p6xm, braces stack exhaustion on deeply nested brace patterns. No patched `braces` exists (3.0.3 is the latest release), and the only `npm audit fix --force` options are downgrades (eslint-config-next 14, vite-plugin-singlefile 0.9, vinext 0.0.15). It reaches the project only through build and lint tooling (eslint-config-next, vinext, vite-plugin-singlefile; `npm audit --omit=dev` reports 0), with glob patterns taken from our own configuration rather than user input.
+Current entry (added 2026-10-28, expires 2026-12-27): GHSA-wx4j-mvgx-mqwp, improper SVG escaping in satori (satori > @vercel/og > vinext, moderate). Bocal never calls vinext's OG image route or satori, the chain is build-time only, and the patched vinext 1.3.1 needs React 19.3, a framework upgrade kept out of a dependency-patch change. Everything else reported on 2026-10-28 (Next 16.4.3, Vite 8.3.5, wrangler 4.154.0, @cloudflare/vite-plugin 1.65.0, undici 7.30.1 by override, zod, fast-uri) was patched rather than allowlisted.
 
 Android's workflow stages that exact web bundle, compiles debug/instrumentation/minified release variants, verifies payload identity, and runs the debug instrumentation suite in an API 35 emulator. Browser fake capture and emulator installation are not measurements of physical mic accuracy or musical performance.
 

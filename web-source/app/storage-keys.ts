@@ -17,7 +17,6 @@
 
 export const NAVIGATION_SIDE_STORAGE_KEY = "bocal-navigation-side";
 export const INSTRUMENT_STORAGE_KEY = "bocal-instrument";
-export const PARTNER_INSTRUMENT_STORAGE_KEY = "bocal-instrument-partner";
 export const NOTATION_STORAGE_KEY = "bocal-notation";
 export const TONIC_STORAGE_KEY = "bocal-sa-tonic";
 export const REFERENCE_HZ_STORAGE_KEY = "bocal-reference-hz";
@@ -42,6 +41,9 @@ export const VOCAL_RANGE_KEY = "bocal-vocal-range-v1";
 export const VOCAL_MELODIES_KEY = "bocal-vocal-melodies-v1";
 /** The diatonic harmonica's chosen key id (one of HARMONICA_KEYS in fingering-charts/harmonica.ts); read through sanitiseHarmonicaKey. */
 export const HARMONICA_KEY_STORAGE_KEY = "bocal-harmonica-key-v1";
+
+/** The last view chosen on the dock pill for each workspace (JSON object of workspace key to seat id, sanitised by context-seats.ts). */
+export const CONTEXT_SEATS_KEY = "bocal-context-seats-v1";
 
 /** The play-along drill's settings: threshold, auto-advance, tries per phrase, last phrase, octave (JSON, sanitised by call-response.ts). */
 export const CALL_RESPONSE_SETTINGS_KEY = "bocal-call-response-v1";

@@ -183,7 +183,7 @@ export function FingeringChart({
   }, [concertMidi]);
 
   return (
-    <div className="fingering-chart" ref={containerRef} tabIndex={-1}>
+    <div className="fingering-chart" id="ctx-lab-chart" ref={containerRef} tabIndex={-1}>
       <div className="chart-review-badge"><ShieldQuestion size={13} /> Method-book consensus, not yet teacher-reviewed</div>
       {chartOwnerName && (
         <div className="lab-instrument-notice">

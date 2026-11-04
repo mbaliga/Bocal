@@ -691,7 +691,7 @@ export const TunerView = memo(function TunerView({
 
   return (
     <div className="content-wrap tuner-layout">
-      <section className="section-heading">
+      <section className="section-heading" id="ctx-tune-top">
         <div>
           <p className="eyebrow">Tune · {instrument.name}</p>
           <h1>Find the center.</h1>

@@ -4,6 +4,7 @@ import { ArrowLeft, ChevronLeft, ChevronRight, Lightbulb, Mic, ShieldAlert, Shie
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./styles/harmonica.css";
 import StaffNote from "./StaffNote";
+import { useSeatSync } from "./context-scroll";
 import { centerNoteInStrip } from "./horizontal-scroll";
 import type { InstrumentProfile } from "./instruments";
 import { midiToHz } from "./music-math";
@@ -36,6 +37,19 @@ import { bendName, describeHarmonicaNote, harmonicaKeyLabel, playableMidis, rout
 
 export type HarmonicaTunerReading = { midi: number; cents: number };
 
+export type HarmonicaChartProps = {
+  instrument: InstrumentProfile;
+  notation: NotationSystem;
+  tonic: number;
+  onBack: () => void;
+  reading: HarmonicaTunerReading | null;
+  listening: boolean;
+  onListen: () => void;
+  /** Chromatic only: the slide position ("out" | "in") the dock pill holds, and how the chart reports its own change. Both optional. */
+  seat?: string;
+  onSeatChange?: (next: string) => void;
+};
+
 const parseKey = (raw: string | null): HarmonicaKeyId | undefined => (raw === null ? undefined : sanitiseHarmonicaKey(raw));
 const serialiseKey = (value: HarmonicaKeyId) => value;
 
@@ -57,15 +71,9 @@ function HarmonicaChartBody({
   reading,
   listening,
   onListen,
-}: {
-  instrument: InstrumentProfile;
-  notation: NotationSystem;
-  tonic: number;
-  onBack: () => void;
-  reading: HarmonicaTunerReading | null;
-  listening: boolean;
-  onListen: () => void;
-}) {
+  seat,
+  onSeatChange,
+}: HarmonicaChartProps) {
   const isChromatic = instrument.id === "chromatic-harmonica";
   const [keyId, setKeyId] = usePersistedSetting<HarmonicaKeyId>(HARMONICA_KEY_STORAGE_KEY, parseKey, DEFAULT_HARMONICA_KEY, serialiseKey);
   const chart: HarmonicaChartData = useMemo(
@@ -117,6 +125,15 @@ function HarmonicaChartBody({
     setFollow(false);
     if (twin) setSelectedId(twin.id);
   }, [chart, shown.hole, shown.breath, slideView]);
+
+  // The dock pill's Slide out / Slide in seats and the chart's own slide
+  // toggle are one switch; a chart that cannot slide ignores the pill.
+  useSeatSync<string>(
+    isChromatic && (seat === "in" || seat === "out") ? seat : undefined,
+    slideView ? "in" : "out",
+    (next) => { if ((next === "in") !== slideView) toggleSlide(); },
+    isChromatic ? onSeatChange : undefined,
+  );
 
   const selectMidi = useCallback((midi: number) => {
     const first = routesForMidi(chart, midi, showAdvanced)[0];
@@ -260,7 +277,7 @@ function HarmonicaChartBody({
         </div>
       </header>
 
-      <div className="harmonica-chart" ref={containerRef} tabIndex={-1}>
+      <div className="harmonica-chart" id="ctx-lab-chart" ref={containerRef} tabIndex={-1}>
         <div className="chart-review-badge"><ShieldQuestion size={13} /> {chart.review}</div>
         <p className="harmonica-caveat">{chart.caveat}</p>
 
@@ -367,15 +384,7 @@ function HarmonicaChartBody({
   );
 }
 
-export function HarmonicaChart(props: {
-  instrument: InstrumentProfile;
-  notation: NotationSystem;
-  tonic: number;
-  onBack: () => void;
-  reading: HarmonicaTunerReading | null;
-  listening: boolean;
-  onListen: () => void;
-}) {
+export function HarmonicaChart(props: HarmonicaChartProps) {
   // Keyed by instrument so switching between the two harmonicas resets the
   // selection instead of carrying one chart's note ids into the other.
   return <HarmonicaChartBody key={props.instrument.id} {...props} />;
