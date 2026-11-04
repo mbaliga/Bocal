@@ -7,13 +7,15 @@
 > Re-verified 2026-11-04 against `main` @ `f10ed32`: source, workflows, and Google's help
 > pages fetched that day. This replaces a sheet that commit `32a3860` had overwritten with
 > an older draft (0.6.0 / versionCode 7, no WebView section, an open-ended licence audit).
-> No signed release build has been made and nothing has been run on a physical device. CI
+> No signed release build exists and no physical-device run or acceptance is recorded. CI
 > compiles the minified release variant (unsigned) but installs only the debug APK on its
 > emulators.
 >
-> Names: the controls that write a file are labelled **Download** (Analyze take) and
-> **Export** (Vocal take, MIDI, MusicXML, exercises) in the app; "Save As" below means the
-> Android system save-file picker they open.
+> Names: the controls that write a file are labelled **Download** (Analyze take), **Export**
+> (Vocal take), **Export MIDI**, **Export MusicXML**, **Export mine** (saved exercises),
+> **Share my progress** (practice data) and **Share the notes** (transcription text). In the
+> Android shell each opens the system save-file picker ("Save As" below); Share the notes may
+> open a share sheet instead. The Coach **Export brief** button writes nothing there (row 3).
 
 | | |
 |---|---|
@@ -102,8 +104,8 @@ All found by reading source; device-only unless stated.
 | 3 | **Dead or misleading UI in the Play build.** Settings offers a handoff "Download" whose file is not bundled (404; the shell's toast then says "Use the recording's Export button"), and a banner "Android release promotion is pending". The Coach "Export brief" uses a blob anchor that the shell turns into the same toast, so it saves nothing. Settings also lists unshipped, paid and blocked model candidates as links. | `DownloadCenter.tsx:38-54,101,108-111`, `PracticeTools.tsx:590-594`, `WebAppScreen.kt:142-144` | A reviewer opening Settings sees pipeline notes. A test asserts the banner string (`release-downloads.test.mjs:19`). |
 | 4 | **Delete flows rely on `window.confirm`**, and the shell overrides no `onJsConfirm`. If the stock dialog does not appear, deleting a take, log entry or melody silently does nothing. | `AnalysisView.tsx:462`, `VocalTakes.tsx:295`, `MelodyTarget.tsx:379`, `PracticeTools.tsx:497` | The deletion claims in the policy rest on this. |
 | 5 | **Deletion is partial.** There is no delete-all or reset. The song wishlist, saved sessions and the skill evidence behind the rating (tuner summaries, fingering checks, rhythm taps) cannot be removed in the app, and the lesson note and coach plan can only be overwritten. Records that fail validation are never listed, never counted toward the 12-take cap, and cannot be deleted in-app. | `takes-store.ts:78-85`, `practice-data.ts`, `PracticeTools.tsx:233-239` | "Users can delete data in the app" would overstate. The policy now says what can and cannot be removed. |
-| 6 | **In-app copy contradicts the listing.** Onboarding says "Nothing leaves your device... stay in this browser"; Analyze says takes "stay in this browser"; the sax lab says the standard range "is checked on alto" and `sax-data.ts` says "teacher-checked", while the chart badges (`SaxophoneLab.tsx:138,737,785`) and `CURRENT_STATE.md` say no teacher has reviewed anything. | `InstrumentExperience.tsx:444`, `AnalysisView.tsx:548`, `SaxophoneLab.tsx:628`, `sax-data.ts:219` | A user reads "checked" as teacher-verified. "Browser" is wrong in an Android app. The listing now says only that Bocal does not claim a teacher has reviewed any chart. |
-| 7 | **The practice export says "Saved." too early.** In the Android shell it shows "Saved." as soon as the native request is queued, even if the user cancels the picker or the request is refused (a file over 32 MiB, or a picker already open). "Saved to your downloads." is reachable only outside the shell. | `PracticeTools.tsx:258-261`, `takes-store.ts:154-169` | Cosmetic honesty issue; the real outcome is a native toast. |
+| 6 | **In-app copy contradicts the listing.** Onboarding says "Nothing leaves your device... stay in this browser"; Analyze says takes "stay in this browser"; the sax lab says the standard range "is checked on alto" and `sax-data.ts` says "teacher-checked", while the chart badge (`FingeringChart.tsx:187`, "not yet teacher-reviewed") and `CURRENT_STATE.md:98` say no chart has been teacher-reviewed (the `SaxophoneLab.tsx:138,737,785` badges mark only the altissimo and alternate fingerings). | `InstrumentExperience.tsx:444`, `AnalysisView.tsx:548`, `SaxophoneLab.tsx:628`, `sax-data.ts:219` | A user reads "checked" as teacher-verified. "Browser" is wrong in an Android app. The listing now says only that Bocal does not claim a teacher has reviewed any chart. |
+| 7 | **The practice export says "Saved." too early.** In the Android shell it shows "Saved." as soon as the native request is queued, even if the user cancels the picker or the request is refused (a file over 32 MiB, or a picker already open). "Saved to your downloads." is reachable only outside the shell. | `PracticeTools.tsx:258-261`, `takes-store.ts:154-169` | Cosmetic honesty issue; the real outcome arrives separately, as a native toast for a cancelled, failed or completed save, or as an in-app status line when the request is refused. |
 | 8 | **Target 37 has only been compiled.** CI emulators run API 26 and 35. Edge-to-edge sets `setDecorFitsSystemWindows(false)` with no cutout or IME inset handling and no `windowSoftInputMode`; Back is a no-op if the page's callback is dropped; `configChanges` omits `fontScale`, `density`, `locale`, `layoutDirection`. | `MainActivity.kt:12`, `WebAppScreen.kt:108-125`, `AndroidManifest.xml:14-19` | Quality on Android 16 and 17, not a form item. |
 
 Smaller, in the PR description: the phone dock's settings button still reads "TU"; the
@@ -202,7 +204,7 @@ app adds no telemetry. The policy says all of this.
 Recording is explicit and local: **audio is analysed in real time on the device. Recording
 starts only when the user presses Record take on the Analyze screen or the Vocal stage;
 on the Analyze screen an imported audio file (under 32 MiB) is also copied into the same
-library. The library holds at most 12 takes; a recorded take stops at 10 minutes. Takes are
+library. The library holds at most 12 takes; a recorded take stops at 10 minutes or at a 24 MiB size limit. Takes are
 stored in the app's private IndexedDB, can be deleted one at a time, and are never
 transmitted.** A take in progress is stopped and saved when the user leaves the screen, and
 a take is kept only while the user stays on that screen if storage fails.
@@ -235,8 +237,8 @@ Audio is analysed on this device and kept only if you tap Record."
 `targetSdk 37` is above Google's floor: new apps and updates must target API 36 from
 2026-08-31 (help answer 11926878, fetched 2026-11-04; its optional extension to 1 November
 2026 applied to existing apps and is irrelevant to a new one). AGP 9.3.0, Gradle 9.7.1 and
-compileSdk 37 have been shown only to build the debug and minified release APKs (green run
-35151199901 at `ba04faf`, and run 121 at `f10ed32`). No Android App Bundle, signed or
+compileSdk 37 have been shown only to build the debug and minified release APKs (green run 34,
+id 35151199901, at `ba04faf`, and run 121, id 40676043876, at `f10ed32`). No Android App Bundle, signed or
 unsigned, has been built. The one native library is `libandroidx.graphics.path.so`; nothing checks its 16 KB alignment.
 
 ### Content rating
@@ -287,11 +289,10 @@ sentence.
 
 | Listing claim | Cleared by |
 |---|---|
-| Pitch from the microphone (and, in the policy, stops on background; no restart needed after the first grant) | `DEVICE_TEST_PLAN.md` "Audio and lifecycle" (and blocker table row 1) |
+| Pitch from the microphone (and, in the policy, that Bocal stops listening when you leave the app and does not start again until asked) | `DEVICE_TEST_PLAN.md` "Audio and lifecycle" (and blocker table row 1) |
 | Saxophone fingering trainer and chart | "Sax detailed Lab" |
 | Oboe 3D model and part names | "Howarth S20C oboe" |
-| Largest font and display size | "Accessibility" |
-| Light and dark themes (changelog) | **no row. Add a theme step** |
+| Light and dark themes (changelog) | **no row. Add a theme step.** (`DEVICE_TEST_PLAN.md` "Accessibility", which tests largest font and display size, is a release check and not a listing claim.) |
 | Record take, import, tags, compare, delete, export (Download on Analyze, Export on Vocal), survive a restart | **no row. Add one** (also exercises `window.confirm`, row 4) |
 | Vocal stage, harmonicas, guitar, transcription, metronome, tone generator, repeat-after-me drill | **no row. Add one or cut the sentences** |
 | "Does not ask for the internet permission" | `apkanalyzer` on the signed AAB |
@@ -316,8 +317,9 @@ sentence.
 ## Stale elsewhere (not changed here)
 
 This repo: `README.md:24`, `android/MODEL_MANIFEST.md` and
-`android/THIRD_PARTY_NOTICES.md` still say 0.6.0 (`README.md:24` also says versionCode 7;
-`android/APK_BUILD_STATUS.md` is a 0.5.0 record that points at "the current 0.6.0 path"); `android/README.md` says
+`android/THIRD_PARTY_NOTICES.md` still say "Android 0.6" (`README.md:24` says 0.6.0 and
+versionCode 7; `android/APK_BUILD_STATUS.md` is a 0.5.0 record that points at "the current
+Android 0.6.0 release path"); `android/README.md` says
 `saveFile` writes to MediaStore Downloads (it uses the Save As picker) and no longer has a
 WebView-floor section; `docs/BOCAL_HANDOFF.md` says the models ship under `assets/www/models`
 (they are inlined in `app.html`); `android/DEVICE_TEST_PLAN.md` omits the Vocal stage and other

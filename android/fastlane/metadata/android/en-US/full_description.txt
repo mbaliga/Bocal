@@ -1,6 +1,6 @@
 Bocal has no account, no ads, no analytics and no tracking, and this version does not ask for the internet permission. Your playing is analysed on your device and is not uploaded.
 
-The tuner and the live analysis views do not record audio. They keep only a short summary of each session (notes heard and how close they were) in your practice log on this device. Audio is saved only when you press Record take or import an audio file. A saved take stays on your device until you delete it, and you can export a copy.
+The tuner and the live analysis views do not record audio. When a tuner session has enough steady readings, the tuner keeps a short summary on this device (the notes heard and how close they were) for your practice log and skill score. The live analysis views keep nothing unless you record a take. Audio is saved only when you press Record take or import an audio file. A saved take stays on your device until you delete it, and you can export a copy.
 
 TUNING
 • Pitch read from your playing or singing through the microphone, for 13 instruments
@@ -26,7 +26,7 @@ INSTRUMENTS
 • Vocal: a live pitch graph, a range you record yourself, guided warm-ups, saved takes, and melodies to sing against
 
 WHAT IT DOES NOT CLAIM
-• It does not judge your tone colour, expression or singing technique. The Practice screen shows a score built only from the pitch accuracy, steadiness, rhythm taps and fingering checks recorded on your device.
+• It does not judge your tone colour, expression or singing technique. The Practice screen shows a score built only from your pitch accuracy, steadiness, rhythm taps, fingering checks and the range of notes the tuner has heard, all recorded on your device.
 • Bocal does not claim that a teacher has reviewed any fingering chart. Charts follow published references, saxophone altissimo fingerings are marked Unverified, and the harmonica charts are computed from standard layouts.
 • Where an instrument borrows another instrument's 3D model, the app says so on that screen.
 

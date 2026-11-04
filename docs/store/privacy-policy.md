@@ -25,15 +25,17 @@ Bocal listens through your microphone to detect pitch and analyse your tone. Tha
 tuner works, and it is the core function of the app.
 
 - Audio is processed **as it arrives**, on your device. The tuner and the live analysis views
-  keep no audio. When a tuning session of more than a few seconds ends, Bocal saves a short
-  summary on your device: the date and time, how long you played, which notes were detected,
-  and overall figures for how far from pitch you were. It is used for your practice history
-  and skill rating.
+  keep no audio. When a tuner session ends (you stop it, leave the Tune screen or switch apps)
+  and the tuner has locked onto at least 15 pitch readings (about half a second of steady
+  sound), Bocal saves a short summary on your device: the date and time, how long the tuner was
+  listening, which notes were detected, and overall figures for how far from pitch you were. It
+  is used for your practice history and skill rating.
 - **Recording starts only when you press Record take**, on the Analyze screen (after Start
   analysis) or the Vocal screen. On the Analyze screen you can also import an audio file you
   choose (under 32 MiB); it is copied into the same library. The Transcribe panel can read an
   audio file you choose too; that is analysed on your device and is not saved. A recorded take
-  stops when you press Finish take, after 10 minutes (or at the recording size limit), if the
+  stops when you press Finish take (or Stop analysis on the Analyze screen), after 10 minutes
+  (or at the recording size limit), if the
   microphone is interrupted, or if you leave the screen or switch apps, and what was recorded
   so far is kept. The library holds up to 12 takes, and Bocal never deletes a take on its
   own.
@@ -58,8 +60,9 @@ metronome presets and sequences, your vocal range, and your takes with their tag
 Some lists keep only the most recent entries and drop the oldest once full.
 
 Bocal does not add any encryption of its own to this data. It is protected only by Android's
-app sandbox and, on devices where it is switched on, Android's device storage encryption. The app turns off Android's cloud backup, so Android Auto Backup does not copy this
-data to your Google account. It does not configure Android's phone-to-phone transfer, and on
+app sandbox and, on devices where it is switched on, Android's device storage encryption.
+The app turns off Android's cloud backup, so Android Auto Backup does not copy this data to
+your Google account. It does not configure Android's phone-to-phone transfer, and on
 some devices that transfer can still carry app data to a new phone.
 
 **Keeping and deleting.** You can delete individual takes, practice-log entries, saved
@@ -82,11 +85,12 @@ A few things you tap hand over to another app, which then has its own policy:
 - A credit or source link opens in your browser or another app (the sites linked are
   sketchfab.com, creativecommons.org, cgtrader.com, yamaha.com and legere.com).
 - If your Android System WebView is too old or cannot be read, Bocal shows a screen whose
-  Update WebView button opens Bocal's WebView listing on Google Play (in the Play Store app, or
-  in your browser if that app is missing).
-- The Export, Download and Share buttons open Android's own save-file screen, and in some
-  cases a share sheet, so you pick where a file goes. That can be a cloud-backed folder, in
-  which case that service handles the file.
+  Update WebView button opens the Google Play page for Android System WebView (in the Play
+  Store app, or in your browser if that app is missing).
+- The buttons that save a file (Export on Vocal takes, MIDI, MusicXML and your own exercises,
+  Download on Analyze takes, and Share my progress) open Android's own save-file screen, and
+  Share the notes may open a share sheet instead, so you pick where a file goes. That can be
+  a cloud-backed folder, in which case that service handles the file.
 
 Android System WebView, which runs the app's screens, is a part of Android with its own
 settings and policies. Bocal adds nothing to it.
