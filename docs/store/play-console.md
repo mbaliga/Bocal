@@ -7,14 +7,20 @@
 > Re-verified 2026-11-04 against `main` @ `f10ed32`: source, workflows, and Google's help
 > pages fetched that day. This replaces a sheet that commit `32a3860` had overwritten with
 > an older draft (0.6.0 / versionCode 7, no WebView section, an open-ended licence audit).
-> Nothing here has been built in release form or run on a device.
+> No signed release build has been made and nothing has been run on a physical device. CI
+> compiles the minified release variant (unsigned) but installs only the debug APK on its
+> emulators.
+>
+> Names: the controls that write a file are labelled **Download** (Analyze take) and
+> **Export** (Vocal take, MIDI, MusicXML, exercises) in the app; "Save As" below means the
+> Android system save-file picker they open.
 
 | | |
 |---|---|
 | applicationId | `com.bocal.music` (permanent once published) |
 | Version | `1.0.0-rc.1` (versionCode `8`), minSdk `26`, targetSdk `37`, compileSdk `37` |
 | Category | **Education** or **Music & Audio**: an owner call. Google's pages give example listings only and no policy consequence for either. Education does not by itself trigger Families or Teacher Approved. |
-| Tags | at most five, for example `tuner`, `music practice`, `saxophone`, `woodwind`, `fingering chart` |
+| Tags | at most five, picked from Google's tag list in Console (they are not free text); choose ones that fit all 13 instruments, not only saxophone |
 | Contact email | `bocal@asystemofcells.com` |
 | Website | `https://asystemofcells.com/bocal` |
 | Privacy policy | `https://asystemofcells.com/bocal/privacy` (working copy: `privacy-policy.md`) |
@@ -30,8 +36,9 @@
 - The app has 13 instruments (nine woodwinds, two harmonicas, guitar, and a Vocal stage).
   The store title, short description and full description had still described saxophone,
   woodwinds and guitar only.
-- CI: the `Android debug APK` workflow passed on `main` @ `f10ed32` (run 121, 2026-10-28). It
-  compiles the minified release variant but installs only the debug APK on its emulators.
+- CI: the `Android debug APK` workflow passed on `main` @ `f10ed32` (run 121, 2026-10-28; on
+  its second attempt). It compiles the minified release variant but installs only the debug APK
+  on its emulators. No Android App Bundle, signed or unsigned, has ever been built in CI.
 - `release.yml` has **never run** (GitHub shows zero runs), and the repo has no tags. No signed
   build exists (`docs/CURRENT_STATE.md`).
 - `qa/VERIFICATION.md` asserts no physical-device acceptance and no genuine production
@@ -57,15 +64,16 @@
   AAB, `SHA256SUMS`, the 14-day candidate artifact and `needs: web`; `32b464b` kept that
   shape. A `v1.0.0` tag would build `1.0.0-rc.1` without complaint.
 - **A missing-secrets mistake is found late.** The secrets check is step 10 of 14, after the
-  web build, a debug build and an emulator run of up to 45 minutes.
+  web build and tests, a debug build and an emulator run (the whole job times out at 45
+  minutes).
 - **`release.yml` has no `playwright install` step**, unlike `web-quality.yml`, so
   `test:e2e` and `test:theme` may fail on a clean runner (unconfirmed).
 - **The dependency-audit gate has an expiry.** It runs only in `web-quality.yml`. Its one
   allowlist entry (GHSA-wx4j-mvgx-mqwp) expires 2026-12-27; after that the gate fails unless
   renewed (`scripts/audit-allowlist.json`).
-- **R8 has been compiled but never run.** Minify and shrink are on for release. CI installs
-  only the debug APK, so the `bocalHost` bridge, Save As and the update screen have not
-  been seen working in a minified build. `proguard-rules.pro` keeps the `@JavascriptInterface`
+- **The R8-minified release has been built in CI but never run.** Minify and shrink are on
+  for release. CI installs only the debug APK, so the `bocalHost` bridge, Save As and the
+  update screen have not been seen working in a minified build. `proguard-rules.pro` keeps the `@JavascriptInterface`
   methods, which is the usual rule.
 - **Nothing asserts the merged release manifest.** `static-check.sh` reads only the source
   manifest and no workflow runs it; `verify-apk.sh` prints permissions only if `apkanalyzer`
@@ -93,9 +101,9 @@ All found by reading source; device-only unless stated.
 | 2 | **No privacy-policy link or text inside the app.** Google's User Data policy requires one in the Console field *and* "within the app itself". | grep of the shell and `web-source/app` | Add a Settings entry (open the policy URL, or bundle the text). Not on the old checklist. |
 | 3 | **Dead or misleading UI in the Play build.** Settings offers a handoff "Download" whose file is not bundled (404; the shell's toast then says "Use the recording's Export button"), and a banner "Android release promotion is pending". The Coach "Export brief" uses a blob anchor that the shell turns into the same toast, so it saves nothing. Settings also lists unshipped, paid and blocked model candidates as links. | `DownloadCenter.tsx:38-54,101,108-111`, `PracticeTools.tsx:590-594`, `WebAppScreen.kt:142-144` | A reviewer opening Settings sees pipeline notes. A test asserts the banner string (`release-downloads.test.mjs:19`). |
 | 4 | **Delete flows rely on `window.confirm`**, and the shell overrides no `onJsConfirm`. If the stock dialog does not appear, deleting a take, log entry or melody silently does nothing. | `AnalysisView.tsx:462`, `VocalTakes.tsx:295`, `MelodyTarget.tsx:379`, `PracticeTools.tsx:497` | The deletion claims in the policy rest on this. |
-| 5 | **Deletion is partial.** There is no delete-all or reset. The lesson note, song wishlist, skill evidence, saved sessions and coach plan cannot be removed in the app. Records that fail validation are never listed, never counted toward the 12-take cap, and cannot be deleted in-app. | `takes-store.ts:78-85`, `practice-data.ts`, `PracticeTools.tsx:233-239` | "Users can delete data in the app" would overstate. The policy now says what can and cannot be removed. |
-| 6 | **In-app copy contradicts the listing.** Onboarding says "Nothing leaves your device... stay in this browser"; Analyze says takes "stay in this browser"; the sax lab says the standard range "is checked on alto" and `sax-data.ts` says "teacher-checked", while every chart badge and `CURRENT_STATE.md` say no teacher has reviewed anything. | `InstrumentExperience.tsx:444`, `AnalysisView.tsx:548`, `SaxophoneLab.tsx:628,714`, `sax-data.ts:219` | A user reads "checked" as teacher-verified. "Browser" is wrong in an Android app. |
-| 7 | **Export messages can lie.** "Saved." and "Saved to your downloads." appear as soon as the native request is queued, even if the user cancels the picker. | `PracticeTools.tsx:258-280` | Cosmetic honesty issue. |
+| 5 | **Deletion is partial.** There is no delete-all or reset. The song wishlist, saved sessions and the skill evidence behind the rating (tuner summaries, fingering checks, rhythm taps) cannot be removed in the app, and the lesson note and coach plan can only be overwritten. Records that fail validation are never listed, never counted toward the 12-take cap, and cannot be deleted in-app. | `takes-store.ts:78-85`, `practice-data.ts`, `PracticeTools.tsx:233-239` | "Users can delete data in the app" would overstate. The policy now says what can and cannot be removed. |
+| 6 | **In-app copy contradicts the listing.** Onboarding says "Nothing leaves your device... stay in this browser"; Analyze says takes "stay in this browser"; the sax lab says the standard range "is checked on alto" and `sax-data.ts` says "teacher-checked", while the chart badges (`SaxophoneLab.tsx:138,737,785`) and `CURRENT_STATE.md` say no teacher has reviewed anything. | `InstrumentExperience.tsx:444`, `AnalysisView.tsx:548`, `SaxophoneLab.tsx:628`, `sax-data.ts:219` | A user reads "checked" as teacher-verified. "Browser" is wrong in an Android app. The listing now says only that Bocal does not claim a teacher has reviewed any chart. |
+| 7 | **The practice export says "Saved." too early.** In the Android shell it shows "Saved." as soon as the native request is queued, even if the user cancels the picker or the request is refused (a file over 32 MiB, or a picker already open). "Saved to your downloads." is reachable only outside the shell. | `PracticeTools.tsx:258-261`, `takes-store.ts:154-169` | Cosmetic honesty issue; the real outcome is a native toast. |
 | 8 | **Target 37 has only been compiled.** CI emulators run API 26 and 35. Edge-to-edge sets `setDecorFitsSystemWindows(false)` with no cutout or IME inset handling and no `windowSoftInputMode`; Back is a no-op if the page's callback is dropped; `configChanges` omits `fontScale`, `density`, `locale`, `layoutDirection`. | `MainActivity.kt:12`, `WebAppScreen.kt:108-125`, `AndroidManifest.xml:14-19` | Quality on Android 16 and 17, not a form item. |
 
 Smaller, in the PR description: the phone dock's settings button still reads "TU"; the
@@ -111,10 +119,11 @@ oldest entries silently once full.
 - **Category** (Education or Music & Audio), and **versionName** (see above).
 - **Licence.** There is no `LICENSE` covering `android/` or `web-source/`. Draft PR #21 would
   add PolyForm Noncommercial 1.0.0. See **F-Droid**.
-- **Account type.** Google's page (fetched 2026-11-04) requires a personal account created
-  after 2023-11-13 to run a closed test with at least 12 testers opted in for 14 days before
-  production access, per app, and to verify an Android 10+ phone. Whether the A System of
-  Cells account is personal or organisation is not recorded.
+- **Account type.** Google's testing page (answer 14151465, fetched 2026-11-04) requires a
+  personal account created after 2023-11-13 to run a closed test with at least 12 testers
+  opted in for 14 days before applying for production access. Its device-verification page
+  (answer 14316361) separately requires a non-rooted physical Android 10+ device. Whether the
+  A System of Cells account is personal or organisation is not recorded.
 
 ### 4. Outside the repo, not checked
 
@@ -130,9 +139,11 @@ by ANDRIANIAINAToky and "Oboe - Howarth Conservatoire S20C (Instrument)" by Ward
 earlier CC BY-NC clarinet model was removed. The repo's 35 in-house models do not ship.
 
 CC BY 4.0 permits redistribution and adaptation, commercial use included, with credit, the
-licence link and a change notice. Those are in the app: the "Settings & model library"
-overlay (`DownloadCenter.tsx:85-96`) and a credit line with a licence link in each lab. The
-listing carries the credit too. Still open:
+licence link and a change notice. Credit and licence link are in the app: the "Settings &
+model library" overlay (`DownloadCenter.tsx:85-96`) and a credit line with a link in each
+lab. The listing carries the credit too. The in-app change notice says only that Bocal
+optimised the files for mobile and changed runtime materials; `ATTRIBUTION.md` also records
+that both models' meshes were re-segmented, which the app does not state. Still open:
 
 - [ ] Owner review of the final attribution and legal posture. This record comes from the
       owner's notes and was not re-checked against Sketchfab; re-check both pages at submission.
@@ -190,10 +201,11 @@ app adds no telemetry. The policy says all of this.
 
 Recording is explicit and local: **audio is analysed in real time on the device. Recording
 starts only when the user presses Record take on the Analyze screen or the Vocal stage;
-imported audio files are copied into the same library. Takes (at most 12, up to 10 minutes
-each) are stored in the app's private IndexedDB, can be deleted one at a time, and are never
+on the Analyze screen an imported audio file (under 32 MiB) is also copied into the same
+library. The library holds at most 12 takes; a recorded take stops at 10 minutes. Takes are
+stored in the app's private IndexedDB, can be deleted one at a time, and are never
 transmitted.** A take in progress is stopped and saved when the user leaves the screen, and
-a take is session-only if storage fails.
+a take is kept only while the user stays on that screen if storage fails.
 
 ### Permissions
 | Permission | Why | Play form? |
@@ -205,23 +217,27 @@ The manifest also has `uses-feature android.hardware.microphone required=false`.
 release manifest has no `INTERNET`, storage, notification, foreground-service or
 `WAKE_LOCK` permission; `androidx.core` is expected to merge a signature-level
 `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` (confirm on a build). The only exported component
-is `MainActivity` (launcher only). The shell grants audio capture only to the bundled origin,
+in the source manifest is `MainActivity` (launcher only); the merged manifest is expected to
+add androidx.profileinstaller's `ProfileInstallReceiver`, exported but gated by the system
+`DUMP` permission. The shell grants audio capture only to the bundled origin,
 never video, and only when `RECORD_AUDIO` is held.
 
 **Rationale.** Google's prominent-disclosure rule applies where handling "may not be within
-the reasonable expectation of the user", and it asks for an in-app disclosure, not strictly
-a pre-prompt. The shell shows none before the system prompt (the old sheet said one "must"
-appear; it does not exist). A tuner whose button says "Start live tuner" arguably meets the
-expectation, but add one sentence next to the first mic control, for example: "Bocal uses
-your microphone to hear your pitch. Audio is analysed on this device and kept only if you
-tap Record."
+the reasonable expectation of the user". Where it applies, the in-app disclosure must be shown
+in normal use and must immediately precede the runtime permission request (help answer
+10144311). The shell shows none before the system prompt (the old sheet said one "must"
+appear; it does not exist). A tuner whose button says "Start live tuner" arguably falls
+outside the rule, so a pre-prompt may not be required, but add one sentence next to the first
+mic control as cheap insurance, for example: "Bocal uses your microphone to hear your pitch.
+Audio is analysed on this device and kept only if you tap Record."
 
 ### Target API
 `targetSdk 37` is above Google's floor: new apps and updates must target API 36 from
-2026-08-31 (help answer 11926878, fetched 2026-11-04; the 1 November extension has lapsed).
-That AGP 9.3.0, Gradle 9.7.1 and compileSdk 37 produce a valid AAB is known only from one
-green run at `ba04faf` (versionCode 7); nothing has built a signed bundle since. The one
-native library is `libandroidx.graphics.path.so`; nothing checks its 16 KB alignment.
+2026-08-31 (help answer 11926878, fetched 2026-11-04; its optional extension to 1 November
+2026 applied to existing apps and is irrelevant to a new one). AGP 9.3.0, Gradle 9.7.1 and
+compileSdk 37 have been shown only to build the debug and minified release APKs (green run
+35151199901 at `ba04faf`, and run 121 at `f10ed32`). No Android App Bundle, signed or
+unsigned, has been built. The one native library is `libandroidx.graphics.path.so`; nothing checks its 16 KB alignment.
 
 ### Content rating
 - Category `Utility, Productivity, Communication, or Other` (or the educational one).
@@ -245,10 +261,12 @@ fixed formula).
 No in-app purchases and no billing dependency.
 
 ### Minimum functionality
-Google's spam and functionality pages target apps whose purpose is "a webview of a website".
-Bocal loads no website: it serves a bundled file from a virtual origin and adds native
-bridges (Save As, keep-awake, theme, microphone mediation). Neither page addresses bundled
-local assets, so how a reviewer treats this cannot be settled from published text.
+Google's Spam policy targets apps whose primary purpose is to drive affiliate traffic to a
+website or "provide a webview of a website without permission from the website owner". Bocal
+loads no website: it serves a bundled file from a virtual origin and adds native bridges (Save
+As, keep-awake, theme, microphone mediation). The Functionality policy has no webview wording,
+and neither page addresses bundled local assets, so how a reviewer treats this cannot be
+settled from published text.
 
 ## F-Droid
 
@@ -269,11 +287,12 @@ sentence.
 
 | Listing claim | Cleared by |
 |---|---|
-| Pitch from the microphone; stops on background; no restart needed after the first grant | `DEVICE_TEST_PLAN.md` "Audio and lifecycle" (and blocker table row 1) |
+| Pitch from the microphone (and, in the policy, stops on background; no restart needed after the first grant) | `DEVICE_TEST_PLAN.md` "Audio and lifecycle" (and blocker table row 1) |
 | Saxophone fingering trainer and chart | "Sax detailed Lab" |
 | Oboe 3D model and part names | "Howarth S20C oboe" |
-| Light and dark themes, readable at large font | "Accessibility" |
-| Record take, import, tags, compare, delete, Save As, survive a restart | **no row. Add one** (also exercises `window.confirm`, row 4) |
+| Largest font and display size | "Accessibility" |
+| Light and dark themes (changelog) | **no row. Add a theme step** |
+| Record take, import, tags, compare, delete, export (Download on Analyze, Export on Vocal), survive a restart | **no row. Add one** (also exercises `window.confirm`, row 4) |
 | Vocal stage, harmonicas, guitar, transcription, metronome, tone generator, repeat-after-me drill | **no row. Add one or cut the sentences** |
 | "Does not ask for the internet permission" | `apkanalyzer` on the signed AAB |
 
@@ -296,8 +315,9 @@ sentence.
 
 ## Stale elsewhere (not changed here)
 
-This repo: `README.md:24`, `android/APK_BUILD_STATUS.md`, `android/MODEL_MANIFEST.md` and
-`android/THIRD_PARTY_NOTICES.md` still say 0.6.0 / versionCode 7; `android/README.md` says
+This repo: `README.md:24`, `android/MODEL_MANIFEST.md` and
+`android/THIRD_PARTY_NOTICES.md` still say 0.6.0 (`README.md:24` also says versionCode 7;
+`android/APK_BUILD_STATUS.md` is a 0.5.0 record that points at "the current 0.6.0 path"); `android/README.md` says
 `saveFile` writes to MediaStore Downloads (it uses the Save As picker) and no longer has a
 WebView-floor section; `docs/BOCAL_HANDOFF.md` says the models ship under `assets/www/models`
 (they are inlined in `app.html`); `android/DEVICE_TEST_PLAN.md` omits the Vocal stage and other

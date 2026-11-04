@@ -1,6 +1,6 @@
 Bocal has no account, no ads, no analytics and no tracking, and this version does not ask for the internet permission. Your playing is analysed on your device and is not uploaded.
 
-The tuner and the live analysis views do not record. Audio is saved only when you press Record take. A saved take stays on your device until you delete it, and you can export a copy.
+The tuner and the live analysis views do not record audio. They keep only a short summary of each session (notes heard and how close they were) in your practice log on this device. Audio is saved only when you press Record take or import an audio file. A saved take stays on your device until you delete it, and you can export a copy.
 
 TUNING
 • Pitch read from your playing or singing through the microphone, for 13 instruments
@@ -23,11 +23,11 @@ INSTRUMENTS
 • Flute, clarinet and bassoon: 2D fingering charts, no 3D model
 • Diatonic harmonica (12 keys) and chromatic harmonica: hole charts
 • Guitar: a string tuner with three tunings, six chord diagrams and a chord player that can wait for your root note
-• Voice: a live pitch graph, a range you record yourself, guided warm-ups, saved takes, and melodies to sing against
+• Vocal: a live pitch graph, a range you record yourself, guided warm-ups, saved takes, and melodies to sing against
 
 WHAT IT DOES NOT CLAIM
-• It does not grade your tone or your singing technique.
-• No fingering chart has been reviewed by a teacher yet. Charts follow published references, saxophone altissimo fingerings are marked Unverified, and the harmonica charts are computed from standard layouts.
+• It does not judge your tone colour, expression or singing technique. The Practice screen shows a score built only from the pitch accuracy, steadiness, rhythm taps and fingering checks recorded on your device.
+• Bocal does not claim that a teacher has reviewed any fingering chart. Charts follow published references, saxophone altissimo fingerings are marked Unverified, and the harmonica charts are computed from standard layouts.
 • Where an instrument borrows another instrument's 3D model, the app says so on that screen.
 
 Bocal needs your microphone to hear you play. It uses vibration only if you switch on Feel the beat in the metronome. It needs Android 8.0 or newer and Android System WebView 69 or newer.

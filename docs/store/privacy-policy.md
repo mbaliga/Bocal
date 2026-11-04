@@ -8,7 +8,7 @@
 
 **Last updated: 4 November 2026**
 
-Bocal is a music practice app for woodwinds, harmonica, guitar and voice (package
+Bocal is a music practice app for woodwinds, harmonica, guitar and vocals (package
 `com.bocal.music`), made by A System of Cells. It listens to you play or sing, so this policy
 is specific about what happens to that audio.
 
@@ -25,43 +25,52 @@ Bocal listens through your microphone to detect pitch and analyse your tone. Tha
 tuner works, and it is the core function of the app.
 
 - Audio is processed **as it arrives**, on your device. The tuner and the live analysis views
-  keep no audio. When a tuning session ends, Bocal saves a short summary on your device (the
-  notes detected, how far from pitch they were, and how long you played) to build your
-  practice history.
-- **Recording starts only when you press Record take**, on the Analyze screen or the Vocal
-  stage. You can also import an audio file you choose; it is copied into the same library. A
-  take stops when you press Finish, after 10 minutes, or if you leave the screen or switch
-  apps, and what was recorded so far is kept. The library holds up to 12 takes, and Bocal
-  never deletes a take on its own.
+  keep no audio. When a tuning session of more than a few seconds ends, Bocal saves a short
+  summary on your device: the date and time, how long you played, which notes were detected,
+  and overall figures for how far from pitch you were. It is used for your practice history
+  and skill rating.
+- **Recording starts only when you press Record take**, on the Analyze screen (after Start
+  analysis) or the Vocal screen. On the Analyze screen you can also import an audio file you
+  choose (under 32 MiB); it is copied into the same library. The Transcribe panel can read an
+  audio file you choose too; that is analysed on your device and is not saved. A recorded take
+  stops when you press Finish take, after 10 minutes (or at the recording size limit), if the
+  microphone is interrupted, or if you leave the screen or switch apps, and what was recorded
+  so far is kept. The library holds up to 12 takes, and Bocal never deletes a take on its
+  own.
 - Takes are saved in the app's private storage on your device (the browser storage inside the
-  app, IndexedDB), so they survive closing the app. If that storage fails, a take lasts only
-  for the current session and the app says so.
-- You can rename, tag, export or delete each take in the app. Uninstalling Bocal removes
-  them. A file you export with Save As goes where you choose and is not removed by
-  uninstalling.
+  app, IndexedDB), so they survive closing the app. If that storage fails, a take is kept only
+  while you stay on that screen, and the app tells you to export it before you leave.
+- You can rename, export (the Analyze screen calls this Download) and delete the takes Bocal
+  lists, and add tags and notes to them on the Analyze screen. Deleting asks you to confirm.
+  Uninstalling Bocal removes them. A file you export goes where you choose and is not removed
+  by uninstalling.
 - Bocal stops listening when you leave the app, and does not start again until you ask.
   You can revoke the microphone permission at any time in Android's settings.
 
 ## What else is stored, and where
 
 In the app's private storage on your device: your settings and preferences, your practice log
-and weekly goal, the tuning summaries above, a lesson note, coach and player names and an
-assignment if you type them, song titles you add, equipment notes, saved exercises, melodies
-and metronome presets, your vocal range, a skill rating computed from your practice, and your
-takes with their tags and notes. Some lists keep only the most recent entries and drop the
-oldest once full.
+and weekly goal, saved practice-session times and lengths, your practice checklist ticks, the
+tuning summaries above, the results of fingering checks and rhythm taps (the figures your skill
+rating is calculated from), a lesson note, a coach plan (names, focus, assignment and check-in
+date) if you type one, song titles you add, equipment notes, saved exercises, melodies,
+metronome presets and sequences, your vocal range, and your takes with their tags and notes.
+Some lists keep only the most recent entries and drop the oldest once full.
 
-Other app data is not additionally encrypted by the app, beyond Android's own storage
-encryption. The app turns off Android's cloud backup, so Android Auto Backup does not copy this
+Bocal does not add any encryption of its own to this data. It is protected only by Android's
+app sandbox and, on devices where it is switched on, Android's device storage encryption. The app turns off Android's cloud backup, so Android Auto Backup does not copy this
 data to your Google account. It does not configure Android's phone-to-phone transfer, and on
 some devices that transfer can still carry app data to a new phone.
 
 **Keeping and deleting.** You can delete individual takes, practice-log entries, saved
 exercises, melodies, metronome presets and sequences, equipment notes, and clear your vocal
 range, inside the app. There is no delete-all button, and some items cannot be removed in the
-app: the lesson note (you can only overwrite it), song titles, the skill rating, saved
-sessions and the coach plan (you can only overwrite it). Removing everything is done with
-Android's Clear storage for Bocal, or by uninstalling. Neither removes files you exported.
+app: the lesson note and the coach plan (you can only overwrite them), song titles, saved
+sessions, and the saved tuning summaries, fingering checks and rhythm-tap results that the
+skill rating is calculated from (deleting a practice-log entry does not remove them). A saved
+take that the app cannot read is not listed and cannot be deleted in the app. Removing
+everything is done with Android's Clear storage for Bocal, or by uninstalling. Neither removes
+files you exported.
 
 ## What is sent off your device, and to whom
 
@@ -72,10 +81,12 @@ A few things you tap hand over to another app, which then has its own policy:
 
 - A credit or source link opens in your browser or another app (the sites linked are
   sketchfab.com, creativecommons.org, cgtrader.com, yamaha.com and legere.com).
-- If your Android System WebView is too old, Bocal shows a screen with a button that opens
-  Google Play.
-- Save As, and in some cases Share, write or send a file to the location or app you pick.
-  That can be a cloud-backed folder, in which case that service handles the file.
+- If your Android System WebView is too old or cannot be read, Bocal shows a screen whose
+  Update WebView button opens Bocal's WebView listing on Google Play (in the Play Store app, or
+  in your browser if that app is missing).
+- The Export, Download and Share buttons open Android's own save-file screen, and in some
+  cases a share sheet, so you pick where a file goes. That can be a cloud-backed folder, in
+  which case that service handles the file.
 
 Android System WebView, which runs the app's screens, is a part of Android with its own
 settings and policies. Bocal adds nothing to it.
@@ -85,7 +96,7 @@ settings and policies. Bocal adds nothing to it.
 | Permission | Why |
 |---|---|
 | `RECORD_AUDIO` | To hear the note you play or sing, so the app can show your pitch and tone. Analysed live; recorded only when you press Record take, and only to your device. |
-| `VIBRATE` | Optional. Used only for the metronome's Feel the beat setting, which is off until you turn it on. |
+| `VIBRATE` | Granted at install. Used only when you turn on the metronome's Feel the beat switch, which is off each time you open that screen. |
 
 The app asks for no location, contacts, storage, camera or network permission.
 

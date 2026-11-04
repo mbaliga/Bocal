@@ -1,6 +1,8 @@
 # images/
 
-Sizes and check commands: `Personal-Tracker/store/ASSET_SPECS.md`.
+Sizes: Play Console help, "Add preview assets" (support.google.com/googleplay/android-developer/answer/9866151).
+`Personal-Tracker/store/ASSET_SPECS.md` has check commands, but it is stale on the icon: it says
+no alpha, while Play allows alpha (a flat background is still the safer design).
 
 ## Needed, none present yet
 
@@ -10,8 +12,9 @@ Sizes and check commands: `Personal-Tracker/store/ASSET_SPECS.md`.
   largest 192 px, so the 512 px icon has to be made from the Bocal logo
   (`web-source/public/images/bocal-logo.png` is only 256x256).
 - `featureGraphic.png` 1024x500, no alpha
-- `phoneScreenshots/` 2 to 8, 1080x1920, no alpha, captured on a device from the current
-  build.
+- `phoneScreenshots/` 2 to 8 PNG or JPEG, no alpha, each side 320 to 3840 px with the long
+  side at most twice the short side (1080x1920 is a safe default), captured on a device from
+  the current build.
 
 `screenshots/` at the repo root holds five prototype captures (695x1536, an older UI, and
 an aspect ratio past Play's 2:1 limit). They are identical to `android/docs/reference-ui/`.
@@ -28,9 +31,9 @@ Do not upload them.
 
 - A screenshot that shows the alto saxophone or the oboe model must carry the CC BY 4.0
   credit in the listing (see `docs/store/play-console.md`).
-- Do not reuse the seven `bocal-*-cinematic.webp` instrument-picker images. The repo calls
-  them generated visual masters (`web-source/README.md`), and their source and licence are
-  recorded nowhere.
+- Do not reuse the seven `bocal-*-cinematic.webp` instrument-picker images or their
+  `web-source/assets/source/*.png` masters. `web-source/README.md` calls the masters generated
+  visual masters, and their source and licence are recorded nowhere.
 - Do not show the Settings model-sourcing list: it lists unshipped, paid and blocked
   candidates.
 
