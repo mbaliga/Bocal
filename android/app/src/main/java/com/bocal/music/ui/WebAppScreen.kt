@@ -41,11 +41,16 @@ import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewCompat
 import com.bocal.music.BuildConfig
 import com.bocal.music.webViewMeetsFloor
+import com.bocal.music.widget.BocalWidgets
+import com.bocal.music.widget.HostOpenRequests
 
-/** Shared standalone bundle, local HTTPS origin, no network fallback. */
+/**
+ * Shared standalone bundle, local HTTPS origin, no network fallback.
+ * [openRequests] carries the workspace a home-screen widget was tapped for.
+ */
 @Composable
 @SuppressLint("SetJavaScriptEnabled")
-fun WebAppScreen() {
+fun WebAppScreen(openRequests: HostOpenRequests = remember { HostOpenRequests() }) {
     val context = LocalContext.current
     val activity = context as Activity
 
@@ -74,6 +79,16 @@ fun WebAppScreen() {
         fileSaver.complete(it.resultCode, it.data?.data)
     }
     DisposableEffect(fileSaver) { onDispose { fileSaver.close() } }
+    // A widget tap while Bocal is open: tell the page to take the request now.
+    // On a cold start the page takes it by itself once it has mounted.
+    DisposableEffect(openRequests) {
+        openRequests.onRequest = {
+            activity.runOnUiThread {
+                webViewRef?.evaluateJavascript("window.dispatchEvent(new Event('bocal:host-open'))", null)
+            }
+        }
+        onDispose { openRequests.onRequest = null }
+    }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -136,9 +151,15 @@ fun WebAppScreen() {
                     WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
                     setBackgroundColor(android.graphics.Color.rgb(6, 6, 7))
                     settings.javaScriptEnabled = true
-                    addJavascriptInterface(BocalHost(activity, this) { name, mime, bytes ->
-                        fileSaver.request(name, mime, bytes) { intent -> saveLauncher.launch(intent) }
-                    }, "bocalHost")
+                    addJavascriptInterface(BocalHost(
+                        activity = activity,
+                        rootView = this,
+                        requestFileSave = { name, mime, bytes ->
+                            fileSaver.request(name, mime, bytes) { intent -> saveLauncher.launch(intent) }
+                        },
+                        publishWidgets = { json -> BocalWidgets.publish(activity, json) },
+                        nextOpenRequest = openRequests::take,
+                    ), "bocalHost")
                     setDownloadListener { _, _, _, _, _ ->
                         android.widget.Toast.makeText(context, "Use the recording's Export button to save this file.", android.widget.Toast.LENGTH_LONG).show()
                     }

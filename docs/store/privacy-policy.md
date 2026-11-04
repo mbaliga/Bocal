@@ -3,7 +3,7 @@
 > **This is the working copy, not the hosted one.** The URL Play Console points at
 > is **https://asystemofcells.com/bocal/privacy**. Keep the two in sync by hand.
 
-**Last updated: 1 September 2026**
+**Last updated: 4 November 2026**
 
 Bocal is a music practice app for saxophone and other woodwinds (package
 `com.bocal.music`), made by A System of Cells. It listens to you play, so this
@@ -36,6 +36,16 @@ tone. That is how a tuner works, and it is the core function of the app.
 
 Your practice history, session notes and settings are stored in the app's private
 storage on your device. Uninstalling Bocal deletes all of it.
+
+**Home-screen widgets.** If you place a Bocal widget on your home screen, it shows
+your practice minutes, the type, length and time of your newest practice-log entries
+(never their names or notes), your instrument and A4 reference, and the songs you have
+marked Studying with how far along you have marked them. Song titles stay hidden on
+each widget until you tap its eye to show them. Your launcher draws the widget from a
+short summary Bocal keeps in its private storage on your device, which is excluded
+from Android backup and deleted when you uninstall Bocal. Anyone who can see your home
+screen can see what a widget shows, so remove the widget if you'd rather they didn't.
+Nothing about the widgets is sent off your device.
 
 ## What is sent off your device, and to whom
 

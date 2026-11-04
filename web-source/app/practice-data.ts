@@ -24,6 +24,21 @@ export type SongWish = {
   updatedAt?: string;
 };
 
+/** One run of the header's session timer (`bocal-sessions`, newest first, at most 30). */
+export type SessionRecord = { date: string; seconds: number; note?: string };
+
+/** `bocal-sessions`: hand-edited or corrupt data must never reach a `.reduce` over it, so anything short of a plain array of {date, seconds} is dropped rather than trusted. */
+export function parseSessions(raw: string | null | undefined): SessionRecord[] {
+  try {
+    const parsed = JSON.parse(raw ?? "[]");
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((item): item is SessionRecord =>
+      Boolean(item) && typeof item === "object" && typeof item.date === "string" && typeof item.seconds === "number" && Number.isFinite(item.seconds));
+  } catch {
+    return [];
+  }
+}
+
 const ACTIVITY_TYPES = new Set<PracticeActivityType>(["tuning", "fingering", "rhythm", "chords", "analysis", "repertoire", "session", "vocal"]);
 
 function isActivity(value: unknown): value is PracticeActivity {

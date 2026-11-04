@@ -60,6 +60,9 @@ test("the shipping Android tree (/android) is a hardened, local-first WebView sh
   assert.match(host, /fun setKeepAwake/);
   assert.match(host, /fun saveFile/);
   assert.match(host, /fun openExternal/);
+  // The home-screen widgets' bridge (app/widget-snapshot.ts) adds no permission.
+  assert.match(host, /fun publishWidgetSnapshot/);
+  assert.match(host, /fun takeOpenRequest/);
 });
 
 test("no APK is served from the built site, and the legacy 0.2 Android tree is gone", async () => {

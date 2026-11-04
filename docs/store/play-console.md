@@ -92,6 +92,10 @@ this answer and the privacy policy together.
 - [ ] Add an in-app credits screen if any model requires attribution.
 - [ ] Confirm the IndexedDB-backed local take storage, deletion behavior, and no-upload
       claim match the privacy policy and the shipped bundle.
+- [ ] Publish the 4 November 2026 privacy-policy revision (home-screen widgets: what
+      they show, titles withheld by default, the on-device summary under
+      `noBackupFilesDir`) at the hosted URL, and confirm it matches the shipped widgets
+      (`docs/widgets.md`). The Data safety answer is unchanged: nothing leaves the device.
 - [ ] Build and verify a signed AAB with the release workflow; do not distribute the
       debug APK as a production artifact.
 - [ ] Run the connected Android and physical-device release checks.
