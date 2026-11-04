@@ -1,29 +1,35 @@
-A local-first practice companion for saxophone, woodwinds and guitar. Tuning, tone
-and daily practice, with instrument-specific learning tools that say clearly what
-each instrument supports.
+Bocal has no account, no ads, no analytics and no tracking, and this version does not ask for the internet permission. Your playing is analysed on your device and is not uploaded.
 
-WHAT IT COVERS
-• Tuning, with the pitch read from your own playing through the microphone.
-• Tone work, so you can hear and see what your sound is actually doing.
-• Practice workflows organised as sessions rather than a pile of exercises.
-• Instrument learning: a 3D fingering trainer for the saxophone family, a 3D
-  anatomy preview for oboe and cor anglais, 2D fingering charts for flute,
-  clarinet and bassoon, and a chord/fretboard studio for guitar.
+The tuner and the live analysis views do not record. Audio is saved only when you press Record take. A saved take stays on your device until you delete it, and you can export a copy.
 
-WHY WOODWINDS SPECIFICALLY
-Intonation on a saxophone is a conversation between embouchure, air and the
-instrument, and a generic chromatic tuner tells you almost nothing about it. Bocal
-is built for the family rather than adapted to it.
+TUNING
+• Pitch read from your playing or singing through the microphone, for 13 instruments
+• Written pitch or concert pitch for transposing instruments
+• Reference pitch from 415 to 466 Hz, and 11 temperaments including a custom one
+• Note names as letters, do re mi, sargam or on a staff
+• Tone generator for notes, intervals and chords, with exercises you can save
 
-ON YOUR DEVICE
-• Pitch detection runs locally. Your audio is analysed in real time and is not
-  recorded or uploaded.
-• No account, no ads, no analytics, no tracking.
-• Your practice history and recorded takes stay on your device. Takes use local
-  browser storage when available and can be deleted or downloaded by you.
+TONE AND PRACTICE
+• Live waveform, spectrum, harmonics and spectrogram views
+• Record takes, tag them, compare two of them, or import an audio file
+• Turn a single-line audio file into notes and export MIDI or MusicXML
+• Metronome with a gap trainer, saved presets, sequences and a drone
+• Practice timer, practice log and weekly goal
+• A repeat-after-me drill: Bocal plays a short phrase and shows whether you matched it
 
-Bocal needs your microphone to tune and analyse your playing; that is how the
-app works.
+INSTRUMENTS
+• Saxophone (soprano, alto, tenor, baritone): a fingering trainer and a 2D chart. The 3D model is an alto saxophone and is shown for all four, because it is the only saxophone model in the app.
+• Oboe: a 3D model with part names, and a fingering chart. The cor anglais uses the oboe model and the oboe chart.
+• Flute, clarinet and bassoon: 2D fingering charts, no 3D model
+• Diatonic harmonica (12 keys) and chromatic harmonica: hole charts
+• Guitar: a string tuner with three tunings, six chord diagrams and a chord player that can wait for your root note
+• Voice: a live pitch graph, a range you record yourself, guided warm-ups, saved takes, and melodies to sing against
 
-The fingering charts and saxophone altissimo routes are educational references, not
-teacher certification; they are labelled until a qualified player reviews them.
+WHAT IT DOES NOT CLAIM
+• It does not grade your tone or your singing technique.
+• No fingering chart has been reviewed by a teacher yet. Charts follow published references, saxophone altissimo fingerings are marked Unverified, and the harmonica charts are computed from standard layouts.
+• Where an instrument borrows another instrument's 3D model, the app says so on that screen.
+
+Bocal needs your microphone to hear you play. It uses vibration only if you switch on Feel the beat in the metronome. It needs Android 8.0 or newer and Android System WebView 69 or newer.
+
+3D models: "saxophone alto" by ANDRIANIAINAToky and "Oboe - Howarth Conservatoire S20C (Instrument)" by WarderiiK, both CC BY 4.0. Credits and links are in Settings.
