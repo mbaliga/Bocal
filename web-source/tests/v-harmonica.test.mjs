@@ -51,13 +51,13 @@ test("the profiles appear in the picker data, in the order the picker lists them
   assert.doesNotMatch(copy, /jaw|bite|biting|lip|embouchure hole/i);
 });
 
-test("the gallery entries are structured data only: no image, so no licence question", async () => {
+test("the harmonica gallery cards use the project's own instrument-only image", async () => {
   const experience = await read("../app/InstrumentExperience.tsx");
   const block = experience.match(/const FREE_REED_GALLERY_INSTRUMENTS:[\s\S]*?\n\];/);
   assert.ok(block, "FREE_REED_GALLERY_INSTRUMENTS must exist");
   assert.equal((block[0].match(/availableId: "/g) ?? []).length, 2);
-  assert.doesNotMatch(block[0], /\bimage\s*:/, "no bundled image without a commercial-use licence");
-  assert.doesNotMatch(block[0], /\.(webp|png|jpe?g|svg|gif|avif)/i);
+  // Both cards share the one image added with the gallery imagery change; it has no brand lettering.
+  assert.equal((block[0].match(/image: "\/images\/bocal-mouth-organ-cinematic\.jpg"/g) ?? []).length, 2);
   assert.match(block[0], /availableId: "diatonic-harmonica"/);
   assert.match(block[0], /availableId: "chromatic-harmonica"/);
   assert.match(block[0], /not teacher-reviewed/);
@@ -66,10 +66,16 @@ test("the gallery entries are structured data only: no image, so no licence ques
   assert.match(experience, /harmonica: \{\s*\n\s*title: "See which hole to play/);
 });
 
-test("no image or model for the harmonicas was added to public/", async () => {
-  const { readdir } = await import("node:fs/promises");
-  const names = [...(await readdir(new URL("../public/images/", import.meta.url))), ...(await readdir(new URL("../public/models/", import.meta.url)))];
-  assert.deepEqual(names.filter((name) => /harmonica|mouth-?organ/i.test(name)), []);
+test("the one harmonica image is bundled, is not a third-party asset, and no harmonica model was added", async () => {
+  const { readdir, stat } = await import("node:fs/promises");
+  const images = await readdir(new URL("../public/images/", import.meta.url));
+  const models = await readdir(new URL("../public/models/", import.meta.url));
+  assert.deepEqual(images.filter((name) => /harmonica|mouth-?organ/i.test(name)), ["bocal-mouth-organ-cinematic.jpg"]);
+  assert.ok((await stat(new URL("../public/images/bocal-mouth-organ-cinematic.jpg", import.meta.url))).size > 10_000);
+  assert.deepEqual(models.filter((name) => /harmonica|mouth-?organ/i.test(name)), []);
+  const credits = await read("../public/images/ATTRIBUTION.md");
+  assert.match(credits, /bocal-mouth-organ-cinematic\.jpg/);
+  assert.match(credits, /original to Bocal/i);
 });
 
 test("the key is persisted under a -v1 storage constant and read through the sanitiser", async () => {

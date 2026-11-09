@@ -19,7 +19,7 @@ const webSourceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)),
 const htmlPath = path.join(webSourceRoot, "preview-dist", "index.html");
 
 const SOURCES = [
-  { dir: path.join(webSourceRoot, "public", "images"), prefix: "/images/", mime: { ".webp": "image/webp", ".png": "image/png", ".svg": "image/svg+xml" } },
+  { dir: path.join(webSourceRoot, "public", "images"), prefix: "/images/", mime: { ".webp": "image/webp", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".svg": "image/svg+xml" } },
   { dir: path.join(webSourceRoot, "public", "models"), prefix: "/models/", mime: { ".glb": "model/gltf-binary" } },
 ];
 

@@ -33,7 +33,6 @@ import {
   parseContextSeats,
   resolveContextSeat,
   serialiseContextSeats,
-  type Seat,
   type WorkspaceMode,
 } from "./context-seats";
 import {
@@ -132,41 +131,6 @@ function navLabelFor(itemId: Mode, instrument: InstrumentProfile): string {
   if (instrument.labTier === "harmonica") return "Chart";
   if (instrument.labTier === "vocal") return "Vocal";
   return "Strings";
-}
-
-// Everything below derives from the one bar curve "M22 62 Q200 27 378 62"
-// (viewBox 400×100; x linear in t, evenly spaced control x's). Seats at
-// t = .07/.285/.5/.715/.93 — spread to fill the bar like the reference.
-//
-// ARC_SEATS: button centers, taken from the Bézier at each t — the row rides the curve.
-// ARC_TILTS: the curve's tangent angle at each seat, so icons/labels lie along the arc.
-const ARC_SEATS = [
-  { left: "11.7%", top: "57.4%" },
-  { left: "30.9%", top: "47.7%" },
-  { left: "50.0%", top: "44.5%" },
-  { left: "69.1%", top: "47.7%" },
-  { left: "88.3%", top: "57.4%" },
-];
-const ARC_TILTS = ["-9.6deg", "-4.83deg", "0deg", "4.83deg", "9.6deg"];
-
-// The workspace view switch rides its own shallower arc so the dock reads as
-// two stacked curves, as in the reference. Seats are computed at runtime
-// rather than baked in like ARC_SEATS; context-seats.ts decides which two a
-// workspace gets.
-const PILL_VIEWBOX = { w: 200, h: 48 };
-const PILL_PATH = "M16 32 Q100 16 184 32";
-const PILL_POINTS: [number, number][] = [[16, 32], [100, 16], [184, 32]];
-
-function pillSeat(index: number, count: number) {
-  const t = (index + 0.5) / count;
-  const [p0, p1, p2] = PILL_POINTS;
-  const at = (a: number, b: number, c: number) => (1 - t) ** 2 * a + 2 * (1 - t) * t * b + t ** 2 * c;
-  const slope = (a: number, b: number, c: number) => 2 * (1 - t) * (b - a) + 2 * t * (c - b);
-  return {
-    left: `${(at(p0[0], p1[0], p2[0]) / PILL_VIEWBOX.w) * 100}%`,
-    top: `${(at(p0[1], p1[1], p2[1]) / PILL_VIEWBOX.h) * 100}%`,
-    tilt: `${(Math.atan2(slope(p0[1], p1[1], p2[1]), slope(p0[0], p1[0], p2[0])) * 180) / Math.PI}deg`,
-  };
 }
 
 const CUSTOM_TEMPERAMENT_FALLBACK = loadCustomTemperamentCents(null);
@@ -410,18 +374,6 @@ export default function Home() {
     },
     [instrumentId, tuner],
   );
-
-  const chooseSeat = (seat: Seat) => {
-    if (seat.opens) {
-      selectMode(seat.opens);
-      return;
-    }
-    setSeatValue(seatKey, seat.id);
-    if (seat.section) {
-      revealedRef.current = `${seatKey}:${seat.id}`;
-      revealSection(seat.section, { focus: true });
-    }
-  };
 
   // A scroll seat that was stored for this workspace (a reload, or coming back
   // to it) is brought into view once the workspace is on screen. The left seat
@@ -678,98 +630,25 @@ export default function Home() {
       </main>
 
 <div className="mobile-dock">
-        {/* Composition mirrors the curved-keyboard reference: two circular
-            side buttons flanking a centered segmented pill (here the real
-            instrument switch), floating above an arced bar whose active tab
-            is a compact pill hugging its glyph. Inverted for the dark theme:
-            the reference's dark-pill-on-light-bar becomes ink-on-dark. */}
-        <div className="dock-top">
-          {/* Left circle is a privacy BADGE (mirrors the rail's "Local only"
-              dot), deliberately styled flat so it doesn't read as a button. */}
-          <div className="dock-side-button is-badge" aria-hidden="true"><LockKeyhole size={16} /></div>
-          <div className="dock-pill" role="group" aria-label="Workspace view">
-            <svg className="pill-track" viewBox={`0 0 ${PILL_VIEWBOX.w} ${PILL_VIEWBOX.h}`} aria-hidden="true" focusable="false">
-              <defs>
-                <linearGradient id="pillFill" x1="0" y1="6" x2="0" y2="44" gradientUnits="userSpaceOnUse">
-                  <stop offset="0" stopColor="#1a1c23" />
-                  <stop offset="1" stopColor="#23262f" />
-                </linearGradient>
-              </defs>
-              {/* Recessed track: dark seam, then a bottom-lit fill, so the
-                  groove reads as cut into the dock (Hyle crater logic). */}
-              <path d={PILL_PATH} fill="none" stroke="#0a0b0f" strokeWidth="36" strokeLinecap="round" />
-              <path d={PILL_PATH} fill="none" stroke="url(#pillFill)" strokeWidth="32" strokeLinecap="round" />
-            </svg>
-            {seats.map((seat, index) => {
-              const place = pillSeat(index, seats.length);
-              const pressed = !seat.opens && seatValue === seat.id;
-              return (
-                <button
-                  key={`${seatKey}:${seat.id}`}
-                  className={pressed ? "is-active" : ""}
-                  aria-pressed={pressed}
-                  title={seat.title}
-                  style={{ left: place.left, top: place.top, "--tilt": place.tilt } as React.CSSProperties}
-                  onClick={() => chooseSeat(seat)}
-                >
-                  {seat.label}
-                </button>
-              );
-            })}
-          </div>
-          <button className="dock-side-button" aria-label="Open Bocal settings" onClick={() => setDownloadCenterOpen(true)}>TU</button>
-        </div>
-        <nav className="mobile-nav is-arc" aria-label="Primary navigation">
-          {/* The 4:1 box uses height:0/padding-bottom:25% (NOT the aspect-ratio
-              property, which collapsed to zero height on some Android WebView
-              renderers and scrambled every percentage seat); .arc-inner is the
-              box the SVG and seats position against. */}
-          <div className="arc-inner">
-            <svg className="arc-shape" viewBox="0 0 400 100" aria-hidden="true" focusable="false">
-              {/* Molded-bar shading per the Hyle tactile kit (gunmetal set):
-                  no outline ring — the shape is carried by light. A dark seam
-                  underlay, a vertical srf gradient fill, a top-lip sheen, and
-                  a faint bottom rim-light where the bar catches bounce. */}
-              <defs>
-                <linearGradient id="arcFill" x1="0" y1="8" x2="0" y2="94" gradientUnits="userSpaceOnUse">
-                  <stop offset="0" stopColor="#282d37" />
-                  <stop offset="0.55" stopColor="#1f2129" />
-                  <stop offset="1" stopColor="#171922" />
-                </linearGradient>
-                <linearGradient id="arcSheen" x1="0" y1="10" x2="0" y2="92" gradientUnits="userSpaceOnUse">
-                  <stop offset="0" stopColor="rgba(255,255,255,0.12)" />
-                  <stop offset="0.4" stopColor="rgba(255,255,255,0.02)" />
-                  <stop offset="1" stopColor="rgba(255,255,255,0)" />
-                </linearGradient>
-                <linearGradient id="arcRim" x1="0" y1="10" x2="0" y2="94" gradientUnits="userSpaceOnUse">
-                  <stop offset="0" stopColor="rgba(255,255,255,0)" />
-                  <stop offset="0.8" stopColor="rgba(255,255,255,0)" />
-                  <stop offset="1" stopColor="rgba(255,255,255,0.07)" />
-                </linearGradient>
-              </defs>
-              <path d="M22 62 Q200 27 378 62" fill="none" stroke="#0c0e13" strokeWidth="61" strokeLinecap="round" />
-              <path d="M22 62 Q200 27 378 62" fill="none" stroke="url(#arcFill)" strokeWidth="58" strokeLinecap="round" />
-              <path d="M22 62 Q200 27 378 62" fill="none" stroke="url(#arcSheen)" strokeWidth="56" strokeLinecap="round" />
-              <path d="M22 62 Q200 27 378 62" fill="none" stroke="url(#arcRim)" strokeWidth="58" strokeLinecap="round" />
-            </svg>
-            {navItems.map((item, index) => {
-              const Icon = item.icon;
-              const active = mode === item.id;
-              return (
-                <button
-                  key={item.id}
-                  className={active ? "is-active" : ""}
-                  aria-current={active ? "page" : undefined}
-                  aria-label={navLabelFor(item.id, instrument)}
-                  aria-keyshortcuts={String(index + 1)}
-                  style={{ left: ARC_SEATS[index].left, top: ARC_SEATS[index].top, "--tilt": ARC_TILTS[index] } as React.CSSProperties}
-                  onClick={() => selectMode(item.id)}
-                >
-                  <Icon size={19} />{active && <span>{navLabelFor(item.id, instrument)}</span>}
-                </button>
-              );
-            })}
-          </div>
+        <nav className="mobile-nav" aria-label="Primary navigation">
+          {navItems.map((item, index) => {
+            const Icon = item.icon;
+            const active = mode === item.id;
+            const label = navLabelFor(item.id, instrument);
+            return (
+              <button
+                key={item.id}
+                className={active ? "is-active" : ""}
+                aria-current={active ? "page" : undefined}
+                aria-label={label}
+                aria-keyshortcuts={String(index + 1)}
+                onClick={() => selectMode(item.id)}
+              >
+                <Icon size={19} />
+                <span>{label}</span>
+              </button>
+            );
+          })}
         </nav>
       </div>
     </div>

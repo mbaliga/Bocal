@@ -135,7 +135,6 @@ try {
         await page.locator(`.mobile-nav button[aria-keyshortcuts="${digit}"]`).click();
         await page.waitForTimeout(digit === 2 ? 3500 : 400);
         const views = ["first"];
-        if (await page.locator(".dock-pill button").count() === 2) views.push("second");
         for (const view of views) {
           if (view === "second") {
             const idle = page.locator('.dock-pill button[aria-pressed="false"]');

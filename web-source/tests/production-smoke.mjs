@@ -179,7 +179,7 @@ try {
   await check("settings and keyboard dialogs close with Escape", async () => {
     const { context, page, errors } = await newPage();
     try {
-      const compactSettingsButton = page.locator('.dock-side-button[aria-label="Open Bocal settings"]');
+      const compactSettingsButton = page.getByRole("button", { name: "Open settings and handoff", exact: true });
       await compactSettingsButton.click();
       const settingsDialog = page.locator('.download-dialog[role="dialog"]:has(#download-title)');
       await settingsDialog.waitFor({ state: "visible" });

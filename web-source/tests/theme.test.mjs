@@ -46,7 +46,7 @@ const AUDIT_FN = `(() => {
   const opacityOf=el=>{let op=1;for(let n=el;n;n=n.parentElement)op*=Number(getComputedStyle(n).opacity);return op;};
   // Existing documented exclusions: SVG-painted nav tracks, positioned gradients,
   // the shadow-filled goal ring and blend-mode artwork need screenshot/manual QA.
-  const artefacts=['.dock-pill button','.mobile-nav.is-arc button','.variant-visual','.gentle-win-card','.goal-ring','.other-instruments-heading'];
+  const artefacts=['.mobile-nav button','.variant-visual','.gentle-win-card','.goal-ring','.other-instruments-heading'];
   const isExempt=el=>{for(let n=el;n;n=n.parentElement){if(n.classList?.contains('skip-to-content')||n.disabled===true||n.getAttribute?.('aria-disabled')==='true')return true;for(const s of artefacts)if(n.matches?.(s))return true;}return false;};
   const sel=el=>{const parts=[];for(let n=el,i=0;n&&n!==document.body&&i<3;n=n.parentElement,i++){const cls=(typeof n.className==='string'?n.className:'').trim().split(/\\s+/).filter(Boolean).slice(0,2).join('.');parts.unshift(n.tagName.toLowerCase()+(cls?'.'+cls:''));}return parts.join(' > ');};
   return {parse,lum,blend,ratioOf,hex,effBg,visible,opacityOf,isExempt,sel};

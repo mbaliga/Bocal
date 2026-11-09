@@ -124,7 +124,7 @@ class BocalReleaseSmokeTest {
 
     @Test fun systemBackClosesSettingsBeforeLeavingTheApp() {
         ready()
-        requireJavascriptTrue("document.querySelector('[aria-label=\"Open Bocal settings\"]').click(); true")
+        requireJavascriptTrue("document.querySelector('[aria-label=\"Open settings and handoff\"]').click(); true")
         awaitTrue("document.querySelector('.download-overlay') !== null")
         pressBack()
         awaitTrue("document.querySelector('.download-overlay') === null")

@@ -92,6 +92,8 @@ const STRING_GALLERY_INSTRUMENTS: GalleryInstrument[] = [
     family: "Frets and strings",
     pitch: "C",
     status: "String tuner + chord player",
+    image: "/images/bocal-guitar-cinematic.jpg",
+    imagePosition: "62% center",
     gradient: "linear-gradient(160deg, #102b29, #17131f 72%)",
     availableId: "guitar",
   },
@@ -104,14 +106,14 @@ const VOCAL_GALLERY_INSTRUMENTS: GalleryInstrument[] = [
     family: "Voice · singing",
     pitch: "C",
     status: "Vocal tuner + practice prompts",
+    image: "/images/bocal-vocal-cinematic.jpg",
+    imagePosition: "62% center",
     gradient: "linear-gradient(160deg, #553d71, #1c132b 72%)",
     availableId: "vocal",
   },
 ];
 
-// Free-reed wind instruments: blown or drawn through a comb of holes, no keys.
-// No photograph is bundled (no commercial-use licence has been confirmed for
-// one), so these cards use a gradient and the CSS-drawn ghost shape.
+// Free-reed wind instruments: shown with an original, instrument-only image.
 const FREE_REED_GALLERY_INSTRUMENTS: GalleryInstrument[] = [
   {
     id: "diatonic-harmonica",
@@ -119,6 +121,8 @@ const FREE_REED_GALLERY_INSTRUMENTS: GalleryInstrument[] = [
     family: "Free reed",
     pitch: "12 keys",
     status: "Hole chart · computed, not teacher-reviewed",
+    image: "/images/bocal-mouth-organ-cinematic.jpg",
+    imagePosition: "60% center",
     gradient: "linear-gradient(160deg, #3d3a1a, #14130c 72%)",
     availableId: "diatonic-harmonica",
   },
@@ -128,6 +132,8 @@ const FREE_REED_GALLERY_INSTRUMENTS: GalleryInstrument[] = [
     family: "Free reed",
     pitch: "C",
     status: "Hole chart with slide · computed, not teacher-reviewed",
+    image: "/images/bocal-mouth-organ-cinematic.jpg",
+    imagePosition: "60% center",
     gradient: "linear-gradient(160deg, #2c3a40, #0e1417 72%)",
     availableId: "chromatic-harmonica",
   },
