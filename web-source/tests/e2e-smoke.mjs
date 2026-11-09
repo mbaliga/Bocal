@@ -52,10 +52,8 @@ try {
         await page.waitForTimeout(digit === 2 ? 500 : 150);
         assert.ok(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth <= 1), `${label}: horizontal overflow in workspace ${digit}`);
         if (size.width < 681 || size.height <= 520) {
-          assert.equal(await page.locator(".mobile-nav .arc-shape > path").count(), 4, "The persistent four-layer navigation arc is missing");
-          // .dock-pill is rendered unconditionally in .mobile-dock, outside the
-          // per-mode switch, so check it on every workspace, not just Tune.
-          assert.equal(await page.locator(".dock-pill .pill-track > path").count(), 2, "The workspace-view pill arc is missing");
+          assert.equal(await page.locator(".mobile-nav button").count(), 5, "The five-button dock is missing");
+          assert.equal(await page.locator(".dock-pill, .mobile-nav .arc-shape").count(), 0, "The retired arc or upper pill came back");
         }
       }
       if (instrumentId === "vocal" && size.name === "tall-phone") {
@@ -252,98 +250,38 @@ try {
     } catch (error) { errors.push(`${label}: ${error.message}`); }
     finally { await context.close(); }
   }
-  // The upper dock pill switches the view inside the workspace on screen.
-  // On an alto sax: Concert on Tune agrees with the Readout control, Spectrum
-  // on Analyze changes the analysis view, Challenge in the Lab starts the
-  // challenge, and a reload brings each workspace back on its last seat.
+  // Flat bottom dock: five labelled buttons in a row, every one a real tap
+  // target, the current workspace marked, and no arc or upper pill. Both themes.
   for (const theme of ["dark", "light"]) {
-    const label = `context-pill-${theme}`;
+    const label = `flat-dock-${theme}`;
     const context = await browser.newContext({ viewport: { width: 412, height: 915 } });
     try {
       const page = await context.newPage();
       page.setDefaultTimeout(10000);
       const pageErrors = [];
       page.on("pageerror", (error) => pageErrors.push(String(error)));
-      page.on("console", (message) => { if (message.type() === "error") pageErrors.push(message.text()); });
       await page.addInitScript((t) => {
-        if (!sessionStorage.getItem("pill-seeded")) {
-          sessionStorage.setItem("pill-seeded", "1");
-          localStorage.setItem("bocal-onboarding-v2", "complete");
-          localStorage.setItem("bocal-theme", t);
-          localStorage.setItem("bocal-instrument", "alto-sax");
-        }
+        localStorage.setItem("bocal-onboarding-v2", "complete");
+        localStorage.setItem("bocal-theme", t);
+        localStorage.setItem("bocal-instrument", "alto-sax");
       }, theme);
       await page.goto(preview.url);
-      await page.locator(".app-shell").waitFor();
-      await page.waitForTimeout(300);
-      const pill = page.getByRole("group", { name: "Workspace view" });
-      const seat = (name) => pill.getByRole("button", { name, exact: true });
-      const pressed = async (name) => (await seat(name).getAttribute("aria-pressed")) === "true";
-      const go = async (digit) => {
-        const nav = page.locator(`.mobile-nav button[aria-keyshortcuts="${digit}"]`);
-        await nav.click();
-        await page.waitForFunction((s) => document.querySelector(s)?.getAttribute("aria-current") === "page", `.mobile-nav button[aria-keyshortcuts="${digit}"]`);
-      };
-      // Tune: Written / Concert is the Readout control in Calibration.
-      assert.deepEqual(await pill.getByRole("button").allInnerTexts(), ["Written", "Concert"], `${label}: Tune pair`);
-      assert.equal(await pressed("Written"), true, `${label}: Written is the default`);
-      await seat("Concert").click();
-      assert.equal(await pressed("Concert"), true);
-      await page.locator(".calibration-toggle").click();
-      const readout = page.getByRole("radiogroup", { name: "Readout pitch space" });
-      assert.equal(await readout.getByRole("radio", { name: "Concert" }).getAttribute("aria-checked"), "true", `${label}: the in-view Readout control shows Concert`);
-      await readout.getByRole("radio", { name: "Written" }).click();
-      assert.equal(await pressed("Written"), true, `${label}: the pill follows the in-view control`);
-      await seat("Concert").click();
-      // Analyze: Waveform / Spectrum is the analysis view.
-      await go(4);
-      assert.deepEqual(await pill.getByRole("button").allInnerTexts(), ["Waveform", "Spectrum"], `${label}: Analyze pair`);
-      assert.equal(await pressed("Waveform"), true);
-      await seat("Spectrum").click();
-      assert.equal(await pressed("Spectrum"), true);
-      await page.locator(".analysis-card button.is-active", { hasText: "Spectrum" }).waitFor();
-      assert.equal(await page.locator(".analysis-card button.is-active", { hasText: "Waveform" }).count(), 0, `${label}: only Spectrum is active in the view`);
-      await page.locator(".analysis-card button", { hasText: "Harmonics" }).click();
-      assert.equal(await pressed("Spectrum") || await pressed("Waveform"), false, `${label}: neither seat claims the Harmonics view`);
-      await seat("Spectrum").click();
-      // Lab: Learn / Challenge is the trainer mode.
-      await go(2);
-      await page.getByRole("heading", { name: "See exactly which keys to press." }).waitFor();
-      assert.deepEqual(await pill.getByRole("button").allInnerTexts(), ["Learn", "Challenge"], `${label}: Lab pair`);
-      assert.equal(await pressed("Learn"), true);
-      assert.equal(await page.getByText("Build this fingering").count(), 0, `${label}: no challenge yet`);
-      await seat("Challenge").click();
-      await page.getByText("Build this fingering").first().waitFor();
-      assert.equal(await pressed("Challenge"), true);
-      await page.locator(".lab-mode-switch button.is-active", { hasText: "Challenge" }).waitFor();
-      // Pulse and Practice: the pill scrolls to a real section and moves focus to its heading.
-      await go(3);
-      assert.deepEqual(await pill.getByRole("button").allInnerTexts(), ["Metronome", "Sequences"], `${label}: Pulse pair`);
-      await seat("Sequences").click();
-      await page.waitForFunction(() => document.activeElement?.id === "metronome-sequences-title");
-      await go(5);
-      assert.deepEqual(await pill.getByRole("button").allInnerTexts(), ["Today", "Log"], `${label}: Practice pair`);
-      await seat("Log").click();
-      await page.waitForFunction(() => document.activeElement?.id === "practice-log-title");
-      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth <= 1), `${label}: no horizontal overflow`);
-      await page.waitForTimeout(300);
-      // Reload: every workspace comes back on its last seat.
-      await page.reload();
-      await page.locator(".app-shell").waitFor();
-      await page.waitForTimeout(400);
-      assert.equal(await pressed("Concert"), true, `${label}: Tune keeps Concert after a reload`);
-      await go(4);
-      assert.equal(await pressed("Spectrum"), true, `${label}: Analyze keeps Spectrum after a reload`);
-      await page.locator(".analysis-card button.is-active", { hasText: "Spectrum" }).waitFor();
-      await go(2);
-      await page.getByText("Build this fingering").first().waitFor();
-      assert.equal(await pressed("Challenge"), true, `${label}: Lab keeps Challenge after a reload`);
-      await go(3);
-      assert.equal(await pressed("Sequences"), true, `${label}: Pulse keeps Sequences after a reload`);
-      await go(5);
-      assert.equal(await pressed("Log"), true, `${label}: Practice keeps Log after a reload`);
-      // The header picker stays the only instrument chooser.
-      assert.equal(await pill.getByRole("button", { name: /sax|oboe|flute|clarinet|vocal/i }).count(), 0, `${label}: the pill no longer lists instruments`);
+      await page.locator(".mobile-nav").waitFor();
+      assert.equal(await page.locator(".dock-pill, .mobile-nav .arc-shape").count(), 0, `${label}: the arc and the upper pill are gone`);
+      const labels = await page.locator(".mobile-nav button").allInnerTexts();
+      assert.deepEqual(labels.map((text) => text.trim()), ["Tune", "Lab", "Pulse", "Analyze", "Practice"], `${label}: every dock button shows its label`);
+      for (let digit = 1; digit <= 5; digit++) {
+        const button = page.locator(`.mobile-nav button[aria-keyshortcuts="${digit}"]`);
+        const box = await button.boundingBox();
+        assert.ok(box && box.width >= 44 && box.height >= 44, `${label}: dock button ${digit} is at least 44 px (${JSON.stringify(box)})`);
+        assert.ok(box.y + box.height <= 915 && box.x >= 0 && box.x + box.width <= 412, `${label}: dock button ${digit} is on screen`);
+        await button.click();
+        await page.waitForFunction((d) => document.querySelector(`.mobile-nav button[aria-keyshortcuts="${d}"]`)?.getAttribute("aria-current") === "page", digit);
+        assert.equal(await page.locator('.mobile-nav button[aria-current="page"]').count(), 1, `${label}: exactly one workspace is current`);
+        await page.waitForTimeout(digit === 2 ? 500 : 150);
+      }
+      const dock = await page.locator(".mobile-dock").boundingBox();
+      assert.ok(dock && dock.y + dock.height <= 915 && dock.y > 915 - 140, `${label}: the dock sits at the bottom edge (${JSON.stringify(dock)})`);
       assert.deepEqual(pageErrors, [], `${label}: browser errors`);
       results.push({ label, passed: true });
     } catch (error) { errors.push(`${label}: ${error.message}`); }
