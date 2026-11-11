@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Widget picker preview (Android 12+). Sample content only; never drawn with real data.
+     It shows the default state: song titles withheld until the widget's eye is tapped. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@android:id/background"
+    style="@style/BocalWidget.Root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <TextView
+        style="@style/BocalWidget.Kicker"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/widget_studying_name" />
+
+    <TextView
+        style="@style/BocalWidget.Title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/widget_studying_hidden" />
+
+    <ProgressBar
+        style="@style/BocalWidget.Progress"
+        android:layout_width="match_parent"
+        android:layout_height="8dp"
+        android:layout_marginTop="6dp"
+        android:importantForAccessibility="no"
+        android:progress="40" />
+
+    <TextView
+        style="@style/BocalWidget.Meta"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="@string/widget_preview_song_meta" />
+</LinearLayout>

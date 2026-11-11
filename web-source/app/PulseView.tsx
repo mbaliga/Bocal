@@ -873,7 +873,7 @@ export function PulseView({ tuningOptions = EQUAL_A440 }: { tuningOptions?: Tuni
         </div>
       </section>
 
-      <section className="drone-strip">
+      <section className="drone-strip" id="ctx-pulse-drone">
         <div><span className="drone-icon"><Headphones size={18} /></span><div><strong>Harmony drone</strong><small>Hear the tonal center beneath the click, tuned to your calibration.</small></div></div>
         <div className="drone-controls">
           <select value={dronePc} onChange={(event) => setDronePc(Number(event.target.value))} aria-label="Drone pitch class">{Array.from({ length: 12 }, (_, pc) => <option value={pc} key={pc}>{noteName(pc, "western")}</option>)}</select>

@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "publishedAt": 1793793600000,
+  "weeklyGoalMinutes": 60,
+  "days": [
+    {
+      "date": "2026-10-29",
+      "seconds": 600,
+      "pulseSeconds": 0,
+      "timerSeconds": 0
+    },
+    {
+      "date": "2026-10-30",
+      "seconds": 0,
+      "pulseSeconds": 0,
+      "timerSeconds": 0
+    },
+    {
+      "date": "2026-10-31",
+      "seconds": 1500,
+      "pulseSeconds": 0,
+      "timerSeconds": 0
+    },
+    {
+      "date": "2026-11-01",
+      "seconds": 0,
+      "pulseSeconds": 0,
+      "timerSeconds": 0
+    },
+    {
+      "date": "2026-11-02",
+      "seconds": 180,
+      "pulseSeconds": 0,
+      "timerSeconds": 0
+    },
+    {
+      "date": "2026-11-03",
+      "seconds": 480,
+      "pulseSeconds": 480,
+      "timerSeconds": 0
+    },
+    {
+      "date": "2026-11-04",
+      "seconds": 720,
+      "pulseSeconds": 0,
+      "timerSeconds": 1500
+    }
+  ],
+  "recent": [
+    {
+      "type": "tuning",
+      "seconds": 720,
+      "capturedAt": 1793785200000
+    },
+    {
+      "type": "rhythm",
+      "seconds": 480,
+      "capturedAt": 1793729100000
+    },
+    {
+      "type": "analysis",
+      "seconds": 180,
+      "capturedAt": 1793604600000
+    },
+    {
+      "type": "vocal",
+      "seconds": 1500,
+      "capturedAt": 1793476800000
+    },
+    {
+      "type": "chords",
+      "seconds": 600,
+      "capturedAt": 1793268000000
+    }
+  ],
+  "lastPulseAt": 1793729100000,
+  "instrument": {
+    "id": "alto-sax",
+    "name": "Alto saxophone",
+    "shortName": "Alto sax",
+    "family": "Saxophone",
+    "pitchLabel": "E♭",
+    "writtenOffset": 9,
+    "labLabel": "Lab",
+    "labStatus": "Fingering trainer + 3D reference",
+    "review": "Method-book consensus, not yet teacher-reviewed"
+  },
+  "tuning": {
+    "referenceHz": 442,
+    "temperament": "Equal"
+  },
+  "songs": {
+    "studying": [
+      {
+        "title": "Autumn Leaves",
+        "progress": 40
+      },
+      {
+        "title": "Blue Bossa",
+        "progress": 15
+      }
+    ],
+    "studyingCount": 2,
+    "wishlistCount": 1
+  }
+}

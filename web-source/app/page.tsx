@@ -26,6 +26,7 @@ import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnalysisView, type AnalysisMode } from "./AnalysisView";
 import { revealSection } from "./context-scroll";
+import { HOST_OPEN_EVENT, SESSIONS_EVENT, hostDestination, useWidgetSnapshotPublisher, type HostDestination } from "./widget-snapshot";
 import {
   contextKeyFor,
   contextSeatsFor,
@@ -342,6 +343,7 @@ export default function Home() {
         const existing = JSON.parse(localStorage.getItem(SESSIONS_STORAGE_KEY) ?? "[]");
         existing.unshift({ date: new Date().toISOString(), seconds: sessionSeconds });
         localStorage.setItem(SESSIONS_STORAGE_KEY, JSON.stringify(existing.slice(0, 30)));
+        window.dispatchEvent(new Event(SESSIONS_EVENT));
       } catch {
         // Device-local history is an enhancement; the session still works without it.
       }
@@ -390,6 +392,38 @@ export default function Home() {
     // `seats` is derived from the same inputs as seatKey.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seatKey, seatValue]);
+
+  // The Android home-screen widgets: keep their summary current, and open the
+  // workspace a widget was tapped for. The shell holds the request until the
+  // page takes it, so a cold start and a tap on a running app both land here.
+  useWidgetSnapshotPublisher({
+    instrumentId,
+    labLabel: navLabelFor("sax", instrument),
+    referenceHz,
+    temperament: TEMPERAMENT_PROFILES[temperament]?.label ?? TEMPERAMENT_PROFILES.equal.label,
+  });
+  const openDestinationRef = useRef<(destination: HostDestination) => void>(() => {});
+  useEffect(() => {
+    openDestinationRef.current = (destination) => {
+      selectMode(destination.mode);
+      const key = contextKeyFor(destination.mode, instrument);
+      const seat = destination.seat ? contextSeatsFor(destination.mode, instrument).find((candidate) => candidate.id === destination.seat) : undefined;
+      if (seat) setSeatValue(key, seat.id);
+      if (destination.section) revealSection(destination.section, { focus: true });
+    };
+  });
+  useEffect(() => {
+    const take = () => {
+      const destination = hostDestination(window.bocalHost?.takeOpenRequest?.());
+      if (destination) openDestinationRef.current(destination);
+    };
+    window.addEventListener(HOST_OPEN_EVENT, take);
+    const timer = window.setTimeout(take, 0);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener(HOST_OPEN_EVENT, take);
+    };
+  }, []);
 
   const completeOnboarding = () => {
     try { localStorage.setItem(BOCAL_ONBOARDING_KEY, "complete"); } catch { /* The guide can close without storage. */ }

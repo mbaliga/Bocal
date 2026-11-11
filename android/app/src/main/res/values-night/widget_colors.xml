@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Home-screen widget colours, from Bocal's dark theme (web-source/app/globals.css). -->
+<resources>
+    <color name="widget_surface">#101011</color>
+    <color name="widget_ink">#F5F3EB</color>
+    <color name="widget_muted">#9C9B98</color>
+    <color name="widget_line">#28282C</color>
+    <color name="widget_accent">#8E7BFF</color>
+    <color name="widget_track">#282D37</color>
+    <color name="widget_pad">#1F2129</color>
+</resources>

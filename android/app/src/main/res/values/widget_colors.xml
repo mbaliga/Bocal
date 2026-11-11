@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Home-screen widget colours, from Bocal's light theme (web-source/app/globals.css).
+     values-night holds the dark theme. Violet is the only accent and never carries
+     meaning on its own: every state on a widget is also a word and a shape. -->
+<resources>
+    <color name="widget_surface">#FFFDF9</color>
+    <color name="widget_ink">#1D1B1B</color>
+    <color name="widget_muted">#5E5A5A</color>
+    <color name="widget_line">#D9D2C8</color>
+    <color name="widget_accent">#654BD0</color>
+    <color name="widget_track">#E4DED5</color>
+    <color name="widget_pad">#F1EDE6</color>
+</resources>

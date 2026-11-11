@@ -45,11 +45,27 @@ if (root / 'app/src/main/assets/www/models').exists() or (root / 'app/src/main/a
     raise SystemExit('FAIL: the dead Lab models/vendor tree has reappeared')
 
 host = (root / 'app/src/main/java/com/bocal/music/ui/BocalHost.kt').read_text()
-for method in ['setTheme', 'setKeepAwake', 'saveFile', 'openExternal']:
+for method in ['setTheme', 'setKeepAwake', 'saveFile', 'openExternal', 'publishWidgetSnapshot', 'takeOpenRequest']:
     if f'fun {method}' not in host:
         raise SystemExit(f'FAIL: BocalHost is missing the native bridge method {method}')
 
-print('PASS: XML parses; zero INTERNET permission; allowBackup=false; no dead Lab/Compose files; native bridge complete')
+# Home-screen widgets: every provider is registered with its definition, and
+# nothing else the widgets add is reachable from other apps.
+manifest_root = ET.parse(manifest).getroot()
+android_ns = '{http://schemas.android.com/apk/res/android}'
+receivers = {r.get(android_ns + 'name'): r for r in manifest_root.iter('receiver')}
+for provider in ['ThisWeekWidget', 'TuneWidget', 'NowStudyingWidget', 'PracticeLogWidget', 'PulseWidget', 'InstrumentWidget']:
+    receiver = receivers.get('.widget.' + provider)
+    if receiver is None:
+        raise SystemExit(f'FAIL: widget provider {provider} is not registered')
+    meta = [m for m in receiver.iter('meta-data') if m.get(android_ns + 'name') == 'android.appwidget.provider']
+    if not meta or not (root / 'app/src/main/res/xml' / (meta[0].get(android_ns + 'resource').split('/')[-1] + '.xml')).exists():
+        raise SystemExit(f'FAIL: widget provider {provider} has no appwidget-provider definition')
+action_receiver = receivers.get('.widget.WidgetActionReceiver')
+if action_receiver is None or action_receiver.get(android_ns + 'exported') != 'false':
+    raise SystemExit('FAIL: WidgetActionReceiver must be registered with exported="false"')
+
+print('PASS: XML parses; zero INTERNET permission; allowBackup=false; no dead Lab/Compose files; native bridge complete; widgets registered')
 PY
 
 if [ -f app/src/main/assets/www/app.html ]; then

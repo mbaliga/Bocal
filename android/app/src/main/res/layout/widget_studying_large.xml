@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@android:id/background"
+    style="@style/BocalWidget.Root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <!-- The eye is its own 48 dp tap target, so it stays a separate view. -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        tools:ignore="UseCompoundDrawables">
+
+        <TextView
+            android:id="@+id/widget_kicker"
+            style="@style/BocalWidget.Kicker"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/widget_studying_name" />
+
+        <ImageView
+            android:id="@+id/widget_toggle"
+            android:layout_width="@dimen/widget_touch"
+            android:layout_height="@dimen/widget_touch"
+            android:layout_marginTop="-12dp"
+            android:layout_marginEnd="-12dp"
+            android:padding="12dp"
+            android:contentDescription="@string/widget_studying_show"
+            android:src="@drawable/widget_icon_eye_off" />
+    </LinearLayout>
+
+    <!-- Shown instead of the rows when nothing is marked Studying. -->
+    <TextView
+        android:id="@+id/widget_title"
+        style="@style/BocalWidget.Title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="-4dp" />
+
+    <LinearLayout
+        android:id="@+id/song_1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/song_1_title"
+                style="@style/BocalWidget.Body"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:maxLines="1"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/song_1_percent"
+                style="@style/BocalWidget.Meta"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:maxLines="1" />
+        </LinearLayout>
+
+        <ProgressBar
+            android:id="@+id/song_1_bar"
+            style="@style/BocalWidget.Progress"
+            android:layout_width="match_parent"
+            android:layout_height="6dp"
+            android:layout_marginTop="2dp"
+            android:importantForAccessibility="no" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/song_2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/song_2_title"
+                style="@style/BocalWidget.Body"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:maxLines="1"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/song_2_percent"
+                style="@style/BocalWidget.Meta"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:maxLines="1" />
+        </LinearLayout>
+
+        <ProgressBar
+            android:id="@+id/song_2_bar"
+            style="@style/BocalWidget.Progress"
+            android:layout_width="match_parent"
+            android:layout_height="6dp"
+            android:layout_marginTop="2dp"
+            android:importantForAccessibility="no" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/song_3"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/song_3_title"
+                style="@style/BocalWidget.Body"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:maxLines="1"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/song_3_percent"
+                style="@style/BocalWidget.Meta"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:maxLines="1" />
+        </LinearLayout>
+
+        <ProgressBar
+            android:id="@+id/song_3_bar"
+            style="@style/BocalWidget.Progress"
+            android:layout_width="match_parent"
+            android:layout_height="6dp"
+            android:layout_marginTop="2dp"
+            android:importantForAccessibility="no" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/widget_meta"
+        style="@style/BocalWidget.Meta"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="6dp"
+        android:gravity="bottom" />
+
+    <!-- As of / stale: fixed, so it is never the line squeezed out. -->
+    <TextView
+        android:id="@+id/widget_footer"
+        style="@style/BocalWidget.Meta"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:maxLines="1" />
+</LinearLayout>
