@@ -47,7 +47,7 @@ Everything below needs your Apple account, a Mac or a device. None of it has bee
 4. Open Xcode's privacy report and confirm it matches the manifest once the Swift plugin exists.
 5. App Store Connect: create the app record, answer the export-compliance question (`ITSAppUsesNonExemptEncryption` is left
    unset on purpose), App Privacy answers ("Data Not Collected"), and publish the privacy policy URL.
-6. TestFlight uploads tester crash reports to you automatically (an Apple-side egress, approved by PT:D-AD on 2026-10-14);
+6. TestFlight uploads tester crash reports to you automatically (an Apple-side egress, approved by PT:D-BD on 2026-10-14);
    the store listing and about page must name that exception.
 7. Device session on the iPad Pro M4: the physical gates of `docs/PRODUCTION_V1_ACCEPTANCE.md` restated for iPadOS
    (microphone permission, routes, interruption, lock, rotation, storage pressure, upgrade preserving takes).
