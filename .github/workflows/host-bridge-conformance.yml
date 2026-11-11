@@ -1,0 +1,37 @@
+name: Host-bridge conformance
+# BROWSER-HEADLESS. Test-only: loads the real standalone bundle in Chromium with a mock window.bocalHost.
+# Nothing here is packaged and nothing is uploaded.
+on:
+  push:
+    branches: [main]
+    paths: ["packaging/host-bridge/**", "web-source/app/**", ".github/workflows/host-bridge-conformance.yml"]
+  pull_request:
+    paths: ["packaging/host-bridge/**", "web-source/app/**", ".github/workflows/host-bridge-conformance.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: host-bridge-conformance-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  conformance:
+    runs-on: ubuntu-24.04 # pinned: ubuntu-latest is 26.04, which Playwright 1.56 cannot install Chromium on
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.0"
+      - name: Build the standalone bundle
+        working-directory: web-source
+        run: |
+          npm ci
+          npm run preview:standalone
+      - name: Install the harness's pinned Playwright and Chromium
+        working-directory: packaging/host-bridge/conformance
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Run the conformance harness
+        working-directory: packaging/host-bridge/conformance
+        run: node run.mjs

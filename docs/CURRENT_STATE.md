@@ -6,6 +6,8 @@ by hand from `web-source/app/instruments.ts` and the fingering/sax-lab/oboe-lab
 source fixtures as of 18 September 2026; re-check it whenever `INSTRUMENT_ORDER`
 or a `labTier` changes.
 
+Host-bridge conformance (2026-11-11, BROWSER-HEADLESS, Chromium via system Chrome): `packaging/host-bridge/conformance/run.mjs` passes 6 of 6 cases against the real standalone bundle with a mock `window.bocalHost`. This is the harness only; no non-Android host exists and no real WebView has been exercised.
+
 ## Instrument × capability
 
 | Instrument | `labTier` | Tuner | Written↔concert offset | Lab | Known chart/model issues |
