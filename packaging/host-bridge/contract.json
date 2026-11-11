@@ -1,0 +1,72 @@
+{
+  "contract": "bocal-host-bridge",
+  "version": 0,
+  "status": "draft, awaiting owner review",
+  "global": "window.bocalHost",
+  "optional": true,
+  "limits": {
+    "saveFileMaxBytes": 33554432,
+    "saveFileNameMaxChars": 128
+  },
+  "methods": [
+    {
+      "name": "setTheme",
+      "args": [{"name": "theme", "type": "string", "values": ["light", "dark"]}],
+      "returns": "void",
+      "palette": {"light": "#f7f5ee", "dark": "#060607"},
+      "notes": "Any other value is treated as dark by the Android reference; a host must not throw."
+    },
+    {
+      "name": "setKeepAwake",
+      "args": [{"name": "on", "type": "boolean"}],
+      "returns": "void",
+      "notes": "Held while tuner, metronome or drone runs. Released on host pause and teardown."
+    },
+    {
+      "name": "saveFile",
+      "args": [
+        {"name": "name", "type": "string", "maxChars": 128},
+        {"name": "mime", "type": "string"},
+        {"name": "base64", "type": "string", "maxDecodedBytes": 33554432}
+      ],
+      "returns": "boolean",
+      "returnMeaning": "accepted, not written",
+      "falseWhen": ["a save is already pending", "payload exceeds 32 MiB", "base64 is invalid"],
+      "notes": "Name and MIME are sanitised; the outcome is shown by native UI and never reported to JS; a failed write never deletes the destination."
+    },
+    {
+      "name": "openExternal",
+      "args": [{"name": "url", "type": "string"}],
+      "returns": "boolean",
+      "returnMeaning": "queued",
+      "falseWhen": ["scheme is not http or https", "host is blank", "URL carries userinfo"]
+    }
+  ],
+  "optionalProperties": [
+    {"name": "hostName", "type": "string", "readOnly": true},
+    {"name": "hostVersion", "type": "string", "readOnly": true}
+  ],
+  "events": [
+    {
+      "name": "bocal:host-pause",
+      "target": "window",
+      "dispatchedWhen": "the host leaves the foreground",
+      "hostMust": ["release keep-awake"],
+      "hostMustNot": ["dispatch anything on resume"]
+    }
+  ],
+  "hostDuties": [
+    "stable-non-file-origin",
+    "microphone-grant-to-app-origin-only",
+    "file-chooser-for-input-type-file",
+    "navigation-policy",
+    "no-network-capability"
+  ],
+  "asyncShimRule": {
+    "applies": "hosts whose native calls are asynchronous (Tauri invoke, Capacitor, QWebChannel)",
+    "returnValue": "true after queueing",
+    "inFlightFlag": "keep one per host; saveFile returns false while a save is pending",
+    "sanitiseBeforeNative": true,
+    "sizeBoundBeforeNative": true
+  }
+}
