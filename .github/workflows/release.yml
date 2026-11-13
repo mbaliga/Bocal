@@ -63,6 +63,12 @@ jobs:
           BOCAL_SKIP_WEB_BUILD: "1"
         run: ./gradlew lintDebug assembleDebug --console=plain
 
+      - name: Free memory for the emulator
+        # The web build and Gradle leave daemons running on this shared runner;
+        # the emulator dropped to "device offline" mid-test beside them.
+        working-directory: android
+        run: ./gradlew --stop
+
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
