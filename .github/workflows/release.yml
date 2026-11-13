@@ -33,6 +33,8 @@ jobs:
         working-directory: web-source
         run: |
           npm ci
+          # The unit and browser tests launch Chromium; a fresh runner has none.
+          npx playwright install --with-deps chromium
           npm run typecheck
           npm run lint
           npm run build
