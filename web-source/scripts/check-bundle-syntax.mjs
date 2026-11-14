@@ -166,7 +166,12 @@ const RUNTIME_API_CHECKS = [
   {
     name: "Promise.allSettled (Chrome 76)",
     pattern: /Promise\.allSettled\(/,
-    shimmed: false,
+    shimmed: true,
+    note: "preview/index.html defines the standard Promise.allSettled in a classic <head> script when it is missing (React 19.3 calls it unguarded).",
+    require: {
+      pattern: /Promise\.allSettled\s*=\s*function/,
+      failureMessage: "`Promise.allSettled` is used but the shim in preview/index.html is missing from the built bundle.",
+    },
   },
   {
     name: "Promise.any (Chrome 85)",
