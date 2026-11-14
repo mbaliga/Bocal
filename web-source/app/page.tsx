@@ -45,7 +45,8 @@ import { GuitarStudio } from "./GuitarStudio";
 import { HarmonicaChart } from "./HarmonicaChart";
 import { VocalStudio } from "./VocalStudio";
 import { CallAndResponse } from "./CallAndResponse";
-import { DownloadCenter, type RailSide, type Theme } from "./DownloadCenter";
+import { useModalFocus } from "./useModalFocus";
+import { DownloadCenter,type RailSide, type Theme } from "./DownloadCenter";
 import { TunerView } from "./TunerView";
 import { useTuner } from "./useTuner";
 import { usePersistedSetting } from "./usePersistedSetting";
@@ -777,8 +778,9 @@ export default function Home() {
 }
 
 function KeyboardHelp({ onClose }: { onClose: () => void }) {
+  const modalRef = useModalFocus<HTMLDivElement>();
   return (
-    <div className="download-overlay" role="presentation">
+    <div className="download-overlay" role="presentation" ref={modalRef}>
       <section className="download-dialog" role="dialog" aria-modal="true" aria-labelledby="keyboard-help-title">
         <header>
           <div><p className="eyebrow">Keyboard shortcuts</p><h2 id="keyboard-help-title">Get around without a pointer.</h2></div>

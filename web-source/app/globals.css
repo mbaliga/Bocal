@@ -710,7 +710,7 @@ button:focus-visible, [role="button"]:focus-visible, a:focus-visible, input:focu
 .lesson-card blockquote { border-left: 2px solid var(--violet); color: #aaa6bb; background: #17151f; margin: 0 0 10px; padding: 10px 12px; font-size: 9px; line-height: 1.5; }
 .lesson-card textarea { width: 100%; min-height: 110px; resize: vertical; border: 1px solid #303035; border-radius: 12px; background: #141416; color: var(--ink); padding: 12px; font: 14px/1.5 var(--font-geist-sans); }
 .lesson-card textarea:focus { border-color: var(--cyan); }
-.lesson-card textarea::placeholder { color: #555559; }
+.lesson-card textarea::placeholder { color: #8c8c92; }
 .save-note { width: 100%; height: 38px; border: 0; border-radius: 10px; color: #071a17; background: var(--cyan); display: flex; align-items: center; justify-content: center; gap: 7px; margin-top: 9px; font-size: 10px; font-weight: 700; cursor: pointer; }
 .save-note:disabled { background: #25252a; color: #5f5f63; cursor: default; }
 .setup-row { display: grid; grid-template-columns: 39px 1fr auto; gap: 10px; align-items: center; border-top: 1px solid #242428; padding: 13px 0; }
@@ -2656,6 +2656,10 @@ html[data-theme="light"] .practice-item.is-active { background: #e5f2ed; }
 html[data-theme="light"] .local-chip, html[data-theme="light"] .trend-chip { background: #e5f2ed; color: #00695c; }
 html[data-theme="light"] .coach-capabilities button { background: #fffdf9; border-color: #d9d2c8; color: #57524f; }
 html[data-theme="light"] .coach-capabilities button.is-active { background: #e5f2ed; color: #00695c; border-color: #92c4b9; }
+html[data-theme="light"] .coach-form-grid input, html[data-theme="light"] .coach-form-grid textarea { background: #fffdf9; border-color: #d9d2c8; color: #1d1b1b; }
+html[data-theme="light"] .coach-form-grid input::placeholder, html[data-theme="light"] .coach-form-grid textarea::placeholder { color: #6b6663; opacity: 1; }
+html[data-theme="light"] .song-wishlist-form input, html[data-theme="light"] .lesson-card textarea { background: #fffdf9; border-color: #d9d2c8; color: #1d1b1b; }
+html[data-theme="light"] .lesson-card textarea::placeholder { color: #6b6663; opacity: 1; }
 html[data-theme="light"] .selected-oboe-part { background: #f3efe8; border-color: #a8d0c7; }
 html[data-theme="light"] .selected-oboe-part.is-empty { background: #f6f1e9; border-color: #d8d0c5; }
 html[data-theme="light"] .selected-oboe-part p { color: #5e5a5a; }

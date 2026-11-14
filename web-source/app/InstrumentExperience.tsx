@@ -13,6 +13,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useModalFocus } from "./useModalFocus";
 import { INSTRUMENTS, type InstrumentId } from "./instruments";
 
 export const BOCAL_ONBOARDING_KEY = "bocal-onboarding-v2";
@@ -290,11 +291,12 @@ export function InstrumentPickerExperience({
 }) {
   const [focusedId, setFocusedId] = useState<string>(selectedId);
   useEscape(open, onClose);
+  const modalRef = useModalFocus<HTMLDivElement>(open);
   if (!open) return null;
   const focused = ALL_GALLERY_INSTRUMENTS.find((item) => item.id === focusedId) ?? ALL_GALLERY_INSTRUMENTS[0];
 
   return (
-    <div className="experience-overlay" role="presentation">
+    <div className="experience-overlay" role="presentation" ref={modalRef}>
       <section className="instrument-experience" role="dialog" aria-modal="true" aria-labelledby="instrument-experience-title">
         <header className="experience-header">
           <div><p className="eyebrow">Choose an instrument</p><h2 id="instrument-experience-title">What are you playing today?</h2><p>Every profile below changes Bocal&rsquo;s tuner, lessons and written-pitch display to match what you play.</p></div>
@@ -415,6 +417,7 @@ export function OnboardingGuide({
   const [focusedId, setFocusedId] = useState<string>(selectedId);
   const finish = () => { setStep(0); onComplete(); };
   useEscape(open, finish);
+  const modalRef = useModalFocus<HTMLDivElement>(open);
   if (!open) return null;
   const focusedInstrument = ALL_GALLERY_INSTRUMENTS.find((item) => item.id === focusedId) ?? ALL_GALLERY_INSTRUMENTS[0];
   const learnStep = LEARN_STEP_BY_TIER[INSTRUMENTS[selectedId].labTier];
@@ -428,7 +431,7 @@ export function OnboardingGuide({
   };
 
   return (
-    <div className="experience-overlay onboarding-overlay" role="presentation">
+    <div className="experience-overlay onboarding-overlay" role="presentation" ref={modalRef}>
       <section className="onboarding-guide" role="dialog" aria-modal="true" aria-labelledby="onboarding-title">
         <header className="onboarding-topline">
           <span className="onboarding-brand"><Wind size={18} /> bocal</span>

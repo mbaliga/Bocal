@@ -67,6 +67,25 @@ const textAudit=(page,scope)=>page.evaluate(({helpers,scope})=>{
     const px=parseFloat(cs.fontSize),large=px>=24||(px>=18.66&&Number(cs.fontWeight)>=700),threshold=large?3:4.5;
     if(ratio<threshold)out.push({ratio:+ratio.toFixed(2),threshold,px,text:text.slice(0,34),sel:H.sel(el),fg:H.hex(fgb),bg:H.hex(bg)});
   }
+  // Form fields paint their typed value and placeholder with their own colour on
+  // their own background, which the text-node walk above never sees.
+  const TEXTUAL=new Set(['text','search','email','url','tel','number','password','date','time','datetime-local','month','week','']);
+  for(const el of root.querySelectorAll('input,textarea,select')){
+    if(el.tagName==='INPUT'&&!TEXTUAL.has((el.getAttribute('type')||'text').toLowerCase()))continue;
+    if(!H.visible(el)||H.isExempt(el))continue;
+    const cs=getComputedStyle(el),bg=H.effBg(el),px=parseFloat(cs.fontSize),large=px>=24||(px>=18.66&&Number(cs.fontWeight)>=700),threshold=large?3:4.5;
+    const check=(kind,colour,label)=>{
+      const fg=H.parse(colour);if(!fg)return;
+      const fgb=H.blend({...fg,a:fg.a*H.opacityOf(el)},bg),ratio=H.ratioOf(fgb,bg);
+      if(ratio<threshold)out.push({ratio:+ratio.toFixed(2),threshold,px,text:kind+(label?': '+label:'').slice(0,34),sel:H.sel(el),fg:H.hex(fgb),bg:H.hex(bg)});
+    };
+    check('field value',cs.color,el.tagName.toLowerCase());
+    if(el.tagName!=='SELECT'&&el.getAttribute('placeholder')&&!el.value){
+      const ph=getComputedStyle(el,'::placeholder');
+      const phFg=H.parse(ph.color);
+      if(phFg)check('field placeholder',ph.color.replace(/rgba?\(([^)]+)\)/,(m,v)=>{const p=v.split(/[\s,\/]+/).filter(Boolean).map(Number);const o=Number(ph.opacity);return 'rgba('+p[0]+','+p[1]+','+p[2]+','+((p[3]??1)*(Number.isFinite(o)?o:1))+')';}),el.getAttribute('placeholder'));
+    }
+  }
   return out.sort((a,b)=>a.ratio-b.ratio);
 },{helpers:AUDIT_FN,scope});
 
@@ -192,6 +211,10 @@ async function walkStates(page,theme,instrument,results){
   const challenge=page.locator('.lab-mode-switch button').filter({hasText:'Challenge'});
   if(await challenge.isVisible()){await challenge.click();await record('lab/challenge','.fingering-panel');}
   await select(5);await record('practice');
+  // Coach mode board: its name/date/focus inputs are the fields the first audit missed.
+  const coach=page.locator('.coach-board');
+  await coach.scrollIntoViewIfNeeded();
+  await record('practice/coach-fields','.coach-board');
 }
 
 // Harmonica hole chart: the comb, its controls and the side panel, with the

@@ -1,4 +1,5 @@
 "use client";
+import { useModalFocus } from "./useModalFocus";
 import {
   ArrowRight,
   Download,
@@ -52,8 +53,9 @@ export function DownloadCenter({
     { instrument: "Clarinet", status: "Blocked by non-commercial licence", tone: "blocked", href: "https://sketchfab.com/3d-models/clarinet-model-with-annotations-c47ddcb26eeb4fbd804a45c82f77ba31" },
     { instrument: "Soprano saxophone", status: "No acceptable source yet · commission", tone: "blocked" },
   ];
+  const modalRef = useModalFocus<HTMLDivElement>();
   return (
-    <div className="download-overlay" role="presentation">
+    <div className="download-overlay" role="presentation" ref={modalRef}>
       <section className="download-dialog" role="dialog" aria-modal="true" aria-labelledby="download-title">
         <header>
           <div><p className="eyebrow">Settings & model library</p><h2 id="download-title">Make Bocal fit your setup.</h2><p>Choose which edge holds the landscape arc, review model readiness, or download the current handoff.</p></div>
