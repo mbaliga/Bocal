@@ -25,6 +25,23 @@
         else if (typeof self !== "undefined") self.globalThis = self;
       }
     </script>
+    <!--
+      React 19.3 calls Promise.allSettled (Chrome 76) unguarded. Chrome 69
+      lacks it, so provide the standard behaviour here, before the module
+      script, only when the browser does not already have it.
+    -->
+    <script>
+      if (typeof Promise !== "undefined" && typeof Promise.allSettled !== "function") {
+        Promise.allSettled = function (items) {
+          return Promise.all(Array.prototype.map.call(items, function (item) {
+            return Promise.resolve(item).then(
+              function (value) { return { status: "fulfilled", value: value }; },
+              function (reason) { return { status: "rejected", reason: reason }; }
+            );
+          }));
+        };
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
