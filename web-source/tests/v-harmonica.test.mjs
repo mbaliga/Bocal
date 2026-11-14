@@ -61,8 +61,9 @@ test("the harmonica gallery cards use the project's own instrument-only image", 
   assert.match(block[0], /availableId: "diatonic-harmonica"/);
   assert.match(block[0], /availableId: "chromatic-harmonica"/);
   assert.match(block[0], /not teacher-reviewed/);
-  // The picker and the onboarding deck both list the section, and the learn step has harmonica copy.
-  assert.equal((experience.match(/items=\{FREE_REED_GALLERY_INSTRUMENTS\}/g) ?? []).length, 2);
+  // The shared gallery component lists the section once and both the picker and the onboarding step render it.
+  assert.equal((experience.match(/items: FREE_REED_GALLERY_INSTRUMENTS/g) ?? []).length, 1);
+  assert.equal((experience.match(/<InstrumentGallerySections /g) ?? []).length, 2);
   assert.match(experience, /harmonica: \{\s*\n\s*title: "See which hole to play/);
 });
 

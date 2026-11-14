@@ -12,7 +12,7 @@ import {
   Wind,
   X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { INSTRUMENTS, type InstrumentId } from "./instruments";
 
 export const BOCAL_ONBOARDING_KEY = "bocal-onboarding-v2";
@@ -215,6 +215,37 @@ function InstrumentPanelDeck({
   );
 }
 
+const GALLERY_SECTIONS: { id: string; label: string; items: GalleryInstrument[]; ariaLabel: string }[] = [
+  { id: "woodwind", label: "Woodwinds", items: WOODWIND_GALLERY_INSTRUMENTS, ariaLabel: "Woodwind instruments" },
+  { id: "free-reed", label: "Free reed", items: FREE_REED_GALLERY_INSTRUMENTS, ariaLabel: "Free reed instruments" },
+  { id: "string", label: "Strings", items: STRING_GALLERY_INSTRUMENTS, ariaLabel: "String instruments" },
+  { id: "vocal", label: "Vocal", items: VOCAL_GALLERY_INSTRUMENTS, ariaLabel: "Vocal instruments" },
+];
+
+// Shared by the instrument picker and the first onboarding step so both lay
+// the four decks out identically, each under its own heading.
+function InstrumentGallerySections({ focusedId, selectedId, onFocus }: { focusedId: string; selectedId: InstrumentId; onFocus: (id: string) => void }) {
+  // Bring the current instrument's card into view inside its (horizontally
+  // scrolling) deck on first paint, without moving the page vertically.
+  const rootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    rootRef.current?.querySelectorAll<HTMLElement>(".instrument-panel.is-selected").forEach((card) => {
+      const deck = card.parentElement;
+      if (deck) deck.scrollLeft = Math.max(0, card.offsetLeft - 14);
+    });
+  }, []);
+  return (
+    <div ref={rootRef} className="instrument-gallery-sections">
+      {GALLERY_SECTIONS.map((section) => (
+        <section key={section.id} className="instrument-gallery-section" aria-labelledby={`${section.id}-instruments-title`}>
+          <div className="instrument-gallery-heading"><span id={`${section.id}-instruments-title`}>{section.label} ({section.items.filter((item) => item.availableId).length} ready)</span></div>
+          <InstrumentPanelDeck focusedId={focusedId} selectedId={selectedId} onFocus={onFocus} items={section.items} ariaLabel={section.ariaLabel} />
+        </section>
+      ))}
+    </div>
+  );
+}
+
 function OtherInstrumentCollection() {
   return (
     <section className="other-instruments" aria-labelledby="other-instruments-title">
@@ -269,22 +300,7 @@ export function InstrumentPickerExperience({
           <div><p className="eyebrow">Choose an instrument</p><h2 id="instrument-experience-title">What are you playing today?</h2><p>Every profile below changes Bocal&rsquo;s tuner, lessons and written-pitch display to match what you play.</p></div>
           <button onClick={onClose} aria-label="Close instrument selection"><X size={20} /></button>
         </header>
-        <section className="instrument-gallery-section" aria-labelledby="woodwind-instruments-title">
-          <div className="instrument-gallery-heading"><span id="woodwind-instruments-title">Woodwinds ({WOODWIND_GALLERY_INSTRUMENTS.filter((item) => item.availableId).length} ready)</span></div>
-          <InstrumentPanelDeck focusedId={focusedId} selectedId={selectedId} onFocus={setFocusedId} items={WOODWIND_GALLERY_INSTRUMENTS} ariaLabel="Woodwind instruments" />
-        </section>
-        <section className="instrument-gallery-section" aria-labelledby="free-reed-instruments-title">
-          <div className="instrument-gallery-heading"><span id="free-reed-instruments-title">Free reed ({FREE_REED_GALLERY_INSTRUMENTS.filter((item) => item.availableId).length} ready)</span></div>
-          <InstrumentPanelDeck focusedId={focusedId} selectedId={selectedId} onFocus={setFocusedId} items={FREE_REED_GALLERY_INSTRUMENTS} ariaLabel="Free reed instruments" />
-        </section>
-        <section className="instrument-gallery-section" aria-labelledby="string-instruments-title">
-          <div className="instrument-gallery-heading"><span id="string-instruments-title">Strings ({STRING_GALLERY_INSTRUMENTS.filter((item) => item.availableId).length} ready)</span></div>
-          <InstrumentPanelDeck focusedId={focusedId} selectedId={selectedId} onFocus={setFocusedId} items={STRING_GALLERY_INSTRUMENTS} ariaLabel="String instruments" />
-        </section>
-        <section className="instrument-gallery-section" aria-labelledby="vocal-instruments-title">
-          <div className="instrument-gallery-heading"><span id="vocal-instruments-title">Vocal ({VOCAL_GALLERY_INSTRUMENTS.filter((item) => item.availableId).length} ready)</span></div>
-          <InstrumentPanelDeck focusedId={focusedId} selectedId={selectedId} onFocus={setFocusedId} items={VOCAL_GALLERY_INSTRUMENTS} ariaLabel="Vocal instruments" />
-        </section>
+        <InstrumentGallerySections focusedId={focusedId} selectedId={selectedId} onFocus={setFocusedId} />
         <OtherInstrumentCollection />
         <footer className="experience-footer">
           <div><small>{focused.family}</small><strong>{focused.name} · {focused.pitch}</strong><span>{focused.status}</span></div>
@@ -426,12 +442,9 @@ export function OnboardingGuide({
         </div>
 
         {step === 0 && (
-          <>
-            <InstrumentPanelDeck focusedId={focusedId} selectedId={selectedId} onFocus={setFocusedId} items={WOODWIND_GALLERY_INSTRUMENTS} ariaLabel="Woodwind instruments" />
-            <InstrumentPanelDeck focusedId={focusedId} selectedId={selectedId} onFocus={setFocusedId} items={FREE_REED_GALLERY_INSTRUMENTS} ariaLabel="Free reed instruments" />
-            <InstrumentPanelDeck focusedId={focusedId} selectedId={selectedId} onFocus={setFocusedId} items={STRING_GALLERY_INSTRUMENTS} ariaLabel="String instruments" />
-            <InstrumentPanelDeck focusedId={focusedId} selectedId={selectedId} onFocus={setFocusedId} items={VOCAL_GALLERY_INSTRUMENTS} ariaLabel="Vocal instruments" />
-          </>
+          <div className="onboarding-gallery">
+            <InstrumentGallerySections focusedId={focusedId} selectedId={selectedId} onFocus={setFocusedId} />
+          </div>
         )}
         {step === 1 && (
           <div className="onboarding-scene tuner-onboarding-scene">
