@@ -435,3 +435,52 @@ test("phrase groups: bundled first, supplied next, then saved exercises, with un
   assert.ok(groups[2].phrases.every((phrase) => phrase.id.startsWith("exercise:")));
   assert.deepEqual(buildPhraseGroups([], [], "Melodies").map((group) => group.id), ["bundled"]);
 });
+
+// -- Vibrato is averaged ------------------------------------------------------------
+
+/** Each pitch held for 800 ms with sinusoidal vibrato (`depth` cents, 5.5 Hz) around `pitch + offset`. */
+function singWithVibrato(pitches, depth, offset = 0, hold = 800) {
+  const frames = [];
+  let t = 5000;
+  for (const p of pitches) {
+    const count = Math.round(hold / FRAME_MS);
+    for (let i = 0; i < count; i += 1) {
+      const wobble = depth * Math.sin(2 * Math.PI * 5.5 * (i * FRAME_MS) / 1000);
+      frames.push({ tMs: t, ...pitch(p + (offset + wobble) / 100) });
+      t += FRAME_MS;
+    }
+    for (let i = 0; i < Math.round(200 / FRAME_MS); i += 1) {
+      frames.push({ tMs: t, midi: null, cents: null });
+      t += FRAME_MS;
+    }
+  }
+  return frames;
+}
+
+test("centred vibrato is scored on its centre, not its swings", () => {
+  const passes = (depth, level) => scoreAttempt(PHRASE, singWithVibrato(NOTES, depth), level).passed;
+  assert.equal(passes(20, "standard"), true);
+  assert.equal(passes(20, "lenient"), true);
+  assert.equal(passes(30, "lenient"), true);
+  assert.equal(passes(15, "strict"), true);
+});
+
+test("a steady note 20 cents sharp still fails Standard, and a vibrato around it does too", () => {
+  assert.equal(scoreAttempt(PHRASE, singWithVibrato(NOTES, 0, 20), "standard").passed, false);
+  assert.equal(scoreAttempt(PHRASE, singWithVibrato(NOTES, 20, 20), "standard").passed, false);
+  assert.equal(scoreAttempt(PHRASE, singWithVibrato(NOTES, 0, 20), "lenient").passed, true);
+});
+
+test("a semitone off fails everywhere, with or without vibrato", () => {
+  const wrong = NOTES.map((n) => n + 1);
+  for (const level of ["lenient", "standard", "strict"]) {
+    assert.equal(scoreAttempt(PHRASE, singWithVibrato(wrong, 0), level).passed, false);
+    assert.equal(scoreAttempt(PHRASE, singWithVibrato(wrong, 25), level).passed, false);
+  }
+});
+
+test("vibrato does not hide an octave error", () => {
+  const result = scoreAttempt(PHRASE, singWithVibrato(NOTES.map((n) => n + 12), 20), "lenient");
+  assert.equal(result.passed, false);
+  assert.ok(result.notes.every((note) => note.verdict === "octave"));
+});

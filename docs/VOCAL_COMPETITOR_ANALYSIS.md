@@ -35,7 +35,7 @@ Also shipped: saved vocal takes, recorded on the Vocal stage and kept on the dev
 - Vocal takes share the 12-take library with Analyze and are never removed automatically, so a full library has to be cleared by hand. Takes cannot be imported into the Vocal stage, only recorded there.
 - The melody feedback is pitch only. There is no timing mark, no score-following and no technique assessment, and the figures are not a mark. The siren is two long notes with the slide left to the singer. There is no song catalog and no licensed melody, and the six melodies are short exercises, not repertoire.
 - Melody figures have only been checked against synthetic readings. A microphone reading arrives a little after the sound, so the first moments of each note are partly the singer finding the pitch; that delay has not been measured on real phones.
-- The vocal tracker band starts at 80 Hz (about E2), above the graph's C2 floor, so the lowest voices may read as silence below that. Widening it needs a physical-device check.
+- The vocal tracker band now starts at 60 Hz, below the graph's C2 floor, so C2 to E2 are detected (synthetic tones only; a physical-device check is still wanted). A voice with almost no energy at its fundamental can still read an octave high.
 - Microphone behaviour across actual singing voices, phones and room conditions still needs physical-device validation before the Vocal profile is represented as fully production-validated. The graph, range finder and warm-up feedback have only been exercised with a synthetic tone source.
 
 ## Sources

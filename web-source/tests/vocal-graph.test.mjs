@@ -277,3 +277,9 @@ test("the vocal channel holds two minutes of frames and tells every listener, ev
   channel.source.clear();
   assert.equal(channel.source.buffer.length, 0);
 });
+
+test("the graph's default axis floor is not below the vocal tracker floor", async () => {
+  const { INSTRUMENTS } = await import("../app/instruments.ts");
+  const floorHz = 440 * 2 ** ((DEFAULT_MIDI_LOW - 69) / 12);
+  assert.ok(floorHz >= INSTRUMENTS.vocal.range.minHz, `${floorHz} Hz vs ${INSTRUMENTS.vocal.range.minHz} Hz`);
+});

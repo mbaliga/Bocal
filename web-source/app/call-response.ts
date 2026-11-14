@@ -327,14 +327,47 @@ export type ScoreResult = {
 
 type Candidate = { deviation: number; inBandMs: number };
 
-/** How far (cents) a heard note sits from `expectedMidi`, and how long its frames stayed inside the band. */
-function measure(frames: PitchHistorySample[], note: AttemptNote, expectedMidi: number, band: number, frameMs: number): Candidate {
-  let inBand = 0;
+/** About one vibrato cycle (5 to 6 Hz), so averaging over it recovers the pitch centre. */
+const CENTRE_WINDOW_MS = 200;
+
+/**
+ * The pitch centre of each frame in a note: the mean of the voiced readings in
+ * a window of about 200 ms, shifted to stay inside the note. Vibrato centred
+ * on the pitch averages out; a steady note keeps its own offset.
+ */
+function centrePitches(frames: PitchHistorySample[], note: AttemptNote, frameMs: number): { index: number; pitch: number }[] {
+  const length = note.endIndex - note.startIndex + 1;
+  const width = Math.max(1, Math.min(length, Math.round(CENTRE_WINDOW_MS / Math.max(1, frameMs))));
+  const out: { index: number; pitch: number }[] = [];
   for (let index = note.startIndex; index <= note.endIndex; index += 1) {
-    const pitch = framePitch(frames[index]);
-    if (pitch !== null && Math.abs((pitch - expectedMidi) * 100) <= band) inBand += 1;
+    const from = Math.min(Math.max(index - Math.floor(width / 2), note.startIndex), note.endIndex - width + 1);
+    let sum = 0;
+    let count = 0;
+    for (let at = from; at < from + width; at += 1) {
+      const pitch = framePitch(frames[at]);
+      if (pitch !== null) {
+        sum += pitch;
+        count += 1;
+      }
+    }
+    if (count && framePitch(frames[index]) !== null) out.push({ index, pitch: sum / count });
   }
-  return { deviation: (note.pitch - expectedMidi) * 100, inBandMs: inBand * frameMs };
+  return out;
+}
+
+/**
+ * How far (cents) a heard note's pitch centre sits from `expectedMidi`, and how
+ * long its frames stayed inside the band. Each frame is judged by its vibrato
+ * centre (a moving mean over about one vibrato cycle), not its raw reading.
+ */
+function measure(frames: PitchHistorySample[], note: AttemptNote, expectedMidi: number, band: number, frameMs: number): Candidate {
+  const centres = centrePitches(frames, note, frameMs);
+  let inBand = 0;
+  for (const centre of centres) {
+    if (Math.abs((centre.pitch - expectedMidi) * 100) <= band) inBand += 1;
+  }
+  const deviation = centres.length ? (median(centres.map((c) => c.pitch)) - expectedMidi) * 100 : (note.pitch - expectedMidi) * 100;
+  return { deviation, inBandMs: inBand * frameMs };
 }
 
 /**
@@ -342,7 +375,9 @@ function measure(frames: PitchHistorySample[], note: AttemptNote, expectedMidi: 
  * listening window, in concert pitch (`midi` + `cents` on each sample). The
  * phrase's notes are matched in order, greedily, to the steady notes found in
  * the frames:
- *   - a note is matched when the heard note's median pitch is inside the band
+ *   - each reading is replaced by its vibrato centre (the mean over about
+ *     200 ms), so centred vibrato does not count against the player;
+ *   - a note is matched when the heard note's median centre is inside the band
  *     of the expected pitch and it stayed inside the band for at least 60% of
  *     the written length;
  *   - an expected note with no such heard note is a miss, and later notes

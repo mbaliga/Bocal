@@ -80,5 +80,5 @@ test("lab tier reflects which asset each instrument actually ships", () => {
   assert.equal(INSTRUMENTS.guitar.labTier, "none");
   assert.equal(INSTRUMENTS.vocal.labTier, "vocal");
   assert.equal(INSTRUMENTS.vocal.embouchure, "voice");
-  assert.deepEqual(INSTRUMENTS.vocal.range, { minHz: 80, maxHz: 1400 });
+  assert.deepEqual(INSTRUMENTS.vocal.range, { minHz: 60, maxHz: 1400 });
 });
