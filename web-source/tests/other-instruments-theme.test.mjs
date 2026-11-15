@@ -8,7 +8,8 @@ test("the wider instrument gallery is rich discovery, not an unsafe instrument s
 
   assert.ok(otherCollection, "other instrument collection is declared");
   assert.match(experience, /Woodwinds/);
-  assert.match(experience, /Vocal \(.*ready\)/);
+  assert.match(experience, /label: "Vocal"/);
+  assert.match(experience, /\} ready\)/);
   assert.match(experience, /Other Instruments/);
   assert.doesNotMatch(otherCollection[0], /availableId/);
   for (const family of ["Bowed strings", "Fretted & plucked", "Brass", "Keyboards", "Percussion", "Electronic & MIDI"]) {

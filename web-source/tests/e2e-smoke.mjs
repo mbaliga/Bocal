@@ -129,6 +129,66 @@ try {
       await page.screenshot({ path: path.join(evidence, `${label}-failure.png`) }).catch(() => undefined);
     } finally { await context.close(); }
   }
+  // First onboarding step on a tall phone: every deck is laid out inside the
+  // viewport width and the current instrument is visibly selected.
+  {
+    const context = await browser.newContext({ viewport: { width: 412, height: 915 } });
+    try {
+      const page = await context.newPage();
+      page.setDefaultTimeout(10000);
+      await page.goto(preview.url);
+      await page.getByRole("dialog", { name: "Pick the instrument you’re playing." }).waitFor();
+      await page.waitForTimeout(300);
+      const layout = await page.evaluate(() => {
+        const decks = [...document.querySelectorAll(".onboarding-guide .instrument-panel-deck")].map((deck) => {
+          const r = deck.getBoundingClientRect();
+          const selected = deck.querySelector(".instrument-panel.is-selected");
+          const sr = selected?.getBoundingClientRect();
+          return { label: deck.getAttribute("aria-label"), left: r.left, right: r.right, height: r.height, cards: deck.querySelectorAll(".instrument-panel").length, selected: sr ? { left: sr.left, right: sr.right, width: sr.width } : null };
+        });
+        return { decks, overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth };
+      });
+      assert.equal(layout.decks.length, 4, "onboarding step 1 shows the woodwind, free reed, string and vocal decks");
+      for (const deck of layout.decks) {
+        assert.ok(deck.cards > 0 && deck.height >= 200, `${deck.label}: deck has real height (${deck.height})`);
+        assert.ok(deck.left >= -1 && deck.right <= 413, `${deck.label}: deck is inside the 412 px viewport`);
+      }
+      const selectedDecks = layout.decks.filter((deck) => deck.selected);
+      assert.equal(selectedDecks.length, 1, "exactly one instrument card is marked as selected");
+      const sel = selectedDecks[0].selected;
+      assert.ok(sel.width > 100 && sel.left >= -1 && sel.right <= 413, "the selected card is fully inside the viewport width");
+      assert.ok(layout.overflow <= 1, "onboarding step 1 has no horizontal page overflow");
+      results.push({ label: "onboarding-step-one-412", passed: true });
+    } catch (error) { errors.push(`onboarding step one layout: ${error.message}`); }
+    finally { await context.close(); }
+  }
+
+  // Tune on phones: the start control is inside the first screen, above the dock.
+  for (const size of [{ width: 412, height: 915 }, { width: 360, height: 740 }]) {
+    const context = await browser.newContext({ viewport: size });
+    try {
+      const page = await context.newPage();
+      page.setDefaultTimeout(10000);
+      await page.addInitScript(() => {
+        localStorage.setItem("bocal-onboarding-v2", "complete");
+        localStorage.setItem("bocal-instrument", "alto-sax");
+      });
+      await page.goto(preview.url);
+      await page.locator(".app-shell").waitFor();
+      await page.waitForTimeout(300);
+      const start = page.locator(".tuner-card .listen-button-top");
+      assert.equal(await start.isVisible(), true, `${size.width}x${size.height}: the start control is visible on Tune`);
+      const box = await start.boundingBox();
+      const dock = await page.locator(".mobile-nav").boundingBox();
+      assert.ok(box && box.x >= 0 && box.x + box.width <= size.width, `${size.width}x${size.height}: start control is inside the viewport width`);
+      assert.ok(box.y >= 0 && box.y + box.height <= size.height, `${size.width}x${size.height}: start control is inside the first viewport`);
+      assert.ok(box.height >= 44, `${size.width}x${size.height}: start control keeps a 44 px target (${box.height})`);
+      assert.ok(dock && box.y + box.height <= dock.y, `${size.width}x${size.height}: start control is above the dock`);
+      results.push({ label: `tune-start-reachable-${size.width}x${size.height}`, passed: true });
+    } catch (error) { errors.push(`tune start ${size.width}x${size.height}: ${error.message}`); }
+    finally { await context.close(); }
+  }
+
   // Exercise a genuinely fresh installation using the guide's real controls.
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   try {

@@ -65,7 +65,7 @@ test("per-instrument frequency ranges let low winds and high flute notes lock (t
     { label: "bari sax low B♭ (concert D♭2)", hz: 69.3, minHz: 60, maxHz: 1400 },
     { label: "tenor sax low B♭ (concert A♭2)", hz: 103.83, minHz: 95, maxHz: 1600 },
     { label: "bassoon D2", hz: 73.42, minHz: 55, maxHz: 1000 },
-    { label: "guitar low E2", hz: 82.41, minHz: 75, maxHz: 1400 },
+    { label: "guitar low E2", hz: 82.41, minHz: 65, maxHz: 1400 },
     { label: "flute A6", hz: 1760, minHz: 240, maxHz: 2600 },
     { label: "flute C7", hz: 2093, minHz: 240, maxHz: 2600 },
   ];
@@ -79,6 +79,37 @@ test("per-instrument frequency ranges let low winds and high flute notes lock (t
       `${label}: got ${candidate?.hz} Hz, expected close to ${hz} Hz`,
     );
   }
+});
+
+function harmonicFrame(hz, rate, length, partials = [1, 0.5, 0.33, 0.2, 0.12]) {
+  return Float32Array.from({ length }, (_, index) => {
+    const t = index / rate;
+    let sum = 0;
+    partials.forEach((gain, at) => { sum += gain * Math.sin(2 * Math.PI * hz * (at + 1) * t); });
+    return 0.1 * sum;
+  });
+}
+
+test("the vocal profile hears C2, D2, Eb2 and E2 within 5 cents at 44.1 and 48 kHz", async () => {
+  const { INSTRUMENTS } = await import("../app/instruments.ts");
+  const { minHz, maxHz } = INSTRUMENTS.vocal.range;
+  const fftSize = minHz < 100 ? 8192 : 4096;
+  for (const rate of [44_100, 48_000]) {
+    for (const [label, hz] of [["C2", 65.406], ["D2", 73.416], ["Eb2", 77.782], ["E2", 82.407]]) {
+      const candidate = pitch.detectPitchYin(harmonicFrame(hz, rate, fftSize), rate, minHz, maxHz, 0.13);
+      assert.ok(candidate, `${label} at ${rate}: expected a candidate`);
+      assert.ok(Math.abs(centsBetween(candidate.hz, hz)) < 5, `${label} at ${rate}: got ${candidate.hz} Hz`);
+      assert.ok(candidate.confidence > 0.88, `${label} at ${rate}: confidence ${candidate.confidence}`);
+    }
+  }
+});
+
+test("guitar Drop D's low D2 is heard with the guitar profile", async () => {
+  const { INSTRUMENTS } = await import("../app/instruments.ts");
+  const { minHz, maxHz } = INSTRUMENTS.guitar.range;
+  const candidate = pitch.detectPitchYin(harmonicFrame(73.416, 48_000, 8192), 48_000, minHz, maxHz, 0.13);
+  assert.ok(candidate);
+  assert.ok(Math.abs(centsBetween(candidate.hz, 73.416)) < 5, `got ${candidate.hz} Hz`);
 });
 
 test("the default 120-1600 Hz window still rejects a bassoon's bottom octave (regression guard for the range fix)", () => {

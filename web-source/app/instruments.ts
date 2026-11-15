@@ -310,7 +310,7 @@ export const INSTRUMENTS: Record<InstrumentId, InstrumentProfile> = {
     tunerDescription: "Tune each open string, then move straight into a colour-coded chord and listening drill.",
     labTier: "none",
     labStatus: "String tuner + chord player",
-    range: { minHz: 75, maxHz: 1400 },
+    range: { minHz: 65, maxHz: 1400 },
     embouchure: "string",
   },
   vocal: {
@@ -324,7 +324,7 @@ export const INSTRUMENTS: Record<InstrumentId, InstrumentProfile> = {
     tunerDescription: "Sing a steady vowel; Bocal shows your voice in concert pitch.",
     labTier: "vocal",
     labStatus: "Vocal tuner + practice prompts",
-    range: { minHz: 80, maxHz: 1400 },
+    range: { minHz: 60, maxHz: 1400 },
     embouchure: "voice",
   },
 };

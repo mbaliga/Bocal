@@ -209,6 +209,11 @@ button:focus-visible, [role="button"]:focus-visible, a:focus-visible, input:focu
 .tracker-diagnostics > div:first-child > i { position: relative; flex: 1; min-width: 54px; height: 4px; border-radius: 100px; background: #28282d; overflow: hidden; }
 .tracker-diagnostics > div:first-child > i b { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--violet), var(--cyan)); transition: width 120ms linear; }
 .listen-button { align-self: center; position: relative; z-index: 2; margin-top: 30px; height: 49px; min-width: 190px; padding: 0 21px; border: 0; border-radius: 14px; color: #071a17; background: var(--cyan); display: inline-flex; align-items: center; justify-content: center; gap: 9px; font-weight: 680; cursor: pointer; box-shadow: 0 10px 36px rgba(8,254,213,.12); }
+/* Small screens: the main Start button sits far below the meter, so a second one stays in the first screen. */
+.listen-button-top { display: none; }
+@media (max-width: 680px), (max-height: 520px) {
+  .listen-button-top { display: inline-flex; width: 100%; margin: 12px 0 0; min-height: 44px; }
+}
 .listen-button.is-live { color: var(--ink); background: #25252a; border: 1px solid #44444a; box-shadow: none; }
 .local-note, .error-copy { display: flex; align-items: center; gap: 6px; align-self: center; margin: 10px 0 0; color: #606063; font-size: 9px; position: relative; z-index: 2; }
 .error-copy { color: #e69f00; font-size: 10px; }
@@ -705,7 +710,7 @@ button:focus-visible, [role="button"]:focus-visible, a:focus-visible, input:focu
 .lesson-card blockquote { border-left: 2px solid var(--violet); color: #aaa6bb; background: #17151f; margin: 0 0 10px; padding: 10px 12px; font-size: 9px; line-height: 1.5; }
 .lesson-card textarea { width: 100%; min-height: 110px; resize: vertical; border: 1px solid #303035; border-radius: 12px; background: #141416; color: var(--ink); padding: 12px; font: 14px/1.5 var(--font-geist-sans); }
 .lesson-card textarea:focus { border-color: var(--cyan); }
-.lesson-card textarea::placeholder { color: #555559; }
+.lesson-card textarea::placeholder { color: #8c8c92; }
 .save-note { width: 100%; height: 38px; border: 0; border-radius: 10px; color: #071a17; background: var(--cyan); display: flex; align-items: center; justify-content: center; gap: 7px; margin-top: 9px; font-size: 10px; font-weight: 700; cursor: pointer; }
 .save-note:disabled { background: #25252a; color: #5f5f63; cursor: default; }
 .setup-row { display: grid; grid-template-columns: 39px 1fr auto; gap: 10px; align-items: center; border-top: 1px solid #242428; padding: 13px 0; }
@@ -834,8 +839,10 @@ button:focus-visible, [role="button"]:focus-visible, a:focus-visible, input:focu
 .onboarding-topline > button { justify-self: end; border: 0; background: transparent; color: #747478; font-size: 9px; cursor: pointer; }
 .onboarding-heading { padding-top: clamp(26px, 4vh, 50px); }
 .onboarding-heading h2 { max-width: 960px; }
-.onboarding-guide > .instrument-panel-deck { min-height: 0; height: 100%; margin: 20px 0; }
-.onboarding-guide .instrument-panel { min-height: 290px; }
+.onboarding-gallery { min-height: 0; margin: 8px 0 12px; overflow-y: auto; overflow-x: hidden; }
+.onboarding-gallery .instrument-gallery-section:first-child { margin-top: 0; }
+.onboarding-gallery .instrument-panel-deck { min-height: 0; margin: 10px 0 0; }
+.onboarding-gallery .instrument-panel { min-height: 290px; }
 .onboarding-actions { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 12px; }
 .onboarding-back { min-height: 42px; padding: 0 13px; border: 1px solid #333339; border-radius: 11px; background: #151517; color: #8a8a8e; display: inline-flex; align-items: center; gap: 7px; font-size: 9px; cursor: pointer; }
 .onboarding-back:disabled { opacity: 0; pointer-events: none; }
@@ -1137,8 +1144,8 @@ button:focus-visible, [role="button"]:focus-visible, a:focus-visible, input:focu
   .onboarding-progress i { flex: 1; }
   .onboarding-heading { padding-top: 23px; }
   .onboarding-heading h2 { font-size: 37px; }
-  .onboarding-guide > .instrument-panel-deck { margin-inline: -14px; height: auto; min-height: 0; padding-inline: 14px; }
-  .onboarding-guide .instrument-panel { min-height: 270px; }
+  .onboarding-gallery { margin-inline: -14px; padding-inline: 14px; }
+  .onboarding-gallery .instrument-panel-deck { margin: 12px -14px 0; padding: 0 14px; }
   .onboarding-scene { margin: 16px 0; grid-template-columns: 1fr; overflow-y: auto; }
   .onboarding-copy { padding: 22px; }
   .onboarding-copy h3 { font-size: 34px; }
@@ -2649,6 +2656,10 @@ html[data-theme="light"] .practice-item.is-active { background: #e5f2ed; }
 html[data-theme="light"] .local-chip, html[data-theme="light"] .trend-chip { background: #e5f2ed; color: #00695c; }
 html[data-theme="light"] .coach-capabilities button { background: #fffdf9; border-color: #d9d2c8; color: #57524f; }
 html[data-theme="light"] .coach-capabilities button.is-active { background: #e5f2ed; color: #00695c; border-color: #92c4b9; }
+html[data-theme="light"] .coach-form-grid input, html[data-theme="light"] .coach-form-grid textarea { background: #fffdf9; border-color: #d9d2c8; color: #1d1b1b; }
+html[data-theme="light"] .coach-form-grid input::placeholder, html[data-theme="light"] .coach-form-grid textarea::placeholder { color: #6b6663; opacity: 1; }
+html[data-theme="light"] .song-wishlist-form input, html[data-theme="light"] .lesson-card textarea { background: #fffdf9; border-color: #d9d2c8; color: #1d1b1b; }
+html[data-theme="light"] .lesson-card textarea::placeholder { color: #6b6663; opacity: 1; }
 html[data-theme="light"] .selected-oboe-part { background: #f3efe8; border-color: #a8d0c7; }
 html[data-theme="light"] .selected-oboe-part.is-empty { background: #f6f1e9; border-color: #d8d0c5; }
 html[data-theme="light"] .selected-oboe-part p { color: #5e5a5a; }

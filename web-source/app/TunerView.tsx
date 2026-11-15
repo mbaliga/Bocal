@@ -729,6 +729,12 @@ export const TunerView = memo(function TunerView({
             <div className="tuner-top-actions"><label className="precision-picker"><span>Precision</span><select value={precision} onChange={(event) => onPrecisionChange(event.target.value as "standard" | "fine" | "ultra")} aria-label="Tuner precision"><option value="standard">Standard ±10¢</option><option value="fine">Fine ±5¢</option><option value="ultra">Ultra ±2¢</option></select></label><button className="small-action" onClick={onReference}><Volume2 size={16} /> Hear reference A</button><button className="small-action" aria-keyshortcuts="?" onClick={onOpenKeyboardHelp}>Keyboard</button></div>
           </div>
 
+          {!listening && (
+            <button type="button" className="listen-button listen-button-top" onClick={onListen}>
+              <Mic size={20} /> Start tuner
+            </button>
+          )}
+
           <div className="note-readout">
             <button
               type="button"
