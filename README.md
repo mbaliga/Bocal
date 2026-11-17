@@ -131,3 +131,8 @@ file is preserved. `docs/Import_Bundle_Manifest.md` and
 
 Personal saxophone reference photographs and two user-supplied motion-reference
 videos were excluded upstream as source inputs rather than publishable artifacts.
+
+## Licence
+
+Licensed under the [Apache License 2.0](LICENSE) (SPDX: `Apache-2.0`). Copyright 2026 Madhav Baliga.
+Generated 3D model assets under `models/` are CC BY 4.0; see `models/LICENSE-ASSETS.md`.
