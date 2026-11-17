@@ -6,6 +6,8 @@ by hand from `web-source/app/instruments.ts` and the fingering/sax-lab/oboe-lab
 source fixtures as of 18 September 2026; re-check it whenever `INSTRUMENT_ORDER`
 or a `labTier` changes.
 
+Host-bridge conformance (2026-11-11, BROWSER-HEADLESS, Chromium via system Chrome): `packaging/host-bridge/conformance/run.mjs` passes 6 of 6 cases against the real standalone bundle with a mock `window.bocalHost`. This is the harness only; no non-Android host exists and no real WebView has been exercised.
+
 ## Instrument × capability
 
 | Instrument | `labTier` | Tuner | Written↔concert offset | Lab | Known chart/model issues |
@@ -82,6 +84,10 @@ On touch screens (`pointer: coarse` or `hover: none`, which covers the Android W
 | Practice data | Local `localStorage`, deterministic skill-rating from recorded evidence (no synthetic/demo numbers) |
 | Android shell | WebView wrapper over this web build; two third-party glTF models ship (alto sax, oboe); no signed release build exists |
 | Tests | Source tests cover product truth, chart invariants, model scale, and local persistence; `test:e2e` and `test:theme` are explicit browser gates |
+
+## Platform targets
+
+Android is the only shell today. Ubuntu Touch, Linux, iOS/iPadOS, macOS and Windows hosts are planned, not built: see `docs/PORTING_PLAN.md` (PLAN, 2026-10-06; nothing in it is built or device-verified).
 
 ## Where the fuller detail lives
 

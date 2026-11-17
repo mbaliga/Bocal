@@ -1,0 +1,54 @@
+name: iOS / iPadOS (unsigned)
+# UNSIGNED, not for release. Builds the Capacitor scaffold for the iOS Simulator with signing off.
+# No .ipa, no archive, no artifact upload (storage is exhausted), no signing secrets, no TestFlight.
+# Runs only while the repository is public: hosted macOS minutes are free then (OQ-20) and a private
+# repository would bill them at a multiple.
+on:
+  push:
+    branches: [main]
+    paths: ["apple/**", "web-source/**", ".github/workflows/ios.yml"]
+  pull_request:
+    paths: ["apple/**", "web-source/**", ".github/workflows/ios.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  simulator-build:
+    if: github.event.repository.private == false
+    runs-on: macos-latest
+    timeout-minutes: 40
+    steps:
+      - run: echo "UNSIGNED - not for release. Simulator build only."
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.0"
+      - name: Build the standalone bundle
+        working-directory: web-source
+        run: |
+          npm ci
+          npm run preview:standalone
+      - name: Stage the bundle and sync Capacitor
+        working-directory: apple/capacitor
+        run: |
+          npm ci
+          bash scripts/stage_bundle.sh
+          npx cap sync ios
+      - name: Lint the scaffold
+        working-directory: apple/capacitor
+        run: |
+          python3 -I lint.py
+          python3 -I -m unittest discover -s . -p 'test_*.py'
+      - name: Build for the iOS Simulator without signing
+        working-directory: apple/capacitor/ios/App
+        run: |
+          xcodebuild build \
+            -project App.xcodeproj \
+            -scheme App \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""

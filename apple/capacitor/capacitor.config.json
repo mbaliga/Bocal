@@ -1,0 +1,9 @@
+{
+  "appId": "com.asoc.bocal",
+  "appName": "Bocal",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "never",
+    "limitsNavigationsToAppBoundDomains": false
+  }
+}

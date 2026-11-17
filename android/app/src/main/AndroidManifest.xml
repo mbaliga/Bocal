@@ -13,11 +13,22 @@
         android:usesCleartextTraffic="false">
         <!-- Compose and CSS resize the existing WebView. Recreating the Activity
              here discards live JS state, an in-progress recording and Save As.
+             The list covers display moves (density), font and locale changes
+             and a mouse or keyboard attaching (navigation) as well as resizing.
              Process death is different: durable data restores on a cold launch. -->
         <activity
             android:name=".MainActivity"
-            android:configChanges="screenLayout|orientation|screenSize|keyboard|keyboardHidden|smallestScreenSize|uiMode"
-            android:exported="true">
+            android:configChanges="screenLayout|orientation|screenSize|smallestScreenSize|density|fontScale|layoutDirection|locale|colorMode|navigation|keyboard|keyboardHidden|uiMode"
+            android:exported="true"
+            android:resizeableActivity="true">
+            <!-- Windowed freeform and desktop mode only; phones ignore it. A window at
+                 the minimum height falls inside the landscape compact layouts in
+                 the CSS (max-height 520px and 560px); not checked on a device. -->
+            <layout
+                android:defaultWidth="900dp"
+                android:defaultHeight="700dp"
+                android:minWidth="360dp"
+                android:minHeight="320dp" />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

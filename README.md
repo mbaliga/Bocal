@@ -28,6 +28,8 @@ as part of the live product.
 | `qa/` | Verification record: what was checked, and what explicitly was not. |
 | `screenshots/` | Prototype screenshots. |
 
+Hosts for Ubuntu Touch, Linux, iOS/iPadOS, macOS and Windows are planned only; none exists yet. See [docs/PORTING_PLAN.md](docs/PORTING_PLAN.md).
+
 ## Getting started
 
 The current web app is the fastest way to see Bocal running:
