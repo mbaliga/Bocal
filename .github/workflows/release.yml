@@ -115,6 +115,22 @@ jobs:
           BOCAL_UPLOAD_KEY_PASSWORD: ${{ secrets.BOCAL_UPLOAD_KEY_PASSWORD }}
         run: ./gradlew bundleRelease --console=plain
 
+      - name: List key aliases in the upload keystore (only if signing failed)
+        # Alias names are not secret. When BOCAL_UPLOAD_KEY_ALIAS does not match
+        # the keystore, this prints the aliases that do exist so the secret can
+        # be corrected. It never prints a password or key material.
+        if: failure()
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.BOCAL_UPLOAD_KEYSTORE_PASSWORD }}
+        run: |
+          store=android/app/build/release-upload-keystore.jks
+          if [[ -f "$store" ]]; then
+            echo "Aliases present in the upload keystore (compare with the BOCAL_UPLOAD_KEY_ALIAS secret):"
+            keytool -list -keystore "$store" -storepass:env KEYSTORE_PASSWORD 2>&1 | grep -E "^[^,]+, .*(PrivateKeyEntry|trustedCertEntry)" | cut -d, -f1 || echo "Could not read the keystore with the stored password."
+          else
+            echo "The keystore was not decoded, so there are no aliases to list."
+          fi
+
       - name: Verify signed release AAB
         working-directory: android
         run: ./verify-aab.sh app/build/outputs/bundle/release/app-release.aab
