@@ -33,7 +33,17 @@ fi
 
 verification="$(mktemp)"
 trap 'rm -f "$verification"' EXIT
-if ! jarsigner -verify -strict -verbose -certs "$aab" >"$verification" 2>&1; then
+# No -strict: a Play upload key is self-signed, and -strict turns the resulting
+# "invalid certificate chain" warning into a failure. Plain -verify still fails
+# on an unsigned or modified bundle, and the checks below still require the
+# "jar verified" result and reject a debug certificate.
+if ! jarsigner -verify -verbose -certs "$aab" >"$verification" 2>&1; then
+  cat "$verification" >&2
+  exit 1
+fi
+
+if ! grep -q "^jar verified" "$verification"; then
+  echo "AAB is not signed or could not be verified" >&2
   cat "$verification" >&2
   exit 1
 fi
